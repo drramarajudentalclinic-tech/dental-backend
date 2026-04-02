@@ -34,9 +34,12 @@ app = Flask(__name__)
 app.config.from_object(Config)
 
 # ---------------------------
+import os  # ✅ ADD THIS
+
+# ---------------------------
 # JWT CONFIGURATION
 # ---------------------------
-app.config['JWT_SECRET_KEY'] = 'super-secret-key'  # 🔐 Change in production
+app.config['JWT_SECRET_KEY'] = os.getenv("JWT_SECRET_KEY", "fallback-secret")
 jwt = JWTManager(app)
 
 # ---------------------------
