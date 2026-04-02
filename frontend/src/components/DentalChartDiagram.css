@@ -1,0 +1,195 @@
+.chart-wrapper {
+  margin-top: 20px;
+  text-align: center;
+}
+
+/* =====================
+   ARCH LAYOUT
+===================== */
+.arch {
+  display: flex;
+  justify-content: center;
+  margin: 12px 0;
+}
+
+/* =====================
+   TOOTH STYLE
+===================== */
+.tooth {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #555;
+  border-radius: 50%;
+  margin: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  background: #fff;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tooth:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 6px rgba(0,0,0,0.3);
+}
+
+.tooth.disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* =====================
+   POPUP
+===================== */
+.popup {
+  position: fixed;
+  top: 30%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: white;
+  padding: 18px;
+  border: 1px solid #333;
+  z-index: 999;
+  width: 260px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+  border-radius: 6px;
+}
+
+.popup h4 {
+  margin-bottom: 10px;
+}
+
+.popup select,
+.popup input,
+.popup textarea {
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 6px;
+  font-size: 13px;
+}
+
+.popup textarea {
+  resize: vertical;
+}
+
+.popup button {
+  margin: 4px 4px 0 0;
+  padding: 6px 10px;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  border-radius: 4px;
+  background: #1976d2;
+}
+
+.popup button:hover {
+  opacity: 0.9;
+}
+
+.popup .delete {
+  background: darkred;
+}
+
+/* =====================
+   LEGEND
+===================== */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.legend-color {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid #999;
+}
+/* =====================
+   SURFACE OVERLAY
+===================== */
+
+.tooth {
+  position: relative;   /* REQUIRED for overlays */
+}
+
+/* Generic surface block */
+.surface {
+  position: absolute;
+  font-size: 9px;
+  font-weight: bold;
+  color: #222;
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* Active surface (selected) */
+.surface.active {
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  opacity: 1;
+  border-radius: 3px;
+  padding: 1px 3px;
+}
+
+/* ===== Quadrant Positions ===== */
+
+/* Buccal / Labial (Top) */
+.surface.top {
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Lingual (Bottom) */
+.surface.bottom {
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Mesial (Left) */
+.surface.left {
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Distal (Right) */
+.surface.right {
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Occlusal (Center) */
+.surface.center {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255,255,255,0.65);
+  border-radius: 50%;
+  padding: 2px 4px;
+}
+
+/* Tooth number label */
+.tooth-number {
+  position: absolute;
+  bottom: -14px;
+  width: 100%;
+  text-align: center;
+  font-size: 10px;
+  color: #000;
+}
