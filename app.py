@@ -43,7 +43,7 @@ app.config['JWT_SECRET_KEY'] = os.getenv("JWT_SECRET_KEY", "fallback-secret")
 jwt = JWTManager(app)
 
 # ---------------------------
-# ✅ FIXED CORS (FINAL)
+# ✅ CORS
 # ---------------------------
 CORS(
     app,
@@ -58,15 +58,13 @@ CORS(
 )
 
 # ---------------------------
-# ✅ GLOBAL JWT PROTECTION
+# ✅ JWT PROTECTION
 # ---------------------------
 @app.before_request
 def protect_all_routes():
-    # Allow preflight requests
     if request.method == "OPTIONS":
-        return
+        return '', 200  # ✅ IMPORTANT FIX
 
-    # Public routes
     public_paths = [
         "/",
         "/api/auth/login",
@@ -76,7 +74,6 @@ def protect_all_routes():
     if request.path in public_paths:
         return
 
-    # Protect all other routes
     try:
         verify_jwt_in_request()
     except Exception as e:
@@ -102,10 +99,15 @@ with app.app_context():
 # ---------------------------
 # REGISTER BLUEPRINTS
 # ---------------------------
+
+# Auth (has its own prefix)
 app.register_blueprint(auth_bp)
 
-blueprints = [
-    patients_bp,
+# ❗ IMPORTANT: No extra /api here
+app.register_blueprint(patients_bp)
+
+# Others (need /api prefix)
+other_blueprints = [
     visits_bp,
     medical_bp,
     allergy_bp,
@@ -124,9 +126,10 @@ blueprints = [
     appointments_bp,
 ]
 
-for bp in blueprints:
+for bp in other_blueprints:
     app.register_blueprint(bp, url_prefix="/api")
 
+# Already has prefix internally
 app.register_blueprint(other_expenses_bp)
 
 # ---------------------------
