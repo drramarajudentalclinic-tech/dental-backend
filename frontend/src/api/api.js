@@ -16,7 +16,7 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 10000,
+  timeout: 30000,
 });
 
 // -----------------------
@@ -65,7 +65,7 @@ api.interceptors.response.use(
     // 🔴 No response (server down / network issue)
     else if (error.request) {
       console.error("API ERROR: No response from server");
-      alert("Server not responding. Please try again later.");
+    alert("Server is starting... please wait a few seconds and retry.");
     }
     // 🔴 Other error
     else {

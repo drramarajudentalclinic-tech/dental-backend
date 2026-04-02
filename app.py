@@ -1,4 +1,4 @@
-from flask import Flask, request, make_response, jsonify
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, verify_jwt_in_request
 
@@ -28,7 +28,7 @@ from routes.family_doctor import family_doctor_bp
 from routes.consent       import consent_bp
 from routes.appointments  import appointments_bp
 from routes.other_expenses import other_expenses_bp, run_other_expense_migrations
-from routes.auth import auth_bp
+from routes.auth          import auth_bp
 
 # ---------------------------
 # CREATE APP
@@ -43,59 +43,30 @@ app.config['JWT_SECRET_KEY'] = os.getenv("JWT_SECRET_KEY", "fallback-secret")
 jwt = JWTManager(app)
 
 # ---------------------------
-# ✅ FIXED CORS (ONLY CHANGE HERE)
+# ✅ FIXED CORS (FINAL)
 # ---------------------------
 CORS(
     app,
-    resources={r"/api/*": {
-        "origins": [
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "http://localhost:3000",
-            "http://127.0.0.1:3000",
-            "https://dental-frontend-zp4w.onrender.com"  # ✅ ADDED
-        ],
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-        "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"],
-        "expose_headers": ["Content-Type", "Authorization"],
-        "max_age": 600,
-    }},
-    supports_credentials=True,
+    origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://dental-frontend-zp4w.onrender.com"
+    ],
+    supports_credentials=True
 )
 
 # ---------------------------
-# ⚠️ FIXED PRELIGHT HANDLER
-# ---------------------------
-@app.before_request
-def handle_preflight():
-    if request.method == "OPTIONS":
-        origin = request.headers.get("Origin", "")
-        allowed_origins = [
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "http://localhost:3000",
-            "http://127.0.0.1:3000",
-            "https://dental-frontend-zp4w.onrender.com"  # ✅ ADDED
-        ]
-
-        res = make_response()
-        if origin in allowed_origins:
-            res.headers["Access-Control-Allow-Origin"] = origin
-            res.headers["Access-Control-Allow-Credentials"] = "true"
-            res.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-            res.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
-            res.headers["Access-Control-Max-Age"] = "600"
-
-        return res, 200
-
-# ---------------------------
-# GLOBAL JWT PROTECTION
+# ✅ GLOBAL JWT PROTECTION
 # ---------------------------
 @app.before_request
 def protect_all_routes():
+    # Allow preflight requests
     if request.method == "OPTIONS":
         return
 
+    # Public routes
     public_paths = [
         "/",
         "/api/auth/login",
@@ -105,6 +76,7 @@ def protect_all_routes():
     if request.path in public_paths:
         return
 
+    # Protect all other routes
     try:
         verify_jwt_in_request()
     except Exception as e:
@@ -119,16 +91,10 @@ with app.app_context():
     print("Creating tables...")
     db.create_all()
 
-    print("Running payment migrations...")
+    print("Running migrations...")
     run_payment_migrations(app)
-
-    print("Running image migrations...")
     run_image_migrations(app)
-
-    print("Running visit migrations...")
     run_visit_migrations(app)
-
-    print("Running other expense migrations...")
     run_other_expense_migrations(app)
 
     print("DONE ✅")
@@ -136,10 +102,10 @@ with app.app_context():
 # ---------------------------
 # REGISTER BLUEPRINTS
 # ---------------------------
-app.register_blueprint(patients_bp)
 app.register_blueprint(auth_bp)
 
 blueprints = [
+    patients_bp,
     visits_bp,
     medical_bp,
     allergy_bp,
