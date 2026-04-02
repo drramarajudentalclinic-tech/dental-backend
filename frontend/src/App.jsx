@@ -7,7 +7,7 @@ import BillingPage from "./pages/BillingPage";
 import EditPatient from "./pages/EditPatient";
 import DoctorPatientView from "./pages/DoctorPatientView";
 import ReceptionPatientForm from "./pages/ReceptionPatientForm";
-import AppointmentsDiary from "./pages/AppointmentsDiary";
+import AppointmentsDiary from "./pages/AppointmentsDiary.jsx";
 
 // ── TEMP: Navigation tracer — remove after finding the bug ──
 function NavTracer() {
