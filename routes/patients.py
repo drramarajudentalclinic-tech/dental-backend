@@ -45,6 +45,16 @@ def parse_date(value):
     return None
 
 
+def parse_int(value):
+    """✅ Safely convert to int or return None — fixes PostgreSQL integer errors"""
+    try:
+        if value is None or str(value).strip() == "":
+            return None
+        return int(value)
+    except (ValueError, TypeError):
+        return None
+
+
 def get_chief_complaint(data):
     for key in [
         "chief_complaint", "Chief_Complaint", "chiefComplaint",
@@ -116,7 +126,7 @@ def patients():
             case_number     = data.get("case_number"),
             name            = data.get("name"),
             date            = parsed_date,
-            age             = None if parsed_dob else data.get("age"),
+            age             = None if parsed_dob else parse_int(data.get("age")),  # ✅ fixed
             date_of_birth   = parsed_dob,
             gender          = data.get("gender"),
             marital_status  = data.get("marital_status"),
@@ -137,7 +147,6 @@ def patients():
                 patient_id      = patient.id,
                 status          = "OPEN",
                 chief_complaint = chief_complaint,
-                # FIX: Visit.visit_date is DateTime — pass datetime, not date
                 visit_date      = datetime.utcnow(),
             )
             db.session.add(visit)
@@ -262,7 +271,7 @@ def update_patient(patient_id):
         patient.date = parse_date(data["date"])
 
     if "age" in data and not patient.date_of_birth:
-        patient.age = data["age"]
+        patient.age = parse_int(data["age"])  # ✅ fixed
 
     new_complaint = get_chief_complaint(data)
 
