@@ -63,13 +63,13 @@ CORS(
 @app.before_request
 def protect_all_routes():
     if request.method == "OPTIONS":
-        return '', 200  # ✅ IMPORTANT FIX
+        return '', 200
 
     public_paths = [
         "/",
         "/api/auth/login",
         "/api/auth/register",
-        "/api/auth/setup",  # ✅ add this line
+        "/api/auth/setup",  # ✅ setup endpoint is public
     ]
 
     if request.path in public_paths:
@@ -88,6 +88,15 @@ db.init_app(app)
 with app.app_context():
     print("Creating tables...")
     db.create_all()
+
+    # ✅ Add role column to user table if it doesn't exist
+    try:
+        with db.engine.connect() as conn:
+            conn.execute(db.text("ALTER TABLE user ADD COLUMN role VARCHAR(20) DEFAULT 'reception'"))
+            conn.commit()
+            print("Role column added ✅")
+    except Exception as e:
+        print(f"Role column already exists or skipped: {e}")
 
     print("Running migrations...")
     run_payment_migrations(app)
