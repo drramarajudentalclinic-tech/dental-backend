@@ -1,4 +1,3 @@
-
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -30,9 +29,14 @@ def register():
 
     username = data.get("username")
     password = data.get("password")
+    role = data.get("role", "reception")  # ✅ get role, default to reception
 
     if not username or not password:
         return jsonify({"error": "Username and password required"}), 400
+
+    # ✅ Validate role
+    if role not in ["doctor", "reception"]:
+        return jsonify({"error": "Role must be 'doctor' or 'reception'"}), 400
 
     # Check existing user
     existing_user = User.query.filter_by(username=username).first()
@@ -42,8 +46,8 @@ def register():
     # Hash password
     hashed_password = generate_password_hash(password)
 
-    # Create user
-    new_user = User(username=username, password=hashed_password)
+    # Create user with role
+    new_user = User(username=username, password=hashed_password, role=role)  # ✅ save role
     db.session.add(new_user)
     db.session.commit()
 
@@ -79,5 +83,6 @@ def login():
     return jsonify({
         "access_token": access_token,
         "user_id": user.id,
-        "username": user.username
+        "username": user.username,
+        "role": user.role  # ✅ return role so frontend can redirect correctly
     }), 200

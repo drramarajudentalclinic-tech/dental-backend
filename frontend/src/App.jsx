@@ -8,8 +8,8 @@ import EditPatient from "./pages/EditPatient";
 import DoctorPatientView from "./pages/DoctorPatientView";
 import ReceptionPatientForm from "./pages/ReceptionPatientForm";
 import AppointmentsDiary from "./pages/AppointmentsDiary.jsx";
+import LoginPage from "./pages/LoginPage";
 
-// ── TEMP: Navigation tracer — remove after finding the bug ──
 function NavTracer() {
   const location = useLocation();
   useEffect(() => {
@@ -24,7 +24,13 @@ export default function App() {
       <NavTracer />
       <Routes>
 
-        <Route path="/" element={<Navigate to="/reception/dashboard" replace />} />
+        {/* Default → Login */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+
+        {/* Login */}
+        <Route path="/login" element={<LoginPage />} />
+
+        {/* Role redirects */}
         <Route path="/reception" element={<Navigate to="/reception/dashboard" replace />} />
         <Route path="/doctor" element={<Navigate to="/doctor/dashboard" replace />} />
 
@@ -44,8 +50,8 @@ export default function App() {
         <Route path="/billing/:visitId"       element={<BillingPage />} />
         <Route path="/patients/edit/:id"      element={<EditPatient />} />
 
-        {/* Fallback */}
-        <Route path="*" element={<h1>404 - Page Not Found</h1>} />
+        {/* Fallback → Login */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
 
       </Routes>
     </BrowserRouter>
