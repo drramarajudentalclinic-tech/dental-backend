@@ -1,30 +1,27 @@
 from datetime import datetime
 from database import db
-
 from werkzeug.security import generate_password_hash, check_password_hash
-from database import db
 
+
+# ═══════════════════════════════════════════════════════════════
+#  USER
+# ═══════════════════════════════════════════════════════════════
 class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+    __tablename__ = "user"
+    __table_args__ = {'extend_existing': True}  # ✅ prevents table conflict
+
+    id       = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
+    role     = db.Column(db.String(20), nullable=False, default="reception")  # 'doctor' or 'reception'
 
     def set_password(self, password):
         self.password = generate_password_hash(password)
 
     def check_password(self, password):
         return check_password_hash(self.password, password)
-    class User(db.Model):
-     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    password = db.Column(db.String(200), nullable=False)
-    role = db.Column(db.String(20), nullable=False, default="reception")  # 'doctor' or 'reception'
 
-    def set_password(self, password):
-        self.password = generate_password_hash(password)
 
-    def check_password(self, password):
-        return check_password_hash(self.password, password)
 # ═══════════════════════════════════════════════════════════════
 #  PATIENT
 # ═══════════════════════════════════════════════════════════════
@@ -237,11 +234,6 @@ class Visit(db.Model):
     status             = db.Column(db.String(10), default="OPEN")   # OPEN / CLOSED
     closed_at          = db.Column(db.DateTime, nullable=True)
 
-    # ── Billing / clinical snapshot written at visit-close time ──
-    # billing_note: doctor's free-text instructions for reception (optional)
-    # treatment_done, advice, treatment_plan, diagnosis: denormalised from
-    # the latest Consultation row so billing page can display them without
-    # an extra join, and so they survive if the consultation is later edited.
     billing_note   = db.Column(db.Text, nullable=True)
     treatment_done = db.Column(db.Text, nullable=True)
     advice         = db.Column(db.Text, nullable=True)
@@ -326,11 +318,7 @@ class Consultation(db.Model):
 
 
 # ═══════════════════════════════════════════════════════════════
-#  PRESCRIPTION  ← UPDATED to match frontend payload
-#
-#  Old columns (drug_name, dosage, frequency, duration,
-#  instructions) are KEPT for backward compatibility but the
-#  new columns are what the Prescription.jsx frontend sends.
+#  PRESCRIPTION
 # ═══════════════════════════════════════════════════════════════
 class Prescription(db.Model):
     __tablename__ = "prescriptions"
@@ -338,29 +326,28 @@ class Prescription(db.Model):
     id                   = db.Column(db.Integer, primary_key=True)
     visit_id             = db.Column(db.Integer, db.ForeignKey("visits.id"), nullable=False)
 
-    # ── Patient snapshot (denormalised for easy receipt printing) ──
+    # ── Patient snapshot ──
     patient_name         = db.Column(db.String(150))
-    patient_age          = db.Column(db.String(20))   # stored as string e.g. "40 yrs"
-    patient_gender       = db.Column(db.String(10))   # Male / Female / Other
+    patient_age          = db.Column(db.String(20))
+    patient_gender       = db.Column(db.String(10))
     case_number          = db.Column(db.String(50))
-    date                 = db.Column(db.String(20))   # ISO date string "2026-03-09"
+    date                 = db.Column(db.String(20))
 
     # ── Clinical content ──
     diagnosis            = db.Column(db.Text)
     advice               = db.Column(db.Text)
     treatment_done_today = db.Column(db.Text)
 
-    # ── Medicines — stored as JSON string ──
-    # e.g. '[{"name":"Amoxicillin 500mg","dose":"1","freq":"TID","days":"5","instructions":"After food"}]'
+    # ── Medicines stored as JSON string ──
     medicines            = db.Column(db.Text, default="[]")
 
     # ── Follow-up ──
-    follow_up_date       = db.Column(db.String(30))   # "2026-03-16" or null
+    follow_up_date       = db.Column(db.String(30))
 
     # ── Status ──
-    status               = db.Column(db.String(20), default="confirmed")  # confirmed / draft
+    status               = db.Column(db.String(20), default="confirmed")
 
-    # ── Legacy columns kept for backward compat (nullable) ──
+    # ── Legacy columns kept for backward compat ──
     drug_name            = db.Column(db.String(150))
     dosage               = db.Column(db.String(50))
     frequency            = db.Column(db.String(50))
@@ -399,7 +386,7 @@ class Image(db.Model):
     id          = db.Column(db.Integer, primary_key=True)
     visit_id    = db.Column(db.Integer, db.ForeignKey("visits.id"), nullable=False)
     image_path  = db.Column(db.String(255), nullable=False)
-    image_type  = db.Column(db.String(30), nullable=False)   # IOPA, OPG, CBCT, INTRAORAL
+    image_type  = db.Column(db.String(30), nullable=False)
     description = db.Column(db.Text)
     uploaded_by = db.Column(db.String(100))
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
