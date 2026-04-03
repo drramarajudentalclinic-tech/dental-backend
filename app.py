@@ -69,6 +69,7 @@ def protect_all_routes():
         "/",
         "/api/auth/login",
         "/api/auth/register",
+        "/api/auth/setup",  # ✅ add this line
     ]
 
     if request.path in public_paths:
