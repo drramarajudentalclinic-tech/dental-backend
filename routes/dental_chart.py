@@ -15,7 +15,7 @@ def add_dental(visit_id):
     if not data:
         return jsonify({"error": "No data provided"}), 400
 
-    tooth_number = data.get("tooth_number")
+    tooth_number = str(data.get("tooth_number", "")).strip()
     condition    = data.get("condition")
 
     if not tooth_number or not condition:

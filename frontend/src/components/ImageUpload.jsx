@@ -9,7 +9,7 @@ const IMAGE_TYPES = [
   { value: "INTRAORAL", label: "Intra Oral Image", icon: "📸", desc: "Intraoral Photo" },
 ];
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = "https://dental-backend-xo1o.onrender.com";
 
 function imgSrc(url) {
   if (!url) return "";
