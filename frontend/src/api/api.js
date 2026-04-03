@@ -16,7 +16,7 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 30000,
+  timeout: 300000, // 5 minutes for demo
 });
 
 // -----------------------
@@ -55,17 +55,21 @@ api.interceptors.response.use(
       console.error("API ERROR:", error.response.data);
 
       // 🔐 Handle Unauthorized (JWT expired / invalid)
+      // ✅ Only redirect if NOT already on login page
       if (error.response.status === 401) {
-        alert("Session expired. Please login again.");
-
-        localStorage.removeItem("token");
-        window.location.href = "/login";
+        if (window.location.pathname !== "/login") {
+          alert("Session expired. Please login again.");
+          localStorage.removeItem("token");
+          localStorage.removeItem("role");
+          localStorage.removeItem("username");
+          window.location.href = "/login";
+        }
       }
     }
     // 🔴 No response (server down / network issue)
     else if (error.request) {
       console.error("API ERROR: No response from server");
-    alert("Server is starting... please wait a few seconds and retry.");
+      alert("Server is starting... please wait a few seconds and retry.");
     }
     // 🔴 Other error
     else {
