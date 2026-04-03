@@ -53,7 +53,18 @@ def register():
 
     return jsonify({"message": "User registered successfully"}), 201
 
+@auth_bp.route("/setup", methods=["GET"])
+def setup():
+    from werkzeug.security import generate_password_hash
+    
+    # Check if already created
+    if User.query.filter_by(username="doctor1").first():
+        return jsonify({"message": "Users already exist"}), 200
 
+    db.session.add(User(username="doctor1", password=generate_password_hash("doctor123"), role="doctor"))
+    db.session.add(User(username="reception1", password=generate_password_hash("reception123"), role="reception"))
+    db.session.commit()
+    return jsonify({"message": "Users created successfully!"}), 201
 # ---------------------------
 # LOGIN
 # ---------------------------
@@ -86,3 +97,4 @@ def login():
         "username": user.username,
         "role": user.role  # ✅ return role so frontend can redirect correctly
     }), 200
+    
