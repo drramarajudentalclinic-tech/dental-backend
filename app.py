@@ -92,7 +92,7 @@ with app.app_context():
     # ✅ Add role column to user table if it doesn't exist
     try:
         with db.engine.connect() as conn:
-            conn.execute(db.text("ALTER TABLE user ADD COLUMN role VARCHAR(20) DEFAULT 'reception'"))
+            conn.execute(db.text('ALTER TABLE "user" ADD COLUMN role VARCHAR(20) DEFAULT \'reception\''))
             conn.commit()
             print("Role column added ✅")
     except Exception as e:

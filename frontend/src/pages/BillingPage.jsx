@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import api from "../api/api";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = "https://dental-backend-xojn.onrender.com";
 const fmt  = (n) => `₹${Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 0 })}`;
 const today = () => new Date().toISOString().split("T")[0];
 const fmtDate = (d) => {
