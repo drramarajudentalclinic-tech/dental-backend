@@ -54,8 +54,23 @@ CORS(
         "http://127.0.0.1:3000",
         "https://dental-frontend-zp4w.onrender.com"
     ],
-    supports_credentials=True
+    supports_credentials=True,
+    allow_headers=["Content-Type", "Authorization"],
+    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
 )
+
+# ---------------------------
+# ✅ HANDLE PREFLIGHT GLOBALLY
+# ---------------------------
+@app.before_request
+def handle_options():
+    if request.method == "OPTIONS":
+        response = jsonify({})
+        response.headers["Access-Control-Allow-Origin"] = request.headers.get("Origin", "*")
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        return response, 200
 
 # ---------------------------
 # ✅ JWT PROTECTION
@@ -63,13 +78,14 @@ CORS(
 @app.before_request
 def protect_all_routes():
     if request.method == "OPTIONS":
-        return '', 200
+        return
 
     public_paths = [
         "/",
         "/api/auth/login",
         "/api/auth/register",
         "/api/auth/setup",
+        "/health",
     ]
 
     if request.path in public_paths:
@@ -154,6 +170,13 @@ app.register_blueprint(other_expenses_bp)
 @app.route("/")
 def index():
     return {"status": "Server running"}, 200
+
+# ---------------------------
+# ✅ HEALTH CHECK (for wake-up ping)
+# ---------------------------
+@app.route("/health")
+def health():
+    return {"status": "ok"}, 200
 
 # ---------------------------
 # RUN
