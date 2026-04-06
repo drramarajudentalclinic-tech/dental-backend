@@ -262,7 +262,7 @@ function ReceiptPreviewModal({ payment, visit, allPayments = [], onClose, autopr
   const printReceipt = () => {
     const receiptNo = payment?.receipt_number;
     if (receiptNo) {
-      window.open(`${API_BASE}/api/receipts/${receiptNo}/preview`, "_blank", "width=820,height=1060");
+      window.open(`${API_BASE}/api/receipts/${receiptNo}/preview`, "_blank");
       return;
     }
     // Fallback: re-render from current data if no receipt number
