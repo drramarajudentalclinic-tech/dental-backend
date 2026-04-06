@@ -6,7 +6,7 @@ import axios from "axios";
 const BASE_URL =
   window.location.hostname === "localhost"
     ? "http://localhost:5000/api"   // Local
-    : "https://dental-backend-xo1o.onrender.com/api"; // Live
+    : "https://dental-backend-xojn.onrender.com/api"; // Live
 
 // -----------------------
 // CREATE AXIOS INSTANCE
