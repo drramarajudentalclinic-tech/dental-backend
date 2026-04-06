@@ -19,6 +19,11 @@ function NavTracer() {
 }
 
 export default function App() {
+  // ✅ Wake up Render backend on app load
+  useEffect(() => {
+    fetch("https://dental-backend-xojn.onrender.com/health").catch(() => {});
+  }, []);
+
   return (
     <BrowserRouter>
       <NavTracer />
