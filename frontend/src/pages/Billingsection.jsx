@@ -1,35 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import api from "../api/api";
 const API_BASE = "https://dental-backend-xojn.onrender.com";
-
-/* ── Helper: open a backend URL in a new tab without popup block ── */
-function openBackendUrl(url) {
-  // Open the blank window SYNCHRONOUSLY (inside click handler = trusted gesture, no block)
-  const w = window.open("", "_blank");
-  if (!w) { alert("Please allow popups for this site to view receipts."); return; }
-  w.document.write(
-    "<html><body style='font-family:sans-serif;padding:40px;color:#555;background:#f8fafc'>" +
-    "<p style='font-size:16px'>⏳ Loading receipt…</p></body></html>"
-  );
-  w.document.close();
-  const token = localStorage.getItem("token") || localStorage.getItem("access_token") || "";
-  fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
-    .then(r => {
-      if (!r.ok) throw new Error("Failed to load");
-      return r.blob();
-    })
-    .then(blob => {
-      const blobUrl = URL.createObjectURL(blob);
-      w.location.href = blobUrl;
-    })
-    .catch(() => {
-      w.document.write(
-        "<html><body style='font-family:sans-serif;padding:40px;color:#c00'>" +
-        "<p>Could not load receipt. Please try downloading instead.</p></body></html>"
-      );
-      w.document.close();
-    });
-}
+const API_BASE = "https://dental-backend-xojn.onrender.com";
 const fmt  = (n) => `₹${Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 0 })}`;
 const today = () => new Date().toISOString().split("T")[0];
 
@@ -249,15 +221,20 @@ function ReceiptPreviewModal({ payment, visit, onClose }) {
   };
 
   const printReceipt = () => {
+    // Open the original stored receipt from backend in new tab
     const receiptNo = payment?.receipt_number;
     if (receiptNo) {
-      // Use openBackendUrl: opens window synchronously (no popup block), then loads blob
-      openBackendUrl(`${API_BASE}/api/receipts/${receiptNo}/preview`);
-      return;
-    }
+  const a = document.createElement("a");
+  a.href = `${API_BASE}/api/receipts/${receiptNo}/preview`;
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  return;
+}
     // Fallback: re-render from current data if no receipt number
-    // Open window SYNCHRONOUSLY (no size params = Chrome won't block it)
-    const w = window.open("", "_blank");
+    const w = window.open("", "_blank", "width=800,height=1000");
     const paid = Number(payment?.paid_amount || 0);
     const fee  = Number(payment?.fee || 0);
     const disc = Number(payment?.discount || 0);
@@ -935,7 +912,7 @@ function ReceiptSearchPage() {
                 <div style={{ display: "flex", gap: 5 }}>
                   <button className="bs-btn bs-btn-ghost bs-btn-sm" onClick={() => setPreview(p)} title="View Receipt">🧾 View</button>
                   <button className="bs-btn bs-btn-primary bs-btn-sm"
-                    onClick={() => openBackendUrl(`${API_BASE}/api/payments/${p.id}/receipt`)}
+                    onClick={() => window.open(`${API_BASE}/api/payments/${p.id}/receipt`, "_blank")}
                     title="Download PDF">⬇ PDF</button>
                 </div>
               </div>
@@ -1015,10 +992,7 @@ export default function BillingSection({ initialVisitId = null }) {
   const downloadReceipt = async (payId, payName, receiptNo) => {
     setDwnLoading(p => ({ ...p, [payId]: true }));
     try {
-      const token = localStorage.getItem("token") || localStorage.getItem("access_token") || "";
-      const res = await fetch(`${API_BASE}/api/payments/${payId}/receipt`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const res = await fetch(`${API_BASE}/api/payments/${payId}/receipt`);
       if (!res.ok) throw new Error("Failed");
       const blob = await res.blob();
       const url  = URL.createObjectURL(blob);
