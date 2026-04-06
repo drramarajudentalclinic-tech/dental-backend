@@ -69,10 +69,16 @@ def protect_all_routes():
         "/",
         "/api/auth/login",
         "/api/auth/register",
-        "/api/auth/setup",  # ✅ setup endpoint is public
+        "/api/auth/setup",
     ]
 
     if request.path in public_paths:
+        return
+
+    # Allow receipt preview/download without JWT (opened in new tab)
+    if request.path.startswith("/api/receipts/") and (
+        request.path.endswith("/preview") or request.path.endswith("/download")
+    ):
         return
 
     try:
