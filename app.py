@@ -43,42 +43,26 @@ app.config['JWT_SECRET_KEY'] = os.getenv("JWT_SECRET_KEY", "fallback-secret")
 jwt = JWTManager(app)
 
 # ---------------------------
-# ✅ CORS
+# ✅ CORS (CLEAN VERSION)
 # ---------------------------
 CORS(
     app,
-    origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "https://dental-frontend-zp4w.onrender.com"
-    ],
-    supports_credentials=True,
-    allow_headers=["Content-Type", "Authorization"],
-    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    resources={r"/api/*": {
+        "origins": [
+            "https://dental-frontend-zp4w.onrender.com"
+        ]
+    }},
+    supports_credentials=True
 )
-
-# ---------------------------
-# ✅ HANDLE PREFLIGHT GLOBALLY
-# ---------------------------
-@app.before_request
-def handle_options():
-    if request.method == "OPTIONS":
-        response = jsonify({})
-        response.headers["Access-Control-Allow-Origin"] = request.headers.get("Origin", "*")
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        return response, 200
 
 # ---------------------------
 # ✅ JWT PROTECTION
 # ---------------------------
 @app.before_request
 def protect_all_routes():
+    # ✅ Allow preflight requests
     if request.method == "OPTIONS":
-        return
+        return '', 200
 
     public_paths = [
         "/",
@@ -91,7 +75,7 @@ def protect_all_routes():
     if request.path in public_paths:
         return
 
-    # Allow receipt preview/download without JWT (opened in new tab)
+    # Allow receipt preview/download without JWT
     if request.path.startswith("/api/receipts/") and (
         request.path.endswith("/preview") or request.path.endswith("/download")
     ):
@@ -111,10 +95,11 @@ with app.app_context():
     print("Creating tables...")
     db.create_all()
 
-    # ✅ Add role column to user table if it doesn't exist
     try:
         with db.engine.connect() as conn:
-            conn.execute(db.text('ALTER TABLE "user" ADD COLUMN role VARCHAR(20) DEFAULT \'reception\''))
+            conn.execute(db.text(
+                'ALTER TABLE "user" ADD COLUMN role VARCHAR(20) DEFAULT \'reception\''
+            ))
             conn.commit()
             print("Role column added ✅")
     except Exception as e:
@@ -132,13 +117,13 @@ with app.app_context():
 # REGISTER BLUEPRINTS
 # ---------------------------
 
-# Auth (has its own prefix)
-app.register_blueprint(auth_bp)
+# ✅ FIXED: Auth now under /api
+app.register_blueprint(auth_bp, url_prefix="/api")
 
-# ❗ IMPORTANT: No extra /api here
+# Patients (no prefix inside)
 app.register_blueprint(patients_bp)
 
-# Others (need /api prefix)
+# Other APIs
 other_blueprints = [
     visits_bp,
     medical_bp,
@@ -161,7 +146,7 @@ other_blueprints = [
 for bp in other_blueprints:
     app.register_blueprint(bp, url_prefix="/api")
 
-# Already has prefix internally
+# Already has prefix
 app.register_blueprint(other_expenses_bp)
 
 # ---------------------------
@@ -172,7 +157,7 @@ def index():
     return {"status": "Server running"}, 200
 
 # ---------------------------
-# ✅ HEALTH CHECK (for wake-up ping)
+# HEALTH CHECK
 # ---------------------------
 @app.route("/health")
 def health():
