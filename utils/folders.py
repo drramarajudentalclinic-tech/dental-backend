@@ -1,71 +1,84 @@
 import os
 from datetime import datetime
 
-BASE_UPLOAD_DIR = "uploads/visits"
-BASE_RECEIPTS_DIR = "receipts"
 
-
-def ensure_month_folders():
+def get_financial_year(date: datetime) -> str:
     """
-    Creates:
-      receipts/
-        march/
-          pdf/
-          excel/
-          other_expenses/
-
-    Returns: (month_label, pdf_dir, excel_dir, other_expenses_dir)
-    e.g.     ("march",
-               "receipts/march/pdf",
-               "receipts/march/excel",
-               "receipts/march/other_expenses")
+    Returns financial year string e.g. '2025-2026'
+    Indian FY: April 1 to March 31
     """
-    month = datetime.now().strftime("%B").lower()    # e.g. "march"
+    if date.month >= 4:
+        return f"{date.year}-{date.year + 1}"
+    else:
+        return f"{date.year - 1}-{date.year}"
 
-    base             = os.path.join(BASE_RECEIPTS_DIR, month)
-    pdf_dir          = os.path.join(base, "pdf")
-    excel_dir        = os.path.join(base, "excel")
-    other_exp_dir    = os.path.join(base, "other_expenses")
 
-    os.makedirs(pdf_dir,       exist_ok=True)
-    os.makedirs(excel_dir,     exist_ok=True)
-    os.makedirs(other_exp_dir, exist_ok=True)
+def get_month_name(date: datetime) -> str:
+    return date.strftime("%B")  # e.g. 'March', 'April'
+
+
+def ensure_month_folders(base: str = "Receipts") -> tuple:
+    """
+    Creates and returns folder paths based on current date.
+
+    Structure:
+        Receipts/
+          Financial year2025-2026/
+            March/
+              Pdf/
+              Excel/
+              Other Expenses/
+
+    Returns:
+        (month, pdf_dir, excel_dir, other_expenses_dir)
+    """
+    now = datetime.now()
+    fy = get_financial_year(now)
+    month = get_month_name(now)
+
+    fy_folder     = os.path.join(base, f"Financial year{fy}")
+    month_folder  = os.path.join(fy_folder, month)
+    pdf_dir       = os.path.join(month_folder, "Pdf")
+    excel_dir     = os.path.join(month_folder, "Excel")
+    other_exp_dir = os.path.join(month_folder, "Other Expenses")
+
+    for folder in [pdf_dir, excel_dir, other_exp_dir]:
+        os.makedirs(folder, exist_ok=True)
 
     return month, pdf_dir, excel_dir, other_exp_dir
 
 
-def get_excel_path(month: str) -> str:
-    """Returns path to the main receipts Excel file for the given month.
-    e.g. receipts/march/excel/march.xlsx
+def get_excel_path(month: str, base: str = "Receipts") -> str:
     """
-    return os.path.join(BASE_RECEIPTS_DIR, month, "excel", f"{month}.xlsx")
-
-
-def get_other_expenses_path(month: str) -> str:
-    """Returns path to the other expenses Excel file for the given month.
-    e.g. receipts/march/other_expenses/march_other_expenses.xlsx
+    Returns path to the monthly receipts Excel file.
+    e.g. Receipts/Financial year2025-2026/March/Excel/March2026.xlsx
     """
-    return os.path.join(BASE_RECEIPTS_DIR, month, "other_expenses",
-                        f"{month}_other_expenses.xlsx")
+    now = datetime.now()
+    fy = get_financial_year(now)
+    filename = f"{month}{now.year}.xlsx"
+
+    return os.path.join(
+        base,
+        f"Financial year{fy}",
+        month,
+        "Excel",
+        filename
+    )
 
 
-def get_pdf_path(month: str, patient_name: str, receipt_number) -> str:
-    """Returns the full PDF path for a receipt.
-    e.g. receipts/march/pdf/Ravi.0001.pdf
-    Receipt number is zero-padded to 4 digits.
+def get_other_expenses_excel_path(expense_date: str, base: str = "Receipts") -> str:
     """
-    safe_name    = patient_name.replace(" ", "")
-    padded_no    = str(receipt_number).zfill(4)
-    pdf_filename = f"{safe_name}.{padded_no}.pdf"
-    return os.path.join(BASE_RECEIPTS_DIR, month, "pdf", pdf_filename)
+    Returns path to the Other Expenses Excel file for a given date.
+    e.g. Receipts/Financial year2025-2026/March/Other Expenses/Other Exp March 2026.xlsx
 
+    expense_date: "YYYY-MM-DD"
+    """
+    d = datetime.strptime(expense_date, "%Y-%m-%d")
+    fy = get_financial_year(d)
+    month = get_month_name(d)
+    filename = f"Other Exp {month} {d.year}.xlsx"
 
-def ensure_image_folder(visit_id, image_type):
-    """
-    Creates:
-      uploads/visits/<visit_id>/xray
-      uploads/visits/<visit_id>/intraoral
-    """
-    folder = os.path.join(BASE_UPLOAD_DIR, str(visit_id), image_type.lower())
+    folder = os.path.join(base, f"Financial year{fy}", month, "Other Expenses")
     os.makedirs(folder, exist_ok=True)
-    return folder
+
+    return os.path.join(folder, filename)

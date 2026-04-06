@@ -25,6 +25,9 @@ from flask_sqlalchemy import SQLAlchemy
 # ── shared db instance (same as rest of app) ─────────────────────────────────
 from database import db
 
+# ── shared folder utility ─────────────────────────────────────────────────────
+from utils.folders import get_other_expenses_excel_path
+
 # ── openpyxl ─────────────────────────────────────────────────────────────────
 from openpyxl                        import Workbook, load_workbook
 from openpyxl.styles                 import (Font, PatternFill, Alignment,
@@ -68,21 +71,13 @@ class OtherExpense(db.Model):
 # Excel helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Base folder: receipts/other expenses/
-RECEIPTS_BASE = os.path.join("receipts", "other expenses")
-
-
 def _excel_path(expense_date: str) -> str:
     """Return the full path to the Excel file for this expense's month.
 
-    expense_date: "YYYY-MM-DD"
-    Returns:  receipts/other expenses/Other Exp March_2026.xlsx
+    Uses shared folder structure:
+    Receipts/Financial year2025-2026/March/Other Expenses/Other Exp March 2026.xlsx
     """
-    d = datetime.strptime(expense_date, "%Y-%m-%d")
-    month_name = d.strftime("%B")   # "March"
-    year       = d.strftime("%Y")   # "2026"
-    filename   = f"Other Exp {month_name}_{year}.xlsx"
-    return os.path.join(RECEIPTS_BASE, filename)
+    return get_other_expenses_excel_path(expense_date)
 
 
 # Styled header row
