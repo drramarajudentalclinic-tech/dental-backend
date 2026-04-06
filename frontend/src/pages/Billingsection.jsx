@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import api from "../api/api";
-
-const API_BASE = "http://localhost:5000";
+const API_BASE = "https://dental-backend-xojn.onrender.com";
+const API_BASE = "https://dental-backend-xojn.onrender.com";
 const fmt  = (n) => `₹${Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 0 })}`;
 const today = () => new Date().toISOString().split("T")[0];
 
@@ -221,12 +221,18 @@ function ReceiptPreviewModal({ payment, visit, onClose }) {
   };
 
   const printReceipt = () => {
-    // Open the original stored receipt from backend — same as the saved PDF
+    // Open the original stored receipt from backend in new tab
     const receiptNo = payment?.receipt_number;
     if (receiptNo) {
-      window.open(`${API_BASE}/api/receipts/${receiptNo}/preview`, "_blank", "width=820,height=1060");
-      return;
-    }
+  const a = document.createElement("a");
+  a.href = `${API_BASE}/api/receipts/${receiptNo}/preview`;
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  return;
+}
     // Fallback: re-render from current data if no receipt number
     const w = window.open("", "_blank", "width=800,height=1000");
     const paid = Number(payment?.paid_amount || 0);
