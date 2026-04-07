@@ -43,14 +43,18 @@ app.config['JWT_SECRET_KEY'] = os.getenv("JWT_SECRET_KEY", "fallback-secret")
 jwt = JWTManager(app)
 
 # ---------------------------
-# ✅ CORS (CLEAN VERSION)
+# ✅ CORS CONFIGURATION
 # ---------------------------
 CORS(
     app,
     resources={r"/api/*": {
         "origins": [
-            "https://dental-frontend-zp4w.onrender.com"
-        ]
+            "https://dental-frontend-zp4w.onrender.com",
+            "http://localhost:5173",
+            "http://localhost:3000"
+        ],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+        "allow_headers": ["Content-Type", "Authorization"],
     }},
     supports_credentials=True
 )
@@ -60,9 +64,9 @@ CORS(
 # ---------------------------
 @app.before_request
 def protect_all_routes():
-    # ✅ Allow preflight requests
+    # ✅ Let Flask-CORS handle OPTIONS preflight — do NOT return a response here
     if request.method == "OPTIONS":
-        return '', 200
+        return
 
     public_paths = [
         "/",
@@ -117,7 +121,7 @@ with app.app_context():
 # REGISTER BLUEPRINTS
 # ---------------------------
 
-# ✅ FIXED: Auth now under /api
+# ✅ Auth under /api
 app.register_blueprint(auth_bp, url_prefix="/api")
 
 # Patients (no prefix inside)
