@@ -144,7 +144,7 @@ with app.app_context():
 # ---------------------------
 
 # ✅ Auth under /api
-app.register_blueprint(auth_bp, url_prefix="/api")
+app.register_blueprint(auth_bp)  # auth.py already has url_prefix="/api/auth"
 
 # Patients (no prefix inside)
 app.register_blueprint(patients_bp)
