@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, verify_jwt_in_request
 
@@ -44,6 +44,7 @@ jwt = JWTManager(app)
 
 # ---------------------------
 # ✅ CORS CONFIGURATION
+# Must be initialized before JWT and before_request hooks
 # ---------------------------
 CORS(
     app,
@@ -55,6 +56,8 @@ CORS(
         ],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
         "allow_headers": ["Content-Type", "Authorization"],
+        "expose_headers": ["Content-Type", "Authorization"],
+        "max_age": 600,  # Cache preflight response for 10 minutes
     }},
     supports_credentials=True
 )
@@ -64,9 +67,9 @@ CORS(
 # ---------------------------
 @app.before_request
 def protect_all_routes():
-    # ✅ Let Flask-CORS handle OPTIONS preflight — do NOT return a response here
+    # ✅ Return explicit 200 for OPTIONS preflight so CORS headers are attached properly
     if request.method == "OPTIONS":
-        return
+        return make_response(), 200
 
     public_paths = [
         "/",
@@ -89,6 +92,25 @@ def protect_all_routes():
         verify_jwt_in_request()
     except Exception as e:
         return jsonify({"error": "Unauthorized", "message": str(e)}), 401
+
+# ---------------------------
+# ✅ AFTER REQUEST — Ensure CORS headers are always present
+# This acts as a safety net for any response that may have missed headers
+# ---------------------------
+@app.after_request
+def add_cors_headers(response):
+    origin = request.headers.get("Origin", "")
+    allowed_origins = [
+        "https://dental-frontend-zp4w.onrender.com",
+        "http://localhost:5173",
+        "http://localhost:3000"
+    ]
+    if origin in allowed_origins:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    return response
 
 # ---------------------------
 # INIT DB
