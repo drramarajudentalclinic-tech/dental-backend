@@ -84,7 +84,7 @@ def generate_receipt(payment_id):
 # PRINT PREVIEW (opens in browser → auto print dialog)
 # GET /api/receipts/<receipt_no>/preview
 # -----------------------------
-@receipts_bp.route("/receipts/<int:receipt_no>/preview", methods=["GET"])
+@receipts_bp.route("/receipts/<receipt_no>/preview", methods=["GET"])
 def preview_receipt(receipt_no):
     receipt = Receipt.query.filter_by(receipt_number=receipt_no).first_or_404()
     payment = Payment.query.get_or_404(receipt.payment_id)
@@ -183,7 +183,7 @@ def preview_receipt(receipt_no):
 # DOWNLOAD PDF
 # GET /api/receipts/<receipt_no>/download
 # -----------------------------
-@receipts_bp.route("/receipts/<int:receipt_no>/download", methods=["GET"])
+@receipts_bp.route("/receipts/<receipt_no>/download", methods=["GET"])
 def download_receipt(receipt_no):
     receipt = Receipt.query.filter_by(receipt_number=receipt_no).first_or_404()
     payment = Payment.query.get_or_404(receipt.payment_id)
@@ -198,7 +198,7 @@ def download_receipt(receipt_no):
 # DELETE RECEIPT
 # DELETE /api/receipts/<receipt_no>
 # -----------------------------
-@receipts_bp.route("/receipts/<int:receipt_no>", methods=["DELETE"])
+@receipts_bp.route("/receipts/<receipt_no>", methods=["DELETE"])
 def delete_receipt(receipt_no):
     receipt = Receipt.query.filter_by(receipt_number=receipt_no).first_or_404()
     receipt.status = "DELETED"
