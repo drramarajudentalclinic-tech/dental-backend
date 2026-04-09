@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import api from "../api/api";
-const API_BASE = "https://dental-backend-xojn.onrender.com";
-const API_BASE = "https://dental-backend-xojn.onrender.com";
+
+
 const fmt  = (n) => `₹${Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 0 })}`;
 const today = () => new Date().toISOString().split("T")[0];
 
@@ -803,25 +803,34 @@ function ReceiptSearchPage() {
   };
 
   const exportExcel = async () => {
-    setExporting(true);
-    try {
-      const params = new URLSearchParams();
-      if (q.trim()) params.append("search", q.trim());
-      params.append("date_from", dateFrom);
-      params.append("date_to",   dateTo);
-      const res = await fetch(`${API_BASE}/api/billing/receipts/export-excel?${params}`);
-      if (!res.ok) throw new Error("Export failed");
-      const blob = await res.blob();
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement("a");
-      a.href     = url;
-      a.download = `receipts_${dateFrom}_to_${dateTo}.xlsx`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch { alert("Export failed. Please try again."); }
-    finally { setExporting(false); }
-  };
+  setExporting(true);
+  try {
+    const params = new URLSearchParams();
+    if (q.trim()) params.append("search", q.trim());
+    params.append("date_from", dateFrom);
+    params.append("date_to", dateTo);
 
+    const res = await fetch(
+      `${import.meta.env.VITE_API_URL}/billing/receipts/export-excel?${params}`
+    );
+
+    if (!res.ok) throw new Error("Export failed");
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `receipts_${dateFrom}_to_${dateTo}.xlsx`;
+    a.click();
+
+    URL.revokeObjectURL(url);
+  } catch {
+    alert("Export failed. Please try again.");
+  } finally {
+    setExporting(false);
+  }
+};
   const totalCollected = results.reduce((s, p) => s + (p.paid_amount || 0), 0);
 
   return (

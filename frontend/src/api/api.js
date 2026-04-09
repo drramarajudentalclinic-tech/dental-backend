@@ -1,12 +1,13 @@
 import axios from "axios";
 
 // -----------------------
-// BASE URL (AUTO SWITCH)
+// BASE URL (AUTO SWITCH / ENV SUPPORT)
 // -----------------------
 const BASE_URL =
-  window.location.hostname === "localhost"
+  process.env.REACT_APP_API_URL ||
+  (window.location.hostname === "localhost"
     ? "http://localhost:5000/api"   // Local
-    : "https://dental-backend-xojn.onrender.com/api"; // Live
+    : "https://dental-backend-xojn.onrender.com/api"); // Live
 
 // -----------------------
 // CREATE AXIOS INSTANCE
@@ -69,7 +70,10 @@ api.interceptors.response.use(
     // 🔴 No response (server down / network issue)
     else if (error.request) {
       console.error("API ERROR: No response from server");
-      alert("Server is starting... please wait a few seconds and retry.");
+
+      alert(
+        "Server is starting (Render free tier). Please wait 10–20 seconds and try again."
+      );
     }
     // 🔴 Other error
     else {
