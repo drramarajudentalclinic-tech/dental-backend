@@ -30,6 +30,9 @@ from routes.appointments  import appointments_bp
 from routes.other_expenses import other_expenses_bp, run_other_expense_migrations
 from routes.auth          import auth_bp
 
+# ✅ NEW — CBCT Blueprint
+from routes.cbct import cbct_bp, run_cbct_migrations
+
 # ---------------------------
 # CREATE APP
 # ---------------------------
@@ -57,7 +60,7 @@ CORS(
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
         "allow_headers": ["Content-Type", "Authorization"],
         "expose_headers": ["Content-Type", "Authorization"],
-        "max_age": 600,  # Cache preflight response for 10 minutes
+        "max_age": 600,
     }},
     supports_credentials=True
 )
@@ -67,7 +70,6 @@ CORS(
 # ---------------------------
 @app.before_request
 def protect_all_routes():
-    # ✅ Return explicit 200 for OPTIONS preflight so CORS headers are attached properly
     if request.method == "OPTIONS":
         return make_response(), 200
 
@@ -95,7 +97,6 @@ def protect_all_routes():
 
 # ---------------------------
 # ✅ AFTER REQUEST — Ensure CORS headers are always present
-# This acts as a safety net for any response that may have missed headers
 # ---------------------------
 @app.after_request
 def add_cors_headers(response):
@@ -136,6 +137,7 @@ with app.app_context():
     run_image_migrations(app)
     run_visit_migrations(app)
     run_other_expense_migrations(app)
+    run_cbct_migrations(app)      # ✅ NEW — creates cbct_volumes, cbct_slices, cbct_annotations
 
     print("DONE ✅")
 
@@ -144,7 +146,7 @@ with app.app_context():
 # ---------------------------
 
 # ✅ Auth under /api
-app.register_blueprint(auth_bp)  # auth.py already has url_prefix="/api/auth"
+app.register_blueprint(auth_bp)
 
 # Patients (no prefix inside)
 app.register_blueprint(patients_bp)
@@ -167,6 +169,7 @@ other_blueprints = [
     family_doctor_bp,
     consent_bp,
     appointments_bp,
+    cbct_bp,          # ✅ NEW
 ]
 
 for bp in other_blueprints:
