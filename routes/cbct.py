@@ -7,12 +7,21 @@ pip install pydicom numpy pillow
 """
 
 from flask import Blueprint, request, jsonify, Response
-import os, io, base64, zipfile, json, uuid
+import os, io, base64, zipfile, json, uuid, traceback
 from datetime import datetime
 from database import db
 from sqlalchemy import text
 
 cbct_bp = Blueprint("cbct", __name__)
+
+# ── How many slices to skip between stored slices.
+#    STEP=3 means store every 3rd slice → 66% fewer DB inserts.
+#    Lower = more detail but slower upload. Raise to 4 or 5 for very large scans.
+SLICE_STEP = 3
+
+# ── Max ZIP size accepted (bytes). Reject early before reading into memory.
+MAX_ZIP_MB  = 300
+MAX_ZIP_BYTES = MAX_ZIP_MB * 1024 * 1024
 
 
 # ─── Migrations ───────────────────────────────────────────────────────────────
@@ -36,7 +45,8 @@ def run_cbct_migrations(app):
                     cols          INTEGER DEFAULT 512,
                     uploaded_at   TIMESTAMP DEFAULT NOW(),
                     uploaded_by   VARCHAR(100) DEFAULT 'SYSTEM',
-                    notes         TEXT
+                    notes         TEXT,
+                    slice_step    INTEGER DEFAULT 1
                 )
             """))
             conn.execute(text("""
@@ -67,10 +77,23 @@ def run_cbct_migrations(app):
             conn.close()
 
 
+# ─── Helper: 2D numpy plane → base64 PNG string ───────────────────────────────
+
+def _plane_to_png_b64(plane_2d, lo, hi):
+    """Window-level a 2D float32 plane and return a base64-encoded PNG string."""
+    from PIL import Image as PILImage
+    clipped = plane_2d.clip(lo, hi)
+    scaled  = ((clipped - lo) / max(hi - lo, 1.0) * 255).astype("uint8")
+    buf     = io.BytesIO()
+    PILImage.fromarray(scaled, mode="L").save(buf, format="PNG", optimize=True)
+    return base64.b64encode(buf.getvalue()).decode("utf-8")
+
+
 # ─── Upload ZIP ───────────────────────────────────────────────────────────────
 
 @cbct_bp.route("/visits/<int:visit_id>/cbct", methods=["POST"])
 def upload_cbct(visit_id):
+    # ── Basic validation ──────────────────────────────────────────────────────
     if "file" not in request.files:
         return jsonify({"error": "ZIP file required (field name: file)"}), 400
 
@@ -81,136 +104,193 @@ def upload_cbct(visit_id):
     if not zfile.filename.lower().endswith(".zip"):
         return jsonify({"error": "Only .zip files are accepted"}), 400
 
+    # ── Check deps ────────────────────────────────────────────────────────────
     try:
         import pydicom
         import numpy as np
-        from PIL import Image as PILImage
     except ImportError:
         return jsonify({"error": "Server missing deps — run: pip install pydicom numpy pillow"}), 500
 
-    # ── Read ZIP ──────────────────────────────────────────────────────────────
-    zip_bytes = zfile.read()
-    with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
-        names = [n for n in zf.namelist() if not n.startswith("__MACOSX") and not n.endswith("/")]
-        dicom_files = []
-        for name in names:
-            raw = zf.read(name)
+    try:
+        # ── Read & size-guard the ZIP ─────────────────────────────────────────
+        zip_bytes = zfile.read()
+        if len(zip_bytes) > MAX_ZIP_BYTES:
+            return jsonify({
+                "error": f"ZIP too large. Max allowed: {MAX_ZIP_MB} MB "
+                         f"(received {len(zip_bytes) // (1024*1024)} MB)"
+            }), 413
+
+        # ── Parse DICOM files from ZIP ────────────────────────────────────────
+        try:
+            zf_obj = zipfile.ZipFile(io.BytesIO(zip_bytes))
+        except zipfile.BadZipFile:
+            return jsonify({"error": "Invalid or corrupted ZIP file"}), 400
+
+        with zf_obj as zf:
+            names = [
+                n for n in zf.namelist()
+                if not n.startswith("__MACOSX") and not n.endswith("/")
+            ]
+            dicom_files = []
+            for name in names:
+                raw = zf.read(name)
+                try:
+                    ds = pydicom.dcmread(io.BytesIO(raw))
+                    if hasattr(ds, "pixel_array"):
+                        dicom_files.append(ds)
+                except Exception:
+                    pass  # skip non-DICOM files silently
+
+        if not dicom_files:
+            return jsonify({"error": "No valid DICOM files found inside the ZIP"}), 400
+
+        print(f"[cbct] visit={visit_id} — found {len(dicom_files)} DICOM files")
+
+        # ── Sort slices by Z position ─────────────────────────────────────────
+        def sort_key(ds):
             try:
-                ds = pydicom.dcmread(io.BytesIO(raw))
-                if hasattr(ds, "pixel_array"):
-                    dicom_files.append(ds)
+                return float(ds.ImagePositionPatient[2])
             except Exception:
                 pass
+            try:
+                return int(ds.InstanceNumber)
+            except Exception:
+                return 0
 
-    if not dicom_files:
-        return jsonify({"error": "No valid DICOM files found inside the ZIP"}), 400
+        dicom_files.sort(key=sort_key)
 
-    # ── Sort slices ───────────────────────────────────────────────────────────
-    def sort_key(ds):
+        # ── Extract metadata from first slice ─────────────────────────────────
+        sample       = dicom_files[0]
+        patient_name = str(getattr(sample, "PatientName", "Unknown"))
+        raw_date     = str(getattr(sample, "StudyDate", ""))
+        study_date   = None
+        if len(raw_date) == 8:
+            try:
+                study_date = datetime.strptime(raw_date, "%Y%m%d").date()
+            except Exception:
+                pass
+        series_uid = str(getattr(sample, "SeriesInstanceUID", str(uuid.uuid4())))
+        rows = int(getattr(sample, "Rows",    512))
+        cols = int(getattr(sample, "Columns", 512))
+        ps   = getattr(sample, "PixelSpacing", [1.0, 1.0])
+        vx, vy = float(ps[0]), float(ps[1])
         try:
-            return float(ds.ImagePositionPatient[2])
+            vz = float(sample.SliceThickness)
         except Exception:
-            pass
+            vz = 1.0
+
+        # ── Build 3-D volume ──────────────────────────────────────────────────
+        print(f"[cbct] Building 3D volume from {len(dicom_files)} slices…")
+        slices_arr = []
+        for ds in dicom_files:
+            arr       = ds.pixel_array.astype(np.float32)
+            slope     = float(getattr(ds, "RescaleSlope",     1))
+            intercept = float(getattr(ds, "RescaleIntercept", 0))
+            slices_arr.append(arr * slope + intercept)
+
+        volume = np.stack(slices_arr, axis=0)   # shape: (Z, Y, X)
+        Z, Y, X = volume.shape
+        print(f"[cbct] Volume shape: Z={Z}, Y={Y}, X={X}")
+
+        # Global windowing (computed once, reused for every slice)
+        wc       = float(np.percentile(volume, 50))
+        p2, p98  = float(np.percentile(volume, 2)), float(np.percentile(volume, 98))
+        ww       = max(p98 - p2, 1.0)
+        lo, hi   = wc - ww / 2, wc + ww / 2
+
+        # ── Persist volume metadata ───────────────────────────────────────────
+        conn = db.engine.connect()
         try:
-            return int(ds.InstanceNumber)
-        except Exception:
-            return 0
+            res = conn.execute(text("""
+                INSERT INTO cbct_volumes
+                  (visit_id, patient_name, study_date, series_uid,
+                   num_slices, voxel_x, voxel_y, voxel_z,
+                   rows, cols, uploaded_by, notes, slice_step)
+                VALUES
+                  (:vid, :pn, :sd, :uid,
+                   :ns, :vx, :vy, :vz,
+                   :rows, :cols, :ub, :notes, :step)
+                RETURNING id
+            """), dict(
+                vid=visit_id, pn=patient_name, sd=study_date, uid=series_uid,
+                ns=Z, vx=vx, vy=vy, vz=vz, rows=rows, cols=cols,
+                ub=uploaded_by, notes=notes, step=SLICE_STEP
+            ))
+            volume_id = res.fetchone()[0]
+            conn.commit()
+            print(f"[cbct] Created volume id={volume_id}")
 
-    dicom_files.sort(key=sort_key)
+            # ── Build slice rows with STEP sampling ───────────────────────────
+            # STEP=3 → store indices 0, 3, 6, 9… per axis.
+            # This reduces DB inserts by ~66% vs storing every slice.
+            print(f"[cbct] Generating PNGs with SLICE_STEP={SLICE_STEP}…")
 
-    # ── Metadata ──────────────────────────────────────────────────────────────
-    sample       = dicom_files[0]
-    patient_name = str(getattr(sample, "PatientName", "Unknown"))
-    raw_date     = str(getattr(sample, "StudyDate", ""))
-    study_date   = None
-    if len(raw_date) == 8:
-        try:
-            study_date = datetime.strptime(raw_date, "%Y%m%d").date()
-        except Exception:
-            pass
-    series_uid = str(getattr(sample, "SeriesInstanceUID", str(uuid.uuid4())))
-    rows = int(getattr(sample, "Rows",    512))
-    cols = int(getattr(sample, "Columns", 512))
-    ps   = getattr(sample, "PixelSpacing", [1.0, 1.0])
-    vx, vy = float(ps[0]), float(ps[1])
-    try:
-        vz = float(sample.SliceThickness)
-    except Exception:
-        vz = 1.0
+            slice_rows = []
 
-    # ── Build 3-D volume ──────────────────────────────────────────────────────
-    slices_arr = []
-    for ds in dicom_files:
-        arr       = ds.pixel_array.astype(np.float32)
-        slope     = float(getattr(ds, "RescaleSlope",     1))
-        intercept = float(getattr(ds, "RescaleIntercept", 0))
-        slices_arr.append(arr * slope + intercept)
+            for i in range(0, Z, SLICE_STEP):
+                slice_rows.append({
+                    "vid": volume_id, "ax": "axial",
+                    "i": i, "d": _plane_to_png_b64(volume[i, :, :], lo, hi)
+                })
 
-    volume = np.stack(slices_arr, axis=0)   # (Z, Y, X)
-    Z, Y, X = volume.shape
+            for i in range(0, Y, SLICE_STEP):
+                slice_rows.append({
+                    "vid": volume_id, "ax": "coronal",
+                    "i": i, "d": _plane_to_png_b64(volume[:, i, :], lo, hi)
+                })
 
-    # Global window
-    wc = float(np.percentile(volume, 50))
-    p2, p98 = np.percentile(volume, 2), np.percentile(volume, 98)
-    ww = max(float(p98 - p2), 1.0)
+            for i in range(0, X, SLICE_STEP):
+                slice_rows.append({
+                    "vid": volume_id, "ax": "sagittal",
+                    "i": i, "d": _plane_to_png_b64(volume[:, :, i], lo, hi)
+                })
 
-    def to_png_b64(plane_2d):
-        lo, hi  = wc - ww / 2, wc + ww / 2
-        clipped = np.clip(plane_2d, lo, hi)
-        scaled  = ((clipped - lo) / (hi - lo) * 255).astype(np.uint8)
-        img     = PILImage.fromarray(scaled, mode="L")
-        buf     = io.BytesIO()
-        img.save(buf, format="PNG", optimize=True)
-        return base64.b64encode(buf.getvalue()).decode("utf-8")
+            print(f"[cbct] Inserting {len(slice_rows)} slice rows (batch)…")
 
-    # ── Persist ───────────────────────────────────────────────────────────────
-    conn = db.engine.connect()
-    try:
-        res = conn.execute(text("""
-            INSERT INTO cbct_volumes
-              (visit_id, patient_name, study_date, series_uid,
-               num_slices, voxel_x, voxel_y, voxel_z,
-               rows, cols, uploaded_by, notes)
-            VALUES
-              (:vid, :pn, :sd, :uid,
-               :ns, :vx, :vy, :vz,
-               :rows, :cols, :ub, :notes)
-            RETURNING id
-        """), dict(vid=visit_id, pn=patient_name, sd=study_date, uid=series_uid,
-                   ns=Z, vx=vx, vy=vy, vz=vz, rows=rows, cols=cols,
-                   ub=uploaded_by, notes=notes))
-        volume_id = res.fetchone()[0]
-        conn.commit()
+            # ── Single batch INSERT — much faster than one INSERT per slice ───
+            conn.execute(
+                text("INSERT INTO cbct_slices (volume_id, axis, index, png_data) "
+                     "VALUES (:vid, :ax, :i, :d)"),
+                slice_rows          # SQLAlchemy executemany
+            )
 
-        for i in range(Z):
-            conn.execute(text(
-                "INSERT INTO cbct_slices (volume_id, axis, index, png_data) VALUES (:vid,'axial',:i,:d)"
-            ), dict(vid=volume_id, i=i, d=to_png_b64(volume[i, :, :])))
+            # Update num_slices to reflect how many axial slices were actually stored
+            stored_axial = len([r for r in slice_rows if r["ax"] == "axial"])
+            conn.execute(
+                text("UPDATE cbct_volumes SET num_slices = :n WHERE id = :vid"),
+                dict(n=stored_axial, vid=volume_id)
+            )
+            conn.commit()
+            print(f"[cbct] Done ✅ — {len(slice_rows)} slices stored")
 
-        for i in range(Y):
-            conn.execute(text(
-                "INSERT INTO cbct_slices (volume_id, axis, index, png_data) VALUES (:vid,'coronal',:i,:d)"
-            ), dict(vid=volume_id, i=i, d=to_png_b64(volume[:, i, :])))
+        finally:
+            conn.close()
 
-        for i in range(X):
-            conn.execute(text(
-                "INSERT INTO cbct_slices (volume_id, axis, index, png_data) VALUES (:vid,'sagittal',:i,:d)"
-            ), dict(vid=volume_id, i=i, d=to_png_b64(volume[:, :, i])))
+        return jsonify({
+            "id":            volume_id,
+            "visit_id":      visit_id,
+            "patient_name":  patient_name,
+            "study_date":    study_date.strftime("%Y-%m-%d") if study_date else None,
+            "num_slices":    stored_axial,
+            "slice_step":    SLICE_STEP,
+            "dimensions":    {"z": Z, "y": Y, "x": X},
+            "voxel_spacing": {"x": vx, "y": vy, "z": vz},
+            "message":       (
+                f"Processed {stored_axial} axial + "
+                f"{len([r for r in slice_rows if r['ax'] == 'coronal'])} coronal + "
+                f"{len([r for r in slice_rows if r['ax'] == 'sagittal'])} sagittal slices "
+                f"(every {SLICE_STEP}rd slice stored)"
+            ),
+        }), 201
 
-        conn.commit()
-    finally:
-        conn.close()
+    # ── Catch-all: log full traceback to Render logs, return readable error ───
+    except MemoryError:
+        print("[cbct] MemoryError — file too large for server RAM")
+        return jsonify({"error": "File too large to process — server ran out of memory. Try a smaller scan."}), 507
 
-    return jsonify({
-        "id":           volume_id,
-        "visit_id":     visit_id,
-        "patient_name": patient_name,
-        "study_date":   study_date.strftime("%Y-%m-%d") if study_date else None,
-        "num_slices":   Z,
-        "dimensions":   {"z": Z, "y": Y, "x": X},
-        "voxel_spacing":{"x": vx, "y": vy, "z": vz},
-        "message":      f"Processed {Z} axial + {Y} coronal + {X} sagittal slices",
-    }), 201
+    except Exception as e:
+        print(f"[cbct] UNEXPECTED ERROR:\n{traceback.format_exc()}")
+        return jsonify({"error": f"Upload failed: {str(e)}"}), 500
 
 
 # ─── List volumes for a visit ─────────────────────────────────────────────────
@@ -292,10 +372,21 @@ def get_slice(volume_id, axis, index):
 
     conn = db.engine.connect()
     try:
+        # ── Exact match first ─────────────────────────────────────────────────
         row = conn.execute(text("""
             SELECT png_data FROM cbct_slices
             WHERE volume_id = :vid AND axis = :ax AND index = :idx
         """), dict(vid=volume_id, ax=axis, idx=index)).fetchone()
+
+        # ── If exact index wasn't stored (due to STEP sampling),
+        #    return the nearest stored slice instead of a 404 ─────────────────
+        if not row:
+            row = conn.execute(text("""
+                SELECT png_data FROM cbct_slices
+                WHERE volume_id = :vid AND axis = :ax
+                ORDER BY ABS(index - :idx)
+                LIMIT 1
+            """), dict(vid=volume_id, ax=axis, idx=index)).fetchone()
     finally:
         conn.close()
 

@@ -240,6 +240,9 @@ class Visit(db.Model):
     treatment_plan = db.Column(db.Text, nullable=True)
     diagnosis      = db.Column(db.Text, nullable=True)
 
+    # ── CBCT uploads ──
+    cbct_files     = db.relationship("CBCTFile", backref="visit", lazy=True, cascade="all, delete-orphan")
+
     # Relationships
     dental_charts   = db.relationship("DentalChart",   backref="visit", lazy=True, cascade="all, delete-orphan")
     other_findings  = db.relationship("OtherFinding",  backref="visit", lazy=True, cascade="all, delete-orphan")
@@ -391,6 +394,34 @@ class Image(db.Model):
     uploaded_by = db.Column(db.String(100))
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
     image_date  = db.Column(db.Date, nullable=True)
+
+
+# ═══════════════════════════════════════════════════════════════
+#  CBCT FILES
+# ═══════════════════════════════════════════════════════════════
+class CBCTFile(db.Model):
+    __tablename__ = "cbct_files"
+
+    id            = db.Column(db.Integer, primary_key=True)
+    visit_id      = db.Column(db.Integer, db.ForeignKey("visits.id"), nullable=False)
+    filename      = db.Column(db.String(255), nullable=False)   # stored filename (uuid-prefixed)
+    original_name = db.Column(db.String(255), nullable=False)   # original filename from user
+    file_path     = db.Column(db.String(500), nullable=False)   # absolute path on disk
+    file_size     = db.Column(db.Integer,     nullable=True)    # bytes
+    uploaded_by   = db.Column(db.String(100), nullable=True)
+    uploaded_at   = db.Column(db.DateTime,    default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id":            self.id,
+            "visit_id":      self.visit_id,
+            "filename":      self.filename,
+            "original_name": self.original_name,
+            "file_path":     self.file_path,
+            "file_size":     self.file_size,
+            "uploaded_by":   self.uploaded_by,
+            "uploaded_at":   self.uploaded_at.isoformat() if self.uploaded_at else None,
+        }
 
 
 # ═══════════════════════════════════════════════════════════════

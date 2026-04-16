@@ -1058,177 +1058,177 @@ function CBCTViewer({ volumeId, onClose }) {
     </div>
   );
 }
-
-/* ═══════════════════════════════════════════
-   CBCT UPLOAD SECTION  (replaces CBCT gallery)
-═══════════════════════════════════════════ */
 function CBCTUploadSection({ visitId, disabled }) {
-  const [volumes,    setVolumes]    = useState([]);
-  const [loading,    setLoading]    = useState(true);
-  const [uploading,  setUploading]  = useState(false);
-  const [uploadPct,  setUploadPct]  = useState(0);
-  const [uploadMsg,  setUploadMsg]  = useState("");
-  const [error,      setError]      = useState(null);
-  const [openVolId,  setOpenVolId]  = useState(null);
-  const [dragOver,   setDragOver]   = useState(false);
+  const [volumes, setVolumes] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadPct, setUploadPct] = useState(0);
+  const [uploadMsg, setUploadMsg] = useState("");
+  const [error, setError] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
+
   const fileRef = useRef(null);
+  const folderRef = useRef(null);
 
   const loadVolumes = useCallback(() => {
     setLoading(true);
     api.get(`/visits/${visitId}/cbct`)
-      .then(r=>{ setVolumes(Array.isArray(r.data)?r.data:[]); setLoading(false); })
-      .catch(()=>{ setError("Failed to load CBCT volumes"); setLoading(false); });
-  },[visitId]);
+      .then(r => {
+        setVolumes(Array.isArray(r.data) ? r.data : []);
+        setLoading(false);
+      })
+      .catch(() => {
+        setError("Failed to load CBCT volumes");
+        setLoading(false);
+      });
+  }, [visitId]);
 
-  useEffect(()=>{ loadVolumes(); },[loadVolumes]);
+  useEffect(() => {
+    loadVolumes();
+  }, [loadVolumes]);
 
-  const doUpload = useCallback(async(file)=>{
-    if (!file) return;
-    if (!file.name.toLowerCase().endsWith(".zip")) { setError("Please select a .zip DICOM file."); return; }
-    setError(null); setUploading(true); setUploadPct(5);
-    setUploadMsg("Uploading ZIP file…");
+  const createZipFromFiles = async (files) => {
+    const JSZip = window.JSZip || (await import("jszip")).default;
+    const zip = new JSZip();
 
-    const msgs = ["Extracting DICOM slices…","Generating coronal views…","Generating sagittal views…","Storing in database…"];
-    let mi=0;
-    const interval = setInterval(()=>{
-      setUploadPct(p=>{ if(p>=85){clearInterval(interval);return p;} return p+Math.random()*10; });
-      setUploadMsg(msgs[Math.min(mi++,msgs.length-1)]);
-    },900);
-
-    try {
-      const fd=new FormData(); fd.append("file",file); fd.append("uploaded_by","USER");
-      const res = await api.post(`/visits/${visitId}/cbct`, fd, { headers:{"Content-Type":"multipart/form-data"} });
-      clearInterval(interval);
-      setUploadPct(100);
-      setUploadMsg(`✅ Done! ${res.data.num_slices} slices processed across all 3 axes.`);
-      setTimeout(()=>{ setUploading(false); setUploadPct(0); setUploadMsg(""); loadVolumes(); },1800);
-    } catch(e) {
-      clearInterval(interval);
-      setError(e?.response?.data?.error||"Upload failed. Please try again.");
-      setUploading(false); setUploadPct(0);
+    for (const file of files) {
+      const path = file.webkitRelativePath || file.name;
+      zip.file(path, file);
     }
-  },[visitId,loadVolumes]);
 
-  const deleteVolume = async(id)=>{
-    if (!window.confirm("Delete this CBCT volume? Cannot be undone.")) return;
-    try { await api.delete(`/cbct/${id}`); loadVolumes(); }
-    catch(e) { alert("Delete failed."); }
+    return await zip.generateAsync({ type: "blob" });
   };
 
-  if (openVolId!==null) return <CBCTViewer volumeId={openVolId} onClose={()=>setOpenVolId(null)} />;
+  const doUpload = useCallback(async (fileOrFiles) => {
+    if (!fileOrFiles) return;
+
+    setError(null);
+    setUploading(true);
+    setUploadPct(5);
+    setUploadMsg("Preparing files…");
+
+    try {
+      let zipBlob;
+
+      if (fileOrFiles instanceof FileList) {
+        setUploadMsg("Creating ZIP from folder…");
+        const files = Array.from(fileOrFiles);
+
+        const dicomFiles = files.filter(f => {
+          const name = f.name.toLowerCase();
+          return !name.startsWith(".") &&
+            (name.endsWith(".dcm") || !name.includes("."));
+        });
+
+        if (dicomFiles.length === 0) {
+          throw new Error("No DICOM files found in folder");
+        }
+
+        zipBlob = await createZipFromFiles(dicomFiles);
+      } else {
+        if (!fileOrFiles.name.toLowerCase().endsWith(".zip")) {
+          setError("Please select a .zip file or DICOM folder.");
+          setUploading(false);
+          return;
+        }
+        zipBlob = fileOrFiles;
+      }
+
+      const fd = new FormData();
+      fd.append("file", zipBlob, "cbct.zip");
+      fd.append("uploaded_by", "USER");
+
+      const res = await api.post(`/visits/${visitId}/cbct`, fd, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+
+      setUploadPct(100);
+      setUploadMsg(`✅ Done! ${res.data.num_slices} slices processed.`);
+
+      setTimeout(() => {
+        setUploading(false);
+        setUploadPct(0);
+        setUploadMsg("");
+        loadVolumes();
+      }, 1500);
+
+    } catch (e) {
+      setError(e?.message || "Upload failed");
+      setUploading(false);
+      setUploadPct(0);
+    }
+  }, [visitId, loadVolumes]);
+
+  const deleteVolume = async (id) => {
+    if (!window.confirm("Delete this CBCT volume?")) return;
+    await api.delete(`/cbct/${id}`);
+    loadVolumes();
+  };
+
+  const openCBCTInNewTab = (id) => {
+    window.open(`/cbct-viewer/${id}`, "_blank");
+  };
 
   return (
-    <div style={{ marginTop:4 }}>
-      {/* Upload zone */}
+    <div style={{ marginTop: 4 }}>
+
       {!disabled && (
-        <div className={`cbct-drop-zone ${dragOver?"drag-over":""}`}
-          onClick={()=>!uploading&&fileRef.current?.click()}
-          onDragOver={e=>{e.preventDefault();setDragOver(true);}}
-          onDragLeave={()=>setDragOver(false)}
-          onDrop={e=>{e.preventDefault();setDragOver(false);const f=e.dataTransfer.files[0];if(f)doUpload(f);}}>
-          <input ref={fileRef} type="file" accept=".zip" style={{ display:"none" }}
-            onChange={e=>doUpload(e.target.files[0])} />
+        <div
+          className={`cbct-drop-zone ${dragOver ? "drag-over" : ""}`}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragOver(false);
+
+            const files = e.dataTransfer.files;
+
+            if (files.length > 1) doUpload(files);
+            else doUpload(files[0]);
+          }}
+        >
+
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".zip"
+            style={{ display: "none" }}
+            onChange={(e) => doUpload(e.target.files[0])}
+          />
+
+          <input
+            ref={folderRef}
+            type="file"
+            multiple
+            {...{ webkitdirectory: "", directory: "" }}
+            style={{ display: "none" }}
+            onChange={(e) => doUpload(e.target.files)}
+          />
+
           {uploading ? (
-            <div style={{ width:"100%" }}>
-              <div className="cbct-progress-bar" style={{ marginBottom:10 }}>
-                <div className="cbct-progress-fill" style={{ width:`${uploadPct}%` }}/>
-              </div>
-              <div style={{ fontSize:13,fontWeight:600,color:"#1d6fa4",marginBottom:4 }}>{uploadMsg}</div>
-              <div style={{ fontSize:11,color:"#94a3b8" }}>{Math.round(uploadPct)}% complete</div>
-            </div>
+            <div>{uploadMsg}</div>
           ) : (
             <>
-              <div style={{ fontSize:38,marginBottom:8 }}>🗜️</div>
-              <div style={{ fontSize:14,fontWeight:700,color:"#0b2d4e",marginBottom:6 }}>Upload CBCT ZIP</div>
-              <div style={{ fontSize:12,color:"#64748b",lineHeight:1.7 }}>
-                Drop your DICOM ZIP file here, or click to browse
-                <br/><span style={{ opacity:.5 }}>All 3 MPR axes auto-generated on the server</span>
-              </div>
+              <button onClick={() => folderRef.current.click()}>
+                📁 Folder
+              </button>
+              <button onClick={() => fileRef.current.click()}>
+                🗜️ ZIP
+              </button>
             </>
           )}
+
         </div>
       )}
 
-      {error && (
-        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",
-          background:"#fef2f2",border:"1.5px solid #fecaca",borderRadius:10,
-          padding:"10px 14px",color:"#dc2626",fontSize:12.5,marginTop:10 }}>
-          <span>⚠️ {error}</span>
-          <button onClick={()=>setError(null)} style={{ background:"transparent",border:"none",
-            color:"#dc2626",cursor:"pointer",fontSize:16,padding:0 }}>✕</button>
+      {volumes.map(v => (
+        <div key={v.id}>
+          {v.patient_name}
+          <button onClick={() => openCBCTInNewTab(v.id)}>Open</button>
+          <button onClick={() => deleteVolume(v.id)}>Delete</button>
         </div>
-      )}
+      ))}
 
-      {/* Volume list */}
-      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",margin:"16px 0 8px" }}>
-        <div style={{ fontSize:13,fontWeight:700,color:"#0b2d4e" }}>CBCT Volumes</div>
-        <button onClick={loadVolumes} style={{ background:"transparent",border:"1.5px solid #e2e8f4",
-          color:"#64748b",padding:"4px 10px",borderRadius:7,fontSize:11,cursor:"pointer",
-          fontFamily:"'Plus Jakarta Sans',sans-serif" }}>↺ Refresh</button>
-      </div>
-
-      {loading ? (
-        <div style={{ textAlign:"center",padding:"24px 0",color:"#94a3b8",fontSize:13 }}>
-          <span className="imgup-spinner" style={{ marginRight:8 }}/>Loading…
-        </div>
-      ) : volumes.length===0 ? (
-        <div style={{ textAlign:"center",padding:"32px 20px",background:"#fafbff",borderRadius:12,
-          border:"1.5px dashed #dde8f8" }}>
-          <div style={{ fontSize:34,marginBottom:8 }}>🔬</div>
-          <div style={{ fontSize:13,fontWeight:600,color:"#475569",marginBottom:4 }}>No CBCT volumes yet</div>
-          <div style={{ fontSize:12,color:"#94a3b8" }}>Upload a DICOM ZIP file above to get started</div>
-        </div>
-      ) : (
-        <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
-          {volumes.map(vol=>(
-            <div key={vol.id} className="cbct-vol-card">
-              <div style={{ fontSize:28,flexShrink:0 }}>🦷</div>
-              <div style={{ flex:1,minWidth:0 }}>
-                <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:4 }}>
-                  <span style={{ fontSize:13,fontWeight:700,color:"#e2e8f0" }}>
-                    {vol.patient_name||"CBCT Volume"}
-                  </span>
-                  <span style={{ background:"#1d4ed8",color:"#93c5fd",fontSize:10,
-                    padding:"2px 8px",borderRadius:10 }}>
-                    {vol.num_slices} slices
-                  </span>
-                </div>
-                <div style={{ display:"flex",gap:8,flexWrap:"wrap",fontSize:11,color:"#64748b" }}>
-                  {vol.study_date && <span>📅 {vol.study_date}</span>}
-                  <span>·</span>
-                  <span>{vol.dimensions?.rows}×{vol.dimensions?.cols}px</span>
-                  <span>·</span>
-                  <span>⬆ {vol.uploaded_at}</span>
-                </div>
-                {vol.notes && <div style={{ fontSize:11,color:"#475569",marginTop:4,fontStyle:"italic" }}>{vol.notes}</div>}
-              </div>
-              <div style={{ display:"flex",gap:8,flexShrink:0,alignItems:"center" }}>
-                <button className="cbct-open-btn" onClick={()=>setOpenVolId(vol.id)}>
-                  🖥️ Open CBCT
-                </button>
-                {!disabled && (
-                  <button className="imgup-icon-btn danger" onClick={()=>deleteVolume(vol.id)} title="Delete">🗑️</button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Feature legend */}
-      <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,
-        padding:"12px 14px",background:"#f8fafc",borderRadius:10,
-        border:"1.5px solid #e8eef8",marginTop:16 }}>
-        {[["🧠","Axial / Coronal / Sagittal MPR"],["🖱️","Scroll wheel slice navigation"],
-          ["📏","Distance & angle measurement"],["🦷","Implant planning (Nobel, Straumann)"],
-          ["🧠","IAN nerve tracing"],["🔬","HU density probe"],
-          ["☀️","Windowing & level control"],["💾","Save annotations to server"]].map(([icon,label])=>(
-          <div key={label} style={{ display:"flex",gap:6,alignItems:"center" }}>
-            <span style={{ fontSize:14 }}>{icon}</span>
-            <span style={{ fontSize:10.5,color:"#64748b" }}>{label}</span>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

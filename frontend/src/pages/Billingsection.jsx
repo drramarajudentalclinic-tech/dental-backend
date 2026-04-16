@@ -1184,7 +1184,7 @@ export default function BillingSection({ initialVisitId = null }) {
                     {selected.treatment_done && <div className="bs-info-row"><span className="bs-info-label">Treatment Done:</span><span className="bs-info-val">{selected.treatment_done}</span></div>}
                     {selected.treatment_plan && <div className="bs-info-row"><span className="bs-info-label">Treatment Plan:</span><span className="bs-info-val">{selected.treatment_plan}</span></div>}
                     {selected.advice         && <div className="bs-info-row"><span className="bs-info-label">Advice:</span><span className="bs-info-val">{selected.advice}</span></div>}
-                  </div>
+                  </div> 
                 )}
 
                 {/* Payment summary bar */}
