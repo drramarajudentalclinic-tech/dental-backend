@@ -179,7 +179,7 @@ def get_visit(visit_id):
 # ---------------------------------
 @visits_bp.route("/visits/<int:visit_id>/cbct", methods=["POST"])
 def upload_cbct(visit_id):
-    from models import CBCTFile
+    from models import CBCTFile, Consultation
 
     visit = Visit.query.get_or_404(visit_id)
 
@@ -222,9 +222,30 @@ def upload_cbct(visit_id):
     db.session.add(cbct)
     db.session.commit()
 
+    # ═══════════════════════════════════════════════════════════════════════
+    # 🔧 FIX: Auto-create consultation if none exists for this visit
+    # ═══════════════════════════════════════════════════════════════════════
+    consultation_created = False
+    existing_consult = Consultation.query.filter_by(visit_id=visit_id).first()
+    
+    if not existing_consult:
+        # Create an empty consultation record so frontend polling succeeds
+        consult = Consultation(
+            visit_id=visit_id,
+            diagnosis="",
+            treatment_done_today="",
+            treatment_plan="",
+            advice="",
+            follow_up_date=None,
+        )
+        db.session.add(consult)
+        db.session.commit()
+        consultation_created = True
+
     return jsonify({
         "message":   "CBCT uploaded successfully",
         "cbct":      cbct.to_dict(),
+        "consultation_created": consultation_created,  # Let frontend know if we auto-created
     }), 200
 
 
