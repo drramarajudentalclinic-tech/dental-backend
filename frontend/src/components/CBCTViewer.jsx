@@ -1,8 +1,8 @@
 /**
  * CBCTViewer.jsx
- * 
+ *
  * Full-featured CBCT viewer — drop-in React component.
- * 
+ *
  * Props:
  *   volumeId   {number}   CBCT volume ID from the DB
  *   volumeMeta {object}   Meta object from GET /api/cbct/:id/meta  (optional, fetched if omitted)
@@ -11,10 +11,6 @@
  *
  * Usage:
  *   <CBCTViewer volumeId={42} onClose={() => setOpen(false)} />
- *
- * Dependencies (already in most React projects):
- *   - React ≥ 17
- *   - No external UI lib needed — fully self-contained styles via <style> tag
  */
 
 import React, {
@@ -28,45 +24,40 @@ const AXIS_LABELS = { axial: "Axial (Z)", coronal: "Coronal (Y)", sagittal: "Sag
 const AXIS_COLORS = { axial: "#22d3ee", coronal: "#f97316", sagittal: "#a78bfa" };
 
 const TOOLS = [
-  { id: "pan",         icon: "✋", label: "Pan" },
-  { id: "window",      icon: "☀️", label: "Window / Level" },
-  { id: "measure",     icon: "📏", label: "Measure Distance" },
-  { id: "angle",       icon: "📐", label: "Measure Angle" },
-  { id: "implant",     icon: "🦷", label: "Place Implant" },
-  { id: "nerve",       icon: "🧠", label: "Trace Nerve (IAN)" },
-  { id: "annotate",    icon: "✏️", label: "Annotate" },
-  { id: "roi",         icon: "⬜", label: "ROI / Crop" },
-  { id: "probe",       icon: "🔬", label: "HU Probe" },
-  { id: "erase",       icon: "🗑️", label: "Erase" },
+  { id: "pan",      icon: "✋", label: "Pan" },
+  { id: "window",   icon: "☀️", label: "Window / Level" },
+  { id: "measure",  icon: "📏", label: "Measure Distance" },
+  { id: "angle",    icon: "📐", label: "Measure Angle" },
+  { id: "implant",  icon: "🦷", label: "Place Implant" },
+  { id: "nerve",    icon: "🧠", label: "Trace Nerve (IAN)" },
+  { id: "annotate", icon: "✏️", label: "Annotate" },
+  { id: "roi",      icon: "⬜", label: "ROI / Crop" },
+  { id: "probe",    icon: "🔬", label: "HU Probe" },
+  { id: "erase",    icon: "🗑️", label: "Erase" },
 ];
 
 const DEFAULT_WW = 3000;
 const DEFAULT_WC = 400;
 
-// Standard dental CBCT presets
 const WINDOW_PRESETS = [
-  { label: "Bone",      wc:  400, ww: 1500 },
-  { label: "Soft Tissue", wc:  40, ww:  400 },
-  { label: "Enamel",    wc: 2500, ww: 4000 },
-  { label: "Airway",    wc: -800, ww: 1000 },
-  { label: "Full Range",wc:  400, ww: 4000 },
+  { label: "Bone",        wc:  400, ww: 1500 },
+  { label: "Soft Tissue", wc:   40, ww:  400 },
+  { label: "Enamel",      wc: 2500, ww: 4000 },
+  { label: "Airway",      wc: -800, ww: 1000 },
+  { label: "Full Range",  wc:  400, ww: 4000 },
 ];
 
 const IMPLANT_SYSTEMS = [
-  { brand: "Nobel Active",   lengths: [8,10,11.5,13,15,18], diameters: [3.0,3.5,4.3,5.0] },
-  { brand: "Straumann BL",   lengths: [8,10,12,14,16],      diameters: [3.3,4.1,4.8,6.5] },
-  { brand: "Zimmer TSV",     lengths: [8,10,11.5,13,16],    diameters: [3.7,4.7,5.7]     },
-  { brand: "Generic",        lengths: [8,10,11,13,15,18],   diameters: [3.0,3.5,4.0,4.5,5.0] },
+  { brand: "Nobel Active",  lengths: [8,10,11.5,13,15,18], diameters: [3.0,3.5,4.3,5.0] },
+  { brand: "Straumann BL",  lengths: [8,10,12,14,16],      diameters: [3.3,4.1,4.8,6.5] },
+  { brand: "Zimmer TSV",    lengths: [8,10,11.5,13,16],    diameters: [3.7,4.7,5.7]     },
+  { brand: "Generic",       lengths: [8,10,11,13,15,18],   diameters: [3.0,3.5,4.0,4.5,5.0] },
 ];
 
-// ─── Utility ──────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
-
-function dist2D(a, b) {
-  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
-}
-
+function dist2D(a, b) { return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2); }
 function angleDeg(a, b, c) {
   const ab = { x: a.x - b.x, y: a.y - b.y };
   const cb = { x: c.x - b.x, y: c.y - b.y };
@@ -75,9 +66,15 @@ function angleDeg(a, b, c) {
   return (Math.atan2(cross, dot) * 180) / Math.PI;
 }
 
-function huToGray(hu, wc, ww) {
-  const lo = wc - ww / 2, hi = wc + ww / 2;
-  return clamp(((hu - lo) / (hi - lo)) * 255, 0, 255);
+function getToken() {
+  return localStorage.getItem("token") || sessionStorage.getItem("token") || "";
+}
+
+function authHeaders(extra = {}) {
+  const token = getToken();
+  return token
+    ? { Authorization: `Bearer ${token}`, ...extra }
+    : { ...extra };
 }
 
 // ─── Slice Panel ──────────────────────────────────────────────────────────────
@@ -86,7 +83,7 @@ function SlicePanel({
   axis, volumeId, sliceIndex, totalSlices,
   wc, ww, apiBase,
   tool, zoom, pan,
-  crosshair,                  // { x, y }  0-1 normalised
+  crosshair,
   onCrosshairChange,
   annotations, onAnnotationAdd,
   onSliceChange,
@@ -98,22 +95,22 @@ function SlicePanel({
   const canvasRef  = useRef(null);
   const imgRef     = useRef(new window.Image());
   const dragRef    = useRef(null);
-  const annPtsRef  = useRef([]);   // in-progress annotation points
+  const annPtsRef  = useRef([]);
 
   const sliceUrl = useMemo(() =>
     `${apiBase}/cbct/${volumeId}/slice/${axis}/${sliceIndex}`,
     [apiBase, volumeId, axis, sliceIndex]
   );
 
-  // Load slice image
   useEffect(() => {
     const img = imgRef.current;
     img.crossOrigin = "anonymous";
+    // Attach token as query param since img.src doesn't support headers
+    const token = getToken();
+    img.src = token ? `${sliceUrl}?token=${token}` : sliceUrl;
     img.onload = () => render();
-    img.src = sliceUrl;
   }, [sliceUrl]);
 
-  // Re-render when window / zoom / pan / crosshair / annotations change
   useEffect(() => { render(); }, [wc, ww, zoom, pan, crosshair, annotations, sliceIndex]);
 
   function render() {
@@ -122,12 +119,9 @@ function SlicePanel({
     const ctx = canvas.getContext("2d");
     const W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
-
-    // Background
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, W, H);
 
-    // Draw slice image with zoom + pan
     const img = imgRef.current;
     if (img.complete && img.naturalWidth) {
       const sw = W * zoom, sh = H * zoom;
@@ -136,7 +130,6 @@ function SlicePanel({
       ctx.drawImage(img, sx, sy, sw, sh);
     }
 
-    // Crosshair lines
     if (crosshair) {
       const cx = crosshair.x * W, cy = crosshair.y * H;
       ctx.strokeStyle = AXIS_COLORS[axis] + "99";
@@ -147,15 +140,12 @@ function SlicePanel({
       ctx.setLineDash([]);
     }
 
-    // Annotations
     drawAnnotations(ctx, W, H, annotations, axis);
 
-    // In-progress annotation
     if (annPtsRef.current.length > 0) {
       drawInProgress(ctx, annPtsRef.current, tool);
     }
 
-    // HUD text
     ctx.fillStyle = AXIS_COLORS[axis];
     ctx.font = "bold 11px 'JetBrains Mono', monospace";
     ctx.fillText(AXIS_LABELS[axis].toUpperCase(), 8, 20);
@@ -167,63 +157,49 @@ function SlicePanel({
 
   function drawAnnotations(ctx, W, H, annotations, axis) {
     const axisAnns = annotations.filter(a => a.axis === axis);
-
     for (const ann of axisAnns) {
       if (ann.type === "measure") {
         const p1 = { x: ann.p1.x * W, y: ann.p1.y * H };
         const p2 = { x: ann.p2.x * W, y: ann.p2.y * H };
-        ctx.strokeStyle = "#fde68a";
-        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = "#fde68a"; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
         ctx.fillStyle = "#fde68a";
         ctx.beginPath(); ctx.arc(p1.x, p1.y, 3, 0, 2 * Math.PI); ctx.fill();
         ctx.beginPath(); ctx.arc(p2.x, p2.y, 3, 0, 2 * Math.PI); ctx.fill();
         const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
-        ctx.font = "11px monospace";
-        ctx.fillStyle = "#fde68a";
+        ctx.font = "11px monospace"; ctx.fillStyle = "#fde68a";
         ctx.fillText(`${ann.mm.toFixed(1)} mm`, mid.x + 4, mid.y - 4);
       }
-
       if (ann.type === "angle") {
         const pts = ann.points.map(p => ({ x: p.x * W, y: p.y * H }));
-        ctx.strokeStyle = "#86efac";
-        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = "#86efac"; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[1].x, pts[1].y); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(pts[1].x, pts[1].y); ctx.lineTo(pts[2].x, pts[2].y); ctx.stroke();
         pts.forEach(p => { ctx.fillStyle="#86efac"; ctx.beginPath(); ctx.arc(p.x,p.y,3,0,2*Math.PI); ctx.fill(); });
         ctx.font = "11px monospace"; ctx.fillStyle = "#86efac";
         ctx.fillText(`${ann.deg.toFixed(1)}°`, pts[1].x + 6, pts[1].y - 6);
       }
-
       if (ann.type === "implant" && ann.axis === axis) {
         const cx = ann.cx * W, cy = ann.cy * H;
         const r  = (ann.diameter / 2) * zoom * 10;
         const h  = ann.length * zoom * 10;
-        ctx.strokeStyle = "#60a5fa";
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#60a5fa"; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.ellipse(cx, cy, r, h / 2, ann.angleDeg * Math.PI / 180, 0, 2 * Math.PI); ctx.stroke();
-        ctx.fillStyle = "#60a5fa44";
-        ctx.fill();
-        ctx.fillStyle = "#60a5fa";
-        ctx.font = "10px monospace";
+        ctx.fillStyle = "#60a5fa44"; ctx.fill();
+        ctx.fillStyle = "#60a5fa"; ctx.font = "10px monospace";
         ctx.fillText(`${ann.brand} Ø${ann.diameter}×${ann.length}mm`, cx + r + 4, cy);
       }
-
       if (ann.type === "nerve") {
         const pts = ann.points.map(p => ({ x: p.x * W, y: p.y * H }));
-        ctx.strokeStyle = "#f9a8d4";
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#f9a8d4"; ctx.lineWidth = 2;
         ctx.setLineDash([3, 2]);
         ctx.beginPath();
         pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
-        ctx.stroke();
-        ctx.setLineDash([]);
+        ctx.stroke(); ctx.setLineDash([]);
         pts.forEach(p => { ctx.fillStyle="#f9a8d4"; ctx.beginPath(); ctx.arc(p.x,p.y,2.5,0,2*Math.PI); ctx.fill(); });
       }
-
       if (ann.type === "text") {
-        ctx.fillStyle = "#fbbf24";
-        ctx.font = "12px sans-serif";
+        ctx.fillStyle = "#fbbf24"; ctx.font = "12px sans-serif";
         ctx.fillText(ann.text, ann.x * W, ann.y * H);
       }
     }
@@ -233,7 +209,6 @@ function SlicePanel({
     if (pts.length === 0) return;
     const canvas = canvasRef.current;
     const W = canvas.width, H = canvas.height;
-
     if (tool === "measure" && pts.length === 1) {
       ctx.strokeStyle = "#fde68a88"; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(pts[0].x * W, pts[0].y * H, 4, 0, 2 * Math.PI); ctx.stroke();
@@ -245,8 +220,6 @@ function SlicePanel({
       ctx.stroke(); ctx.setLineDash([]);
     }
   }
-
-  // ── Mouse handlers ────────────────────────────────────────────────────────
 
   function canvasPos(e) {
     const r = canvasRef.current.getBoundingClientRect();
@@ -267,31 +240,24 @@ function SlicePanel({
         annPtsRef.current = [pos];
       } else {
         const p1 = annPtsRef.current[0];
-        const pxPerMm = 1; // approximation — ideally use voxel spacing
-        const mm = dist2D(p1, pos) * 200; // rough mm estimate
+        const mm = dist2D(p1, pos) * 200;
         onAnnotationAdd({ type: "measure", axis, p1, p2: pos, mm });
         annPtsRef.current = [];
       }
-      render();
-      return;
+      render(); return;
     }
-
     if (tool === "angle") {
       annPtsRef.current.push(pos);
       if (annPtsRef.current.length === 3) {
         const [a, b, c] = annPtsRef.current;
-        const deg = angleDeg(a, b, c);
-        onAnnotationAdd({ type: "angle", axis, points: [a, b, c], deg });
+        onAnnotationAdd({ type: "angle", axis, points: [a, b, c], deg: angleDeg(a, b, c) });
         annPtsRef.current = [];
       }
-      render();
-      return;
+      render(); return;
     }
-
     if (tool === "nerve") {
       annPtsRef.current.push(pos);
-      render();
-      return;
+      render(); return;
     }
   }
 
@@ -303,19 +269,15 @@ function SlicePanel({
     const dy = pos.y - d.lastPos.y;
     d.lastPos = pos;
 
-    if (tool === "pan" || e.buttons === 4 /* middle */) {
+    if (tool === "pan" || e.buttons === 4) {
       const canvas = canvasRef.current;
       onPanChange({ x: pan.x + dx * canvas.width, y: pan.y + dy * canvas.height });
       return;
     }
     if (tool === "window") {
-      onWindowChange(
-        clamp(wc + dy * 800, -2000, 4000),
-        clamp(ww + dx * 800,    1, 8000)
-      );
+      onWindowChange(clamp(wc + dy * 800, -2000, 4000), clamp(ww + dx * 800, 1, 8000));
       return;
     }
-    // default: move crosshair
     onCrosshairChange(pos);
     render();
   }
@@ -324,32 +286,21 @@ function SlicePanel({
     const d = dragRef.current;
     if (!d) return;
     const pos = canvasPos(e);
-
-    if (tool === "implant") {
-      // Will be handled by implant panel
-      onAnnotationAdd({ type: "implant_request", axis, cx: pos.x, cy: pos.y });
-    }
-    if (tool === "probe") {
-      onAnnotationAdd({ type: "probe", axis, x: pos.x, y: pos.y, hu: "~"+Math.round(wc) });
-    }
-
+    if (tool === "implant") onAnnotationAdd({ type: "implant_request", axis, cx: pos.x, cy: pos.y });
+    if (tool === "probe")   onAnnotationAdd({ type: "probe", axis, x: pos.x, y: pos.y, hu: "~"+Math.round(wc) });
     dragRef.current = null;
   }
 
   function onWheel(e) {
     e.preventDefault();
     if (e.ctrlKey) {
-      // Zoom
-      const delta = e.deltaY > 0 ? 0.9 : 1.1;
-      onZoomChange(clamp(zoom * delta, 0.3, 8));
+      onZoomChange(clamp(zoom * (e.deltaY > 0 ? 0.9 : 1.1), 0.3, 8));
     } else {
-      // Scroll slices
-      const dir = e.deltaY > 0 ? 1 : -1;
-      onSliceChange(clamp(sliceIndex + dir, 0, totalSlices - 1));
+      onSliceChange(clamp(sliceIndex + (e.deltaY > 0 ? 1 : -1), 0, totalSlices - 1));
     }
   }
 
-  function onDoubleClick(e) {
+  function onDoubleClick() {
     if (tool === "nerve" && annPtsRef.current.length > 1) {
       onAnnotationAdd({ type: "nerve", axis, points: [...annPtsRef.current] });
       annPtsRef.current = [];
@@ -357,26 +308,19 @@ function SlicePanel({
     }
   }
 
-  // Canvas size from container
   const PANEL_SIZE = 380;
 
   return (
-    <div
-      style={{
-        position: "relative",
-        border: active ? `2px solid ${AXIS_COLORS[axis]}` : "2px solid #1e293b",
-        borderRadius: 6,
-        overflow: "hidden",
-        cursor: tool === "pan" ? "grab" : tool === "window" ? "ew-resize" : "crosshair",
-        background: "#000",
-        flex: "1 1 0",
-        minWidth: 280,
-      }}
-    >
+    <div style={{
+      position: "relative",
+      border: active ? `2px solid ${AXIS_COLORS[axis]}` : "2px solid #1e293b",
+      borderRadius: 6, overflow: "hidden",
+      cursor: tool === "pan" ? "grab" : tool === "window" ? "ew-resize" : "crosshair",
+      background: "#000", flex: "1 1 0", minWidth: 280,
+    }}>
       <canvas
         ref={canvasRef}
-        width={PANEL_SIZE}
-        height={PANEL_SIZE}
+        width={PANEL_SIZE} height={PANEL_SIZE}
         style={{ display: "block", width: "100%", height: "100%" }}
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
@@ -385,12 +329,12 @@ function SlicePanel({
         onDoubleClick={onDoubleClick}
         onContextMenu={e => e.preventDefault()}
       />
-      {/* Slice scrubber */}
       <input
         type="range" min={0} max={totalSlices - 1} value={sliceIndex}
         onChange={e => onSliceChange(Number(e.target.value))}
         style={{
-          position: "absolute", bottom: 6, left: 8, right: 8, width: "calc(100% - 16px)",
+          position: "absolute", bottom: 6, left: 8, right: 8,
+          width: "calc(100% - 16px)",
           accentColor: AXIS_COLORS[axis], opacity: 0.7,
         }}
       />
@@ -405,7 +349,6 @@ function ImplantDialog({ request, onConfirm, onCancel }) {
   const [length,   setLength]   = useState(10);
   const [diameter, setDiameter] = useState(4.0);
   const [angle,    setAngle]    = useState(0);
-
   const sys = IMPLANT_SYSTEMS[system];
 
   return (
@@ -418,23 +361,19 @@ function ImplantDialog({ request, onConfirm, onCancel }) {
         <select style={styles.select} value={system} onChange={e => setSystem(+e.target.value)}>
           {IMPLANT_SYSTEMS.map((s, i) => <option key={i} value={i}>{s.brand}</option>)}
         </select>
-
         <label style={styles.label}>Length (mm)</label>
         <select style={styles.select} value={length} onChange={e => setLength(+e.target.value)}>
           {sys.lengths.map(l => <option key={l} value={l}>{l} mm</option>)}
         </select>
-
         <label style={styles.label}>Diameter (mm)</label>
         <select style={styles.select} value={diameter} onChange={e => setDiameter(+e.target.value)}>
           {sys.diameters.map(d => <option key={d} value={d}>{d} mm</option>)}
         </select>
-
         <label style={styles.label}>Angle (°): {angle}°</label>
         <input type="range" min={-45} max={45} value={angle}
           onChange={e => setAngle(+e.target.value)}
           style={{ width: "100%", accentColor: "#60a5fa" }}
         />
-
         <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
           <button style={styles.btnPrimary} onClick={() =>
             onConfirm({ brand: sys.brand, length, diameter, angleDeg: angle, ...request })
@@ -450,37 +389,40 @@ function ImplantDialog({ request, onConfirm, onCancel }) {
 
 export default function CBCTViewer({ volumeId, volumeMeta: initialMeta, apiBase = "/api", onClose }) {
 
-  // ── State ─────────────────────────────────────────────────────────────────
-  const [meta,         setMeta]         = useState(initialMeta || null);
-  const [loading,      setLoading]      = useState(!initialMeta);
-  const [error,        setError]        = useState(null);
+  const [meta,        setMeta]        = useState(initialMeta || null);
+  const [loading,     setLoading]     = useState(!initialMeta);
+  const [error,       setError]       = useState(null);
 
-  const [tool,         setTool]         = useState("pan");
-  const [wc,           setWc]           = useState(DEFAULT_WC);
-  const [ww,           setWw]           = useState(DEFAULT_WW);
-  const [zoom,         setZoom]         = useState(1);
-  const [pans,         setPans]         = useState({ axial: {x:0,y:0}, coronal: {x:0,y:0}, sagittal: {x:0,y:0} });
-  const [activeAxis,   setActiveAxis]   = useState("axial");
-  const [layout,       setLayout]       = useState("3up"); // "3up" | "axial" | "coronal" | "sagittal"
-  const [showInfo,     setShowInfo]     = useState(false);
-  const [showAnnot,    setShowAnnot]    = useState(true);
-  const [annotations,  setAnnotations]  = useState([]);
-  const [implantReq,   setImplantReq]   = useState(null);
-  const [saved,        setSaved]        = useState(false);
+  const [tool,        setTool]        = useState("pan");
+  const [wc,          setWc]          = useState(DEFAULT_WC);
+  const [ww,          setWw]          = useState(DEFAULT_WW);
+  const [zoom,        setZoom]        = useState(1);
+  const [pans,        setPans]        = useState({ axial:{x:0,y:0}, coronal:{x:0,y:0}, sagittal:{x:0,y:0} });
+  const [activeAxis,  setActiveAxis]  = useState("axial");
+  const [layout,      setLayout]      = useState("3up");
+  const [showInfo,    setShowInfo]    = useState(false);
+  const [showAnnot,   setShowAnnot]   = useState(true);
+  const [annotations, setAnnotations] = useState([]);
+  const [implantReq,  setImplantReq]  = useState(null);
+  const [saved,       setSaved]       = useState(false);
 
-  const [crosshair,    setCrosshair]    = useState({ axial: {x:0.5,y:0.5}, coronal: {x:0.5,y:0.5}, sagittal: {x:0.5,y:0.5} });
-  const [slices,       setSlices]       = useState({ axial: 0, coronal: 0, sagittal: 0 });
+  const [crosshair, setCrosshair] = useState({
+    axial:    {x:0.5,y:0.5},
+    coronal:  {x:0.5,y:0.5},
+    sagittal: {x:0.5,y:0.5},
+  });
+  const [slices, setSlices] = useState({ axial: 0, coronal: 0, sagittal: 0 });
 
   const dims = meta ? {
-    axial:    meta.dimensions.axial    || meta.dimensions.rows || 100,
-    coronal:  meta.dimensions.coronal  || meta.dimensions.cols || 100,
-    sagittal: meta.dimensions.sagittal || meta.dimensions.cols || 100,
+    axial:    meta.dimensions?.axial    || meta.dimensions?.rows || 100,
+    coronal:  meta.dimensions?.coronal  || meta.dimensions?.cols || 100,
+    sagittal: meta.dimensions?.sagittal || meta.dimensions?.cols || 100,
   } : { axial: 100, coronal: 100, sagittal: 100 };
 
   // ── Load meta ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (meta) return;
-    fetch(`${apiBase}/cbct/${volumeId}/meta`)
+    fetch(`${apiBase}/cbct/${volumeId}/meta`, { headers: authHeaders() })
       .then(r => r.json())
       .then(d => { setMeta(d); setLoading(false); })
       .catch(e => { setError(e.message); setLoading(false); });
@@ -488,7 +430,7 @@ export default function CBCTViewer({ volumeId, volumeMeta: initialMeta, apiBase 
 
   // ── Load annotations ─────────────────────────────────────────────────────
   useEffect(() => {
-    fetch(`${apiBase}/cbct/${volumeId}/annotations`)
+    fetch(`${apiBase}/cbct/${volumeId}/annotations`, { headers: authHeaders() })
       .then(r => r.json())
       .then(d => {
         const all = [
@@ -512,7 +454,7 @@ export default function CBCTViewer({ volumeId, volumeMeta: initialMeta, apiBase 
     };
     await fetch(`${apiBase}/cbct/${volumeId}/annotations`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(body),
     });
     setSaved(true);
@@ -521,10 +463,7 @@ export default function CBCTViewer({ volumeId, volumeMeta: initialMeta, apiBase 
 
   // ── Annotation handler ────────────────────────────────────────────────────
   const handleAnnotationAdd = useCallback((ann) => {
-    if (ann.type === "implant_request") {
-      setImplantReq(ann);
-      return;
-    }
+    if (ann.type === "implant_request") { setImplantReq(ann); return; }
     setAnnotations(prev => [...prev, { ...ann, id: Date.now() }]);
   }, []);
 
@@ -533,7 +472,6 @@ export default function CBCTViewer({ volumeId, volumeMeta: initialMeta, apiBase 
     setImplantReq(null);
   }, []);
 
-  // ── Window change ─────────────────────────────────────────────────────────
   const handleWindowChange = useCallback((newWc, newWw) => {
     setWc(Math.round(newWc));
     setWw(Math.round(newWw));
@@ -542,7 +480,6 @@ export default function CBCTViewer({ volumeId, volumeMeta: initialMeta, apiBase 
   // ── Crosshair sync ────────────────────────────────────────────────────────
   const handleCrosshair = useCallback((axis, pos) => {
     setCrosshair(prev => ({ ...prev, [axis]: pos }));
-    // Sync slice positions from crosshair
     if (axis === "axial") {
       setSlices(prev => ({
         ...prev,
@@ -568,21 +505,18 @@ export default function CBCTViewer({ volumeId, volumeMeta: initialMeta, apiBase 
 
   // ── Reset ─────────────────────────────────────────────────────────────────
   const resetView = () => {
-    setWc(DEFAULT_WC); setWw(DEFAULT_WW);
-    setZoom(1);
-    setPans({ axial: {x:0,y:0}, coronal: {x:0,y:0}, sagittal: {x:0,y:0} });
+    setWc(DEFAULT_WC); setWw(DEFAULT_WW); setZoom(1);
+    setPans({ axial:{x:0,y:0}, coronal:{x:0,y:0}, sagittal:{x:0,y:0} });
     setSlices({ axial: 0, coronal: 0, sagittal: 0 });
     setCrosshair({ axial:{x:0.5,y:0.5}, coronal:{x:0.5,y:0.5}, sagittal:{x:0.5,y:0.5} });
   };
 
-  // ── Export annotations as JSON ────────────────────────────────────────────
   const exportJSON = () => {
     const blob = new Blob([JSON.stringify(annotations, null, 2)], { type: "application/json" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
     a.download = `cbct_${volumeId}_annotations.json`; a.click();
   };
 
-  // ── Export screenshot ─────────────────────────────────────────────────────
   const exportScreenshot = () => {
     const canvases = document.querySelectorAll(".cbct-canvas");
     if (!canvases.length) return;
@@ -595,10 +529,7 @@ export default function CBCTViewer({ volumeId, volumeMeta: initialMeta, apiBase 
     a.download = `cbct_${volumeId}_screenshot.png`; a.click();
   };
 
-  // ── Axes to show ──────────────────────────────────────────────────────────
-  const visibleAxes = layout === "3up"
-    ? AXES
-    : [layout];
+  const visibleAxes = layout === "3up" ? AXES : [layout];
 
   // ─────────────────────────────────────────────────────────────────────────
   // Render
@@ -622,7 +553,6 @@ export default function CBCTViewer({ volumeId, volumeMeta: initialMeta, apiBase 
   return (
     <>
       <style>{CSS}</style>
-
       <div style={styles.root}>
 
         {/* ── Top bar ─────────────────────────────── */}
@@ -639,12 +569,10 @@ export default function CBCTViewer({ volumeId, volumeMeta: initialMeta, apiBase 
           </div>
 
           <div style={styles.topCenter}>
-            {/* Layout toggle */}
             {["3up", "axial", "coronal", "sagittal"].map(l => (
               <button key={l}
                 style={{ ...styles.layoutBtn, ...(layout === l ? styles.layoutBtnActive : {}) }}
                 onClick={() => setLayout(l)}
-                title={l}
               >
                 {l === "3up" ? "⊞" : l === "axial" ? "⬛" : l === "coronal" ? "◼" : "▪"}
                 {" " + l.charAt(0).toUpperCase() + l.slice(1, l === "3up" ? 3 : 4)}
@@ -653,10 +581,10 @@ export default function CBCTViewer({ volumeId, volumeMeta: initialMeta, apiBase 
           </div>
 
           <div style={styles.topRight}>
-            <button style={styles.iconBtn} onClick={resetView}        title="Reset View">↺</button>
-            <button style={styles.iconBtn} onClick={exportScreenshot}  title="Screenshot">📷</button>
-            <button style={styles.iconBtn} onClick={exportJSON}        title="Export Annotations">💾</button>
-            <button style={styles.iconBtn} onClick={saveAnnotations}   title="Save to Server">
+            <button style={styles.iconBtn} onClick={resetView}       title="Reset View">↺</button>
+            <button style={styles.iconBtn} onClick={exportScreenshot} title="Screenshot">📷</button>
+            <button style={styles.iconBtn} onClick={exportJSON}       title="Export Annotations">💾</button>
+            <button style={styles.iconBtn} onClick={saveAnnotations}  title="Save to Server">
               {saved ? "✅" : "🔒"}
             </button>
             <button style={styles.iconBtn} onClick={() => setShowInfo(i => !i)} title="Info">ℹ️</button>
@@ -684,22 +612,17 @@ export default function CBCTViewer({ volumeId, volumeMeta: initialMeta, apiBase 
 
             <div style={styles.toolDivider} />
 
-            {/* Window presets */}
             <div style={{ padding: "0 4px" }}>
               <div style={styles.sectionLabel}>PRESETS</div>
               {WINDOW_PRESETS.map(p => (
-                <button key={p.label}
-                  style={styles.presetBtn}
+                <button key={p.label} style={styles.presetBtn}
                   onClick={() => { setWc(p.wc); setWw(p.ww); }}
-                >
-                  {p.label}
-                </button>
+                >{p.label}</button>
               ))}
             </div>
 
             <div style={styles.toolDivider} />
 
-            {/* WW/WC sliders */}
             <div style={{ padding: "0 4px" }}>
               <div style={styles.sectionLabel}>WINDOW</div>
               <div style={styles.sliderRow}>
@@ -730,7 +653,6 @@ export default function CBCTViewer({ volumeId, volumeMeta: initialMeta, apiBase 
 
             <div style={styles.toolDivider} />
 
-            {/* Annotations panel */}
             <div style={{ padding: "0 4px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={styles.sectionLabel}>ANNOTATIONS</div>
@@ -741,11 +663,11 @@ export default function CBCTViewer({ volumeId, volumeMeta: initialMeta, apiBase 
               {showAnnot && annotations.slice(-8).map((a, i) => (
                 <div key={a.id || i} style={styles.annotRow}>
                   <span style={{ opacity: 0.6, fontSize: 10 }}>
-                    {a.type === "measure"  ? `📏 ${a.mm?.toFixed(1)} mm (${a.axis})`  :
-                     a.type === "angle"   ? `📐 ${a.deg?.toFixed(1)}° (${a.axis})`   :
-                     a.type === "implant" ? `🦷 ${a.brand} Ø${a.diameter}×${a.length}mm` :
-                     a.type === "nerve"   ? `🧠 IAN Trace (${a.axis})`               :
-                     a.type === "probe"   ? `🔬 HU: ${a.hu}`                          :
+                    {a.type === "measure"  ? `📏 ${a.mm?.toFixed(1)} mm (${a.axis})` :
+                     a.type === "angle"    ? `📐 ${a.deg?.toFixed(1)}° (${a.axis})` :
+                     a.type === "implant"  ? `🦷 ${a.brand} Ø${a.diameter}×${a.length}mm` :
+                     a.type === "nerve"    ? `🧠 IAN Trace (${a.axis})` :
+                     a.type === "probe"    ? `🔬 HU: ${a.hu}` :
                      a.type}
                   </span>
                   <button style={styles.tinyBtn} onClick={() =>
@@ -754,26 +676,20 @@ export default function CBCTViewer({ volumeId, volumeMeta: initialMeta, apiBase 
                 </div>
               ))}
               {annotations.length > 8 && (
-                <div style={{ fontSize: 9, opacity: 0.4, padding: "2px 0" }}>
-                  +{annotations.length - 8} more
-                </div>
+                <div style={{ fontSize: 9, opacity: 0.4, padding: "2px 0" }}>+{annotations.length - 8} more</div>
               )}
               {annotations.length === 0 && (
-                <div style={{ fontSize: 9, opacity: 0.3, padding: "4px 0" }}>
-                  No annotations yet
-                </div>
+                <div style={{ fontSize: 9, opacity: 0.3, padding: "4px 0" }}>No annotations yet</div>
               )}
             </div>
 
             <div style={styles.toolDivider} />
 
-            {/* Implant summary */}
             <div style={{ padding: "0 4px" }}>
               <div style={styles.sectionLabel}>IMPLANTS</div>
               {annotations.filter(a => a.type === "implant").map((imp, i) => (
                 <div key={i} style={{ fontSize: 9, color: "#93c5fd", margin: "2px 0" }}>
-                  #{i+1} {imp.brand}<br />
-                  Ø{imp.diameter} × {imp.length}mm @ {imp.angleDeg}°
+                  #{i+1} {imp.brand}<br />Ø{imp.diameter} × {imp.length}mm @ {imp.angleDeg}°
                 </div>
               ))}
               {!annotations.find(a => a.type === "implant") && (
@@ -811,7 +727,7 @@ export default function CBCTViewer({ volumeId, volumeMeta: initialMeta, apiBase 
           </div>
         </div>
 
-        {/* ── Status bar ──────────────────────────── */}
+        {/* ── Status bar ─────────────────────────── */}
         <div style={styles.statusBar}>
           <span>Tool: <b style={{ color: "#22d3ee" }}>{TOOLS.find(t=>t.id===tool)?.label}</b></span>
           <span>Slices: Ax {slices.axial+1}/{dims.axial} · Co {slices.coronal+1}/{dims.coronal} · Sa {slices.sagittal+1}/{dims.sagittal}</span>
@@ -819,26 +735,24 @@ export default function CBCTViewer({ volumeId, volumeMeta: initialMeta, apiBase 
           <span style={{ opacity: 0.4 }}>Scroll=slice · Ctrl+Scroll=zoom · Drag(window tool)=W/L</span>
         </div>
 
-        {/* ── Info panel overlay ──────────────────── */}
+        {/* ── Info panel overlay ─────────────────── */}
         {showInfo && meta && (
           <div style={styles.infoPanel}>
             <button style={{ ...styles.iconBtn, position: "absolute", top: 8, right: 8 }}
               onClick={() => setShowInfo(false)}>✕</button>
-            <h3 style={{ color: "#60a5fa", fontFamily: "monospace", margin: "0 0 12px" }}>
-              Volume Info
-            </h3>
+            <h3 style={{ color: "#60a5fa", fontFamily: "monospace", margin: "0 0 12px" }}>Volume Info</h3>
             {[
-              ["Patient",    meta.patient_name],
-              ["Study Date", meta.study_date],
-              ["Axial Slices",   meta.dimensions?.axial],
-              ["Coronal Slices", meta.dimensions?.coronal],
-              ["Sagittal Slices",meta.dimensions?.sagittal],
-              ["Rows × Cols",    `${meta.dimensions?.rows} × ${meta.dimensions?.cols}`],
-              ["Voxel X",   `${meta.voxel_spacing?.x?.toFixed(3)} mm`],
-              ["Voxel Y",   `${meta.voxel_spacing?.y?.toFixed(3)} mm`],
-              ["Voxel Z",   `${meta.voxel_spacing?.z?.toFixed(3)} mm`],
-              ["Uploaded",  meta.uploaded_at],
-              ["Notes",     meta.notes],
+              ["Patient",         meta.patient_name],
+              ["Study Date",      meta.study_date],
+              ["Axial Slices",    meta.dimensions?.axial],
+              ["Coronal Slices",  meta.dimensions?.coronal],
+              ["Sagittal Slices", meta.dimensions?.sagittal],
+              ["Rows × Cols",     `${meta.dimensions?.rows} × ${meta.dimensions?.cols}`],
+              ["Voxel X",         `${meta.voxel_spacing?.x?.toFixed(3)} mm`],
+              ["Voxel Y",         `${meta.voxel_spacing?.y?.toFixed(3)} mm`],
+              ["Voxel Z",         `${meta.voxel_spacing?.z?.toFixed(3)} mm`],
+              ["Uploaded",        meta.uploaded_at],
+              ["Notes",           meta.notes],
             ].map(([k, v]) => v ? (
               <div key={k} style={{ display: "flex", gap: 12, marginBottom: 6 }}>
                 <span style={{ color: "#64748b", fontSize: 11, width: 110, flexShrink: 0 }}>{k}</span>
@@ -848,14 +762,14 @@ export default function CBCTViewer({ volumeId, volumeMeta: initialMeta, apiBase 
             <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #1e293b" }}>
               <div style={styles.sectionLabel}>NERVE SAFETY REMINDER</div>
               <p style={{ fontSize: 10, color: "#fbbf24", margin: "4px 0 0" }}>
-                Always verify IAN canal tracing with clinical judgment. 
+                Always verify IAN canal tracing with clinical judgment.
                 Maintain ≥2 mm safety margin from identified nerve canal.
               </p>
             </div>
           </div>
         )}
 
-        {/* ── Implant dialog ──────────────────────── */}
+        {/* ── Implant dialog ─────────────────────── */}
         {implantReq && (
           <ImplantDialog
             request={implantReq}
@@ -871,122 +785,39 @@ export default function CBCTViewer({ volumeId, volumeMeta: initialMeta, apiBase 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = {
-  root: {
-    position: "fixed", inset: 0, zIndex: 9999,
-    background: "#020617",
-    display: "flex", flexDirection: "column",
-    fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-    color: "#e2e8f0",
-  },
-  fullScreen: {
-    position: "fixed", inset: 0, zIndex: 9999,
-    background: "#020617",
-    display: "flex", flexDirection: "column",
-    alignItems: "center", justifyContent: "center", gap: 16,
-  },
-  topBar: {
-    display: "flex", alignItems: "center", justifyContent: "space-between",
-    padding: "8px 16px",
-    background: "#0f172a",
-    borderBottom: "1px solid #1e293b",
-    flexShrink: 0,
-    gap: 12,
-  },
-  topLeft: { display: "flex", alignItems: "center", gap: 12, minWidth: 0 },
-  logo: { color: "#60a5fa", fontWeight: 700, fontSize: 14, whiteSpace: "nowrap" },
-  patientChip: {
-    background: "#1e293b", color: "#94a3b8", fontSize: 11,
-    padding: "3px 10px", borderRadius: 12, whiteSpace: "nowrap",
-    overflow: "hidden", textOverflow: "ellipsis",
-  },
-  topCenter: { display: "flex", gap: 4 },
-  topRight: { display: "flex", gap: 6, alignItems: "center" },
-  layoutBtn: {
-    background: "#1e293b", color: "#64748b", border: "1px solid #334155",
-    borderRadius: 4, padding: "4px 10px", fontSize: 11, cursor: "pointer",
-    transition: "all 0.15s",
-  },
+  root:         { position: "fixed", inset: 0, zIndex: 9999, background: "#020617", display: "flex", flexDirection: "column", fontFamily: "'JetBrains Mono', 'Fira Code', monospace", color: "#e2e8f0" },
+  fullScreen:   { position: "fixed", inset: 0, zIndex: 9999, background: "#020617", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 },
+  topBar:       { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px", background: "#0f172a", borderBottom: "1px solid #1e293b", flexShrink: 0, gap: 12 },
+  topLeft:      { display: "flex", alignItems: "center", gap: 12, minWidth: 0 },
+  logo:         { color: "#60a5fa", fontWeight: 700, fontSize: 14, whiteSpace: "nowrap" },
+  patientChip:  { background: "#1e293b", color: "#94a3b8", fontSize: 11, padding: "3px 10px", borderRadius: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  topCenter:    { display: "flex", gap: 4 },
+  topRight:     { display: "flex", gap: 6, alignItems: "center" },
+  layoutBtn:    { background: "#1e293b", color: "#64748b", border: "1px solid #334155", borderRadius: 4, padding: "4px 10px", fontSize: 11, cursor: "pointer", transition: "all 0.15s" },
   layoutBtnActive: { background: "#1d4ed8", color: "#fff", borderColor: "#3b82f6" },
-  iconBtn: {
-    background: "transparent", color: "#94a3b8", border: "none",
-    cursor: "pointer", fontSize: 15, padding: "4px 6px", borderRadius: 4,
-    transition: "color 0.15s",
-  },
-  main: { display: "flex", flex: 1, overflow: "hidden" },
-  toolbar: {
-    width: 148, flexShrink: 0,
-    background: "#0f172a",
-    borderRight: "1px solid #1e293b",
-    overflowY: "auto",
-    display: "flex", flexDirection: "column", gap: 0,
-    padding: "8px 0",
-  },
-  toolSection: { display: "flex", flexDirection: "column", gap: 2, padding: "0 4px" },
-  toolBtn: {
-    display: "flex", flexDirection: "column", alignItems: "center",
-    background: "transparent", border: "1px solid transparent",
-    borderRadius: 6, padding: "6px 4px", cursor: "pointer", color: "#94a3b8",
-    transition: "all 0.15s",
-  },
-  toolBtnActive: {
-    background: "#1e3a5f", borderColor: "#3b82f6", color: "#60a5fa",
-  },
-  toolDivider: { height: 1, background: "#1e293b", margin: "8px 8px" },
+  iconBtn:      { background: "transparent", color: "#94a3b8", border: "none", cursor: "pointer", fontSize: 15, padding: "4px 6px", borderRadius: 4, transition: "color 0.15s" },
+  main:         { display: "flex", flex: 1, overflow: "hidden" },
+  toolbar:      { width: 148, flexShrink: 0, background: "#0f172a", borderRight: "1px solid #1e293b", overflowY: "auto", display: "flex", flexDirection: "column", gap: 0, padding: "8px 0" },
+  toolSection:  { display: "flex", flexDirection: "column", gap: 2, padding: "0 4px" },
+  toolBtn:      { display: "flex", flexDirection: "column", alignItems: "center", background: "transparent", border: "1px solid transparent", borderRadius: 6, padding: "6px 4px", cursor: "pointer", color: "#94a3b8", transition: "all 0.15s" },
+  toolBtnActive:{ background: "#1e3a5f", borderColor: "#3b82f6", color: "#60a5fa" },
+  toolDivider:  { height: 1, background: "#1e293b", margin: "8px 8px" },
   sectionLabel: { fontSize: 9, color: "#475569", letterSpacing: 1, marginBottom: 4, paddingLeft: 2 },
-  presetBtn: {
-    display: "block", width: "100%", textAlign: "left",
-    background: "transparent", border: "none", color: "#94a3b8",
-    padding: "3px 4px", fontSize: 11, cursor: "pointer", borderRadius: 4,
-    transition: "background 0.1s",
-  },
-  sliderRow: { display: "flex", alignItems: "center", gap: 4, marginBottom: 4 },
-  sliderLabel: { fontSize: 9, color: "#64748b", width: 22, flexShrink: 0 },
-  sliderVal: { fontSize: 9, color: "#94a3b8", width: 34, textAlign: "right", flexShrink: 0 },
-  annotRow: {
-    display: "flex", justifyContent: "space-between", alignItems: "center",
-    padding: "2px 0", borderBottom: "1px solid #0f172a",
-  },
-  tinyBtn: {
-    background: "transparent", border: "none", color: "#475569",
-    cursor: "pointer", fontSize: 10, padding: "0 2px",
-  },
-  viewports: {
-    flex: 1, display: "flex", gap: 4, padding: 4, overflow: "hidden",
-  },
-  statusBar: {
-    display: "flex", gap: 24, alignItems: "center",
-    padding: "5px 16px",
-    background: "#0f172a",
-    borderTop: "1px solid #1e293b",
-    fontSize: 10, color: "#475569", flexShrink: 0,
-  },
-  modal: {
-    position: "absolute", inset: 0, background: "#00000099",
-    display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100,
-  },
-  modalBox: {
-    background: "#0f172a", border: "1px solid #334155", borderRadius: 10,
-    padding: 24, minWidth: 280, boxShadow: "0 20px 60px #0008",
-  },
-  label: { display: "block", fontSize: 11, color: "#64748b", marginBottom: 4, marginTop: 12 },
-  select: {
-    width: "100%", background: "#1e293b", border: "1px solid #334155",
-    color: "#e2e8f0", padding: "6px 8px", borderRadius: 6, fontSize: 12,
-  },
-  btnPrimary: {
-    flex: 1, background: "#1d4ed8", color: "#fff", border: "none",
-    borderRadius: 6, padding: "8px 16px", cursor: "pointer", fontSize: 13,
-  },
-  btnSecondary: {
-    flex: 1, background: "#1e293b", color: "#94a3b8", border: "1px solid #334155",
-    borderRadius: 6, padding: "8px 16px", cursor: "pointer", fontSize: 13,
-  },
-  infoPanel: {
-    position: "absolute", top: 56, right: 16, width: 300,
-    background: "#0f172a", border: "1px solid #334155",
-    borderRadius: 10, padding: 20, zIndex: 50,
-    boxShadow: "0 20px 60px #0008",
-  },
+  presetBtn:    { display: "block", width: "100%", textAlign: "left", background: "transparent", border: "none", color: "#94a3b8", padding: "3px 4px", fontSize: 11, cursor: "pointer", borderRadius: 4, transition: "background 0.1s" },
+  sliderRow:    { display: "flex", alignItems: "center", gap: 4, marginBottom: 4 },
+  sliderLabel:  { fontSize: 9, color: "#64748b", width: 22, flexShrink: 0 },
+  sliderVal:    { fontSize: 9, color: "#94a3b8", width: 34, textAlign: "right", flexShrink: 0 },
+  annotRow:     { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 0", borderBottom: "1px solid #0f172a" },
+  tinyBtn:      { background: "transparent", border: "none", color: "#475569", cursor: "pointer", fontSize: 10, padding: "0 2px" },
+  viewports:    { flex: 1, display: "flex", gap: 4, padding: 4, overflow: "hidden" },
+  statusBar:    { display: "flex", gap: 24, alignItems: "center", padding: "5px 16px", background: "#0f172a", borderTop: "1px solid #1e293b", fontSize: 10, color: "#475569", flexShrink: 0 },
+  modal:        { position: "absolute", inset: 0, background: "#00000099", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 },
+  modalBox:     { background: "#0f172a", border: "1px solid #334155", borderRadius: 10, padding: 24, minWidth: 280, boxShadow: "0 20px 60px #0008" },
+  label:        { display: "block", fontSize: 11, color: "#64748b", marginBottom: 4, marginTop: 12 },
+  select:       { width: "100%", background: "#1e293b", border: "1px solid #334155", color: "#e2e8f0", padding: "6px 8px", borderRadius: 6, fontSize: 12 },
+  btnPrimary:   { flex: 1, background: "#1d4ed8", color: "#fff", border: "none", borderRadius: 6, padding: "8px 16px", cursor: "pointer", fontSize: 13 },
+  btnSecondary: { flex: 1, background: "#1e293b", color: "#94a3b8", border: "1px solid #334155", borderRadius: 6, padding: "8px 16px", cursor: "pointer", fontSize: 13 },
+  infoPanel:    { position: "absolute", top: 56, right: 16, width: 300, background: "#0f172a", border: "1px solid #334155", borderRadius: 10, padding: 20, zIndex: 50, boxShadow: "0 20px 60px #0008" },
 };
 
 const CSS = `
