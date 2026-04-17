@@ -1074,7 +1074,13 @@ function CBCTUploadSection({ visitId, disabled }) {
     setLoading(true);
     api.get(`/visits/${visitId}/cbct`)
       .then(r => {
-        setVolumes(Array.isArray(r.data) ? r.data : []);
+        const data = r.data;
+        const list = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.cbct_files)
+            ? data.cbct_files
+            : [];
+        setVolumes(list);
         setLoading(false);
       })
       .catch(() => {
@@ -1166,7 +1172,7 @@ function CBCTUploadSection({ visitId, disabled }) {
   };
 
   const openCBCTInNewTab = (id) => {
-    window.open(`/cbct-viewer/${id}`, "_blank");
+    window.open(`/cbct-viewer?volumeId=${id}`, "_blank", "noopener");
   };
 
   return (
@@ -1221,13 +1227,71 @@ function CBCTUploadSection({ visitId, disabled }) {
         </div>
       )}
 
-      {volumes.map(v => (
-        <div key={v.id}>
-          {v.patient_name}
-          <button onClick={() => openCBCTInNewTab(v.id)}>Open</button>
-          <button onClick={() => deleteVolume(v.id)}>Delete</button>
+      {error && (
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",
+          background:"#450a0a",border:"1px solid #7f1d1d",borderRadius:8,
+          padding:"10px 14px",color:"#fca5a5",fontSize:13,marginTop:10 }}>
+          <span>⚠️ {error}</span>
+          <button onClick={()=>setError(null)} style={{ background:"transparent",border:"none",
+            color:"#fca5a5",cursor:"pointer",fontSize:16,padding:0 }}>✕</button>
         </div>
-      ))}
+      )}
+
+      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:14,marginBottom:8 }}>
+        <span style={{ fontSize:13,fontWeight:700,color:"#0b2d4e" }}>
+          CBCT Volumes {!loading && `(${volumes.length})`}
+        </span>
+        <button onClick={loadVolumes} style={{ background:"transparent",border:"1.5px solid #e2e8f4",
+          color:"#64748b",padding:"4px 10px",borderRadius:6,fontSize:12,cursor:"pointer" }}>
+          ↺ Refresh
+        </button>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign:"center",padding:"24px 0",color:"#94a3b8",fontSize:13 }}>
+          <span className="imgup-spinner" style={{ marginRight:8 }}/>Loading volumes…
+        </div>
+      ) : volumes.length === 0 ? (
+        <div style={{ textAlign:"center",padding:"24px 0",color:"#94a3b8",fontSize:13 }}>
+          No CBCT volumes yet. Upload a ZIP or folder above.
+        </div>
+      ) : (
+        <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+          {volumes.map(v => (
+            <div key={v.id} className="cbct-vol-card">
+              <div style={{ fontSize:26,flexShrink:0 }}>🦷</div>
+              <div style={{ flex:1,minWidth:0 }}>
+                <div style={{ fontSize:13,fontWeight:700,color:"#e2e8f0",
+                  display:"flex",alignItems:"center",gap:8,marginBottom:4 }}>
+                  {v.patient_name || "CBCT Volume"}
+                  {v.num_slices && (
+                    <span style={{ background:"#1d4ed8",color:"#93c5fd",fontSize:10,
+                      padding:"2px 8px",borderRadius:10 }}>
+                      {v.num_slices} slices
+                    </span>
+                  )}
+                </div>
+                <div style={{ display:"flex",gap:6,flexWrap:"wrap",color:"#64748b",fontSize:11 }}>
+                  {v.study_date && <span>📅 {v.study_date}</span>}
+                  {v.dimensions?.rows && <span>· {v.dimensions.rows}×{v.dimensions.cols}px</span>}
+                  {v.uploaded_at && <span>· ⬆ {v.uploaded_at}</span>}
+                </div>
+              </div>
+              <div style={{ display:"flex",gap:8,flexShrink:0 }}>
+                <button className="cbct-open-btn" onClick={() => openCBCTInNewTab(v.id)}>
+                  🖥️ View CBCT
+                </button>
+                <button onClick={() => deleteVolume(v.id)}
+                  style={{ background:"transparent",border:"1.5px solid #1e293b",
+                    color:"#64748b",borderRadius:8,padding:"8px 10px",
+                    fontSize:14,cursor:"pointer" }}>
+                  🗑️
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
     </div>
   );
