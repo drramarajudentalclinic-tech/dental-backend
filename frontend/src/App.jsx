@@ -9,6 +9,7 @@ import DoctorPatientView from "./pages/DoctorPatientView";
 import ReceptionPatientForm from "./pages/ReceptionPatientForm";
 import AppointmentsDiary from "./pages/AppointmentsDiary.jsx";
 import LoginPage from "./pages/LoginPage";
+import CBCTViewerPage from "./components/CBCTViewerPage";
 
 function NavTracer() {
   const location = useLocation();
@@ -54,6 +55,9 @@ export default function App() {
         <Route path="/visit/:visitId"         element={<VisitPage />} />
         <Route path="/billing/:visitId"       element={<BillingPage />} />
         <Route path="/patients/edit/:id"      element={<EditPatient />} />
+
+        {/* CBCT Viewer */}
+        <Route path="/cbct-viewer" element={<CBCTViewerPage />} />
 
         {/* Fallback → Login */}
         <Route path="*" element={<Navigate to="/login" replace />} />
