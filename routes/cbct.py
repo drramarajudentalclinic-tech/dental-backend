@@ -12,16 +12,26 @@ from datetime import datetime
 from database import db
 from sqlalchemy import text
 
+# ── JWT: verify_jwt_in_request supports locations=["headers","query_string"]
+#    so ?token=<jwt> works for <img src> tags without needing Authorization header
+from flask_jwt_extended import verify_jwt_in_request
+
 cbct_bp = Blueprint("cbct", __name__)
 
-# ── How many slices to skip between stored slices.
-#    STEP=3 means store every 3rd slice → 66% fewer DB inserts.
-#    Lower = more detail but slower upload. Raise to 4 or 5 for very large scans.
-SLICE_STEP = 3
-
-# ── Max ZIP size accepted (bytes). Reject early before reading into memory.
-MAX_ZIP_MB  = 300
+SLICE_STEP    = 3
+MAX_ZIP_MB    = 300
 MAX_ZIP_BYTES = MAX_ZIP_MB * 1024 * 1024
+
+
+# ─── JWT helper — accepts token from header OR ?token= query param ────────────
+
+def _jwt_required_flexible():
+    """Accept JWT from Authorization header OR ?token= query-string param."""
+    try:
+        verify_jwt_in_request(locations=["headers", "query_string"])
+    except Exception:
+        from flask import abort
+        abort(401)
 
 
 # ─── Migrations ───────────────────────────────────────────────────────────────
@@ -48,6 +58,11 @@ def run_cbct_migrations(app):
                     notes         TEXT,
                     slice_step    INTEGER DEFAULT 1
                 )
+            """))
+            # Idempotent: add slice_step if missing from older schema
+            conn.execute(text("""
+                ALTER TABLE cbct_volumes
+                ADD COLUMN IF NOT EXISTS slice_step INTEGER DEFAULT 1
             """))
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS cbct_slices (
@@ -80,7 +95,6 @@ def run_cbct_migrations(app):
 # ─── Helper: 2D numpy plane → base64 PNG string ───────────────────────────────
 
 def _plane_to_png_b64(plane_2d, lo, hi):
-    """Window-level a 2D float32 plane and return a base64-encoded PNG string."""
     from PIL import Image as PILImage
     clipped = plane_2d.clip(lo, hi)
     scaled  = ((clipped - lo) / max(hi - lo, 1.0) * 255).astype("uint8")
@@ -93,7 +107,6 @@ def _plane_to_png_b64(plane_2d, lo, hi):
 
 @cbct_bp.route("/visits/<int:visit_id>/cbct", methods=["POST"])
 def upload_cbct(visit_id):
-    # ── Basic validation ──────────────────────────────────────────────────────
     if "file" not in request.files:
         return jsonify({"error": "ZIP file required (field name: file)"}), 400
 
@@ -104,7 +117,6 @@ def upload_cbct(visit_id):
     if not zfile.filename.lower().endswith(".zip"):
         return jsonify({"error": "Only .zip files are accepted"}), 400
 
-    # ── Check deps ────────────────────────────────────────────────────────────
     try:
         import pydicom
         import numpy as np
@@ -112,7 +124,6 @@ def upload_cbct(visit_id):
         return jsonify({"error": "Server missing deps — run: pip install pydicom numpy pillow"}), 500
 
     try:
-        # ── Read & size-guard the ZIP ─────────────────────────────────────────
         zip_bytes = zfile.read()
         if len(zip_bytes) > MAX_ZIP_BYTES:
             return jsonify({
@@ -120,7 +131,6 @@ def upload_cbct(visit_id):
                          f"(received {len(zip_bytes) // (1024*1024)} MB)"
             }), 413
 
-        # ── Parse DICOM files from ZIP ────────────────────────────────────────
         try:
             zf_obj = zipfile.ZipFile(io.BytesIO(zip_bytes))
         except zipfile.BadZipFile:
@@ -139,14 +149,13 @@ def upload_cbct(visit_id):
                     if hasattr(ds, "pixel_array"):
                         dicom_files.append(ds)
                 except Exception:
-                    pass  # skip non-DICOM files silently
+                    pass
 
         if not dicom_files:
             return jsonify({"error": "No valid DICOM files found inside the ZIP"}), 400
 
         print(f"[cbct] visit={visit_id} — found {len(dicom_files)} DICOM files")
 
-        # ── Sort slices by Z position ─────────────────────────────────────────
         def sort_key(ds):
             try:
                 return float(ds.ImagePositionPatient[2])
@@ -159,7 +168,6 @@ def upload_cbct(visit_id):
 
         dicom_files.sort(key=sort_key)
 
-        # ── Extract metadata from first slice ─────────────────────────────────
         sample       = dicom_files[0]
         patient_name = str(getattr(sample, "PatientName", "Unknown"))
         raw_date     = str(getattr(sample, "StudyDate", ""))
@@ -179,7 +187,6 @@ def upload_cbct(visit_id):
         except Exception:
             vz = 1.0
 
-        # ── Build 3-D volume ──────────────────────────────────────────────────
         print(f"[cbct] Building 3D volume from {len(dicom_files)} slices…")
         slices_arr = []
         for ds in dicom_files:
@@ -188,17 +195,15 @@ def upload_cbct(visit_id):
             intercept = float(getattr(ds, "RescaleIntercept", 0))
             slices_arr.append(arr * slope + intercept)
 
-        volume = np.stack(slices_arr, axis=0)   # shape: (Z, Y, X)
+        volume = np.stack(slices_arr, axis=0)
         Z, Y, X = volume.shape
         print(f"[cbct] Volume shape: Z={Z}, Y={Y}, X={X}")
 
-        # Global windowing (computed once, reused for every slice)
         wc       = float(np.percentile(volume, 50))
         p2, p98  = float(np.percentile(volume, 2)), float(np.percentile(volume, 98))
         ww       = max(p98 - p2, 1.0)
         lo, hi   = wc - ww / 2, wc + ww / 2
 
-        # ── Persist volume metadata ───────────────────────────────────────────
         conn = db.engine.connect()
         try:
             res = conn.execute(text("""
@@ -220,11 +225,7 @@ def upload_cbct(visit_id):
             conn.commit()
             print(f"[cbct] Created volume id={volume_id}")
 
-            # ── Build slice rows with STEP sampling ───────────────────────────
-            # STEP=3 → store indices 0, 3, 6, 9… per axis.
-            # This reduces DB inserts by ~66% vs storing every slice.
             print(f"[cbct] Generating PNGs with SLICE_STEP={SLICE_STEP}…")
-
             slice_rows = []
 
             for i in range(0, Z, SLICE_STEP):
@@ -232,13 +233,11 @@ def upload_cbct(visit_id):
                     "vid": volume_id, "ax": "axial",
                     "i": i, "d": _plane_to_png_b64(volume[i, :, :], lo, hi)
                 })
-
             for i in range(0, Y, SLICE_STEP):
                 slice_rows.append({
                     "vid": volume_id, "ax": "coronal",
                     "i": i, "d": _plane_to_png_b64(volume[:, i, :], lo, hi)
                 })
-
             for i in range(0, X, SLICE_STEP):
                 slice_rows.append({
                     "vid": volume_id, "ax": "sagittal",
@@ -246,15 +245,12 @@ def upload_cbct(visit_id):
                 })
 
             print(f"[cbct] Inserting {len(slice_rows)} slice rows (batch)…")
-
-            # ── Single batch INSERT — much faster than one INSERT per slice ───
             conn.execute(
                 text("INSERT INTO cbct_slices (volume_id, axis, index, png_data) "
                      "VALUES (:vid, :ax, :i, :d)"),
-                slice_rows          # SQLAlchemy executemany
+                slice_rows
             )
 
-            # Update num_slices to reflect how many axial slices were actually stored
             stored_axial = len([r for r in slice_rows if r["ax"] == "axial"])
             conn.execute(
                 text("UPDATE cbct_volumes SET num_slices = :n WHERE id = :vid"),
@@ -283,7 +279,6 @@ def upload_cbct(visit_id):
             ),
         }), 201
 
-    # ── Catch-all: log full traceback to Render logs, return readable error ───
     except MemoryError:
         print("[cbct] MemoryError — file too large for server RAM")
         return jsonify({"error": "File too large to process — server ran out of memory. Try a smaller scan."}), 507
@@ -323,15 +318,18 @@ def list_cbct(visit_id):
 
 
 # ─── Volume metadata ──────────────────────────────────────────────────────────
+# Accepts JWT via Authorization header OR ?token= query param
 
 @cbct_bp.route("/cbct/<int:volume_id>/meta", methods=["GET"])
 def get_meta(volume_id):
+    _jwt_required_flexible()
+
     conn = db.engine.connect()
     try:
         r = conn.execute(text("""
             SELECT patient_name, study_date, num_slices,
                    voxel_x, voxel_y, voxel_z, rows, cols,
-                   uploaded_at, notes, visit_id
+                   uploaded_at, notes, visit_id, slice_step
             FROM cbct_volumes WHERE id = :vid
         """), dict(vid=volume_id)).fetchone()
 
@@ -345,17 +343,20 @@ def get_meta(volume_id):
     if not r:
         return jsonify({"error": "Volume not found"}), 404
 
-    dim_map = {row[0]: row[1] for row in counts}
+    dim_map    = {row[0]: row[1] for row in counts}
+    step       = r[11] if r[11] else SLICE_STEP
     return jsonify({
         "id":           volume_id,
         "visit_id":     r[10],
         "patient_name": r[0],
         "study_date":   r[1].strftime("%Y-%m-%d") if r[1] else None,
+        "slice_step":   step,
         "dimensions": {
             "axial":    dim_map.get("axial",    r[2]),
             "coronal":  dim_map.get("coronal",  r[7]),
             "sagittal": dim_map.get("sagittal", r[7]),
-            "rows": r[6], "cols": r[7],
+            "rows":     r[6],
+            "cols":     r[7],
         },
         "voxel_spacing": {"x": r[3], "y": r[4], "z": r[5]},
         "uploaded_at":   r[8].strftime("%d-%b-%Y %H:%M") if r[8] else None,
@@ -364,22 +365,25 @@ def get_meta(volume_id):
 
 
 # ─── Serve a single slice PNG ─────────────────────────────────────────────────
+# Accepts JWT via Authorization header OR ?token= query param
+# (so frontend can use plain <img src="/api/cbct/7/slice/axial/0?token=xxx">)
 
 @cbct_bp.route("/cbct/<int:volume_id>/slice/<axis>/<int:index>", methods=["GET"])
 def get_slice(volume_id, axis, index):
+    _jwt_required_flexible()
+
     if axis not in ("axial", "coronal", "sagittal"):
         return jsonify({"error": "axis must be axial | coronal | sagittal"}), 400
 
     conn = db.engine.connect()
     try:
-        # ── Exact match first ─────────────────────────────────────────────────
+        # Exact match first
         row = conn.execute(text("""
             SELECT png_data FROM cbct_slices
             WHERE volume_id = :vid AND axis = :ax AND index = :idx
         """), dict(vid=volume_id, ax=axis, idx=index)).fetchone()
 
-        # ── If exact index wasn't stored (due to STEP sampling),
-        #    return the nearest stored slice instead of a 404 ─────────────────
+        # Nearest stored slice fallback (handles STEP sampling gaps)
         if not row:
             row = conn.execute(text("""
                 SELECT png_data FROM cbct_slices

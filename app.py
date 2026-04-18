@@ -31,9 +31,7 @@ from routes.consent       import consent_bp
 from routes.appointments  import appointments_bp
 from routes.other_expenses import other_expenses_bp, run_other_expense_migrations
 from routes.auth          import auth_bp
-
-# ✅ NEW — CBCT Blueprint
-from routes.cbct import cbct_bp, run_cbct_migrations
+from routes.cbct          import cbct_bp, run_cbct_migrations
 
 # ---------------------------
 # CREATE APP
@@ -43,13 +41,17 @@ app.config.from_object(Config)
 
 # ---------------------------
 # JWT CONFIGURATION
+# ✅ All JWT config MUST be set before JWTManager(app) is called —
+#    JWTManager snapshots the config at init time.
 # ---------------------------
-app.config['JWT_SECRET_KEY'] = os.getenv("JWT_SECRET_KEY", "fallback-secret")
+app.config['JWT_SECRET_KEY']          = os.getenv("JWT_SECRET_KEY", "fallback-secret")
+app.config["JWT_TOKEN_LOCATION"]      = ["headers", "query_string"]   # ✅ accept ?token=
+app.config["JWT_QUERY_STRING_NAME"]   = "token"                       # ✅ matches ?token=...
+
 jwt = JWTManager(app)
 
 # ---------------------------
-# ✅ CORS CONFIGURATION
-# Must be initialized before JWT and before_request hooks
+# CORS CONFIGURATION
 # ---------------------------
 CORS(
     app,
@@ -68,7 +70,7 @@ CORS(
 )
 
 # ---------------------------
-# ✅ JWT PROTECTION
+# JWT PROTECTION
 # ---------------------------
 @app.before_request
 def protect_all_routes():
@@ -92,13 +94,18 @@ def protect_all_routes():
     ):
         return
 
+    # ✅ CBCT slice and meta routes use ?token= query param
+    #    verify_jwt_in_request() will find it automatically because
+    #    JWT_TOKEN_LOCATION now includes "query_string" — no exemption needed,
+    #    but we still route through the same call below.
     try:
         verify_jwt_in_request()
     except Exception as e:
         return jsonify({"error": "Unauthorized", "message": str(e)}), 401
 
+
 # ---------------------------
-# ✅ AFTER REQUEST — Ensure CORS headers are always present
+# AFTER REQUEST — Ensure CORS headers are always present
 # ---------------------------
 @app.after_request
 def add_cors_headers(response):
@@ -109,11 +116,12 @@ def add_cors_headers(response):
         "http://localhost:3000"
     ]
     if origin in allowed_origins:
-        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Origin"]      = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        response.headers["Access-Control-Allow-Methods"]     = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+        response.headers["Access-Control-Allow-Headers"]     = "Content-Type, Authorization"
     return response
+
 
 # ---------------------------
 # INIT DB
@@ -139,21 +147,22 @@ with app.app_context():
     run_image_migrations(app)
     run_visit_migrations(app)
     run_other_expense_migrations(app)
-    run_cbct_migrations(app)      # ✅ NEW — creates cbct_volumes, cbct_slices, cbct_annotations
+    run_cbct_migrations(app)
 
     print("DONE ✅")
+
 
 # ---------------------------
 # REGISTER BLUEPRINTS
 # ---------------------------
 
-# ✅ Auth under /api
+# Auth under /api
 app.register_blueprint(auth_bp)
 
-# Patients (no prefix inside)
+# Patients (no prefix inside blueprint)
 app.register_blueprint(patients_bp)
 
-# Other APIs
+# All other blueprints under /api
 other_blueprints = [
     visits_bp,
     medical_bp,
@@ -171,14 +180,15 @@ other_blueprints = [
     family_doctor_bp,
     consent_bp,
     appointments_bp,
-    cbct_bp,          # ✅ NEW
+    cbct_bp,          # ✅ CBCT
 ]
 
 for bp in other_blueprints:
     app.register_blueprint(bp, url_prefix="/api")
 
-# Already has prefix
+# Already has its own prefix
 app.register_blueprint(other_expenses_bp)
+
 
 # ---------------------------
 # DEFAULT ROUTE
@@ -187,12 +197,14 @@ app.register_blueprint(other_expenses_bp)
 def index():
     return {"status": "Server running"}, 200
 
+
 # ---------------------------
 # HEALTH CHECK
 # ---------------------------
 @app.route("/health")
 def health():
     return {"status": "ok"}, 200
+
 
 # ---------------------------
 # RUN
