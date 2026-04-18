@@ -1,7 +1,5 @@
 import os
-import uuid
-from flask import Blueprint, request, jsonify, current_app
-from werkzeug.utils import secure_filename
+from flask import Blueprint, request, jsonify
 from database import db
 from models import (
     Visit,
@@ -14,18 +12,6 @@ from models import (
     Consent,
 )
 from datetime import date, datetime
-
-ALLOWED_CBCT_EXTENSIONS = {
-    "dcm", "zip", "rar", "tar", "gz",   # DICOM / archives
-    "jpg", "jpeg", "png",                # plain images
-    "pdf",                               # reports
-}
-
-def _allowed_cbct(filename):
-    return (
-        "." in filename
-        and filename.rsplit(".", 1)[1].lower() in ALLOWED_CBCT_EXTENSIONS
-    )
 
 visits_bp = Blueprint("visits", __name__)
 
@@ -171,122 +157,6 @@ def get_visit(visit_id):
         "consent": row_to_dict(consent, ["id", "patient_id"]),
 
     }), 200
-
-
-# ---------------------------------
-# UPLOAD CBCT
-# POST /api/visits/<visit_id>/cbct
-# ---------------------------------
-@visits_bp.route("/visits/<int:visit_id>/cbct", methods=["POST"])
-def upload_cbct(visit_id):
-    from models import CBCTFile, Consultation
-
-    visit = Visit.query.get_or_404(visit_id)
-
-    if "file" not in request.files:
-        return jsonify({"error": "No file part in request. Send file under key 'file'."}), 400
-
-    file = request.files["file"]
-
-    if file.filename == "":
-        return jsonify({"error": "No file selected."}), 400
-
-    if not _allowed_cbct(file.filename):
-        return jsonify({
-            "error": f"File type not allowed. Allowed: {', '.join(sorted(ALLOWED_CBCT_EXTENSIONS))}"
-        }), 400
-
-    original_name = file.filename
-    ext           = original_name.rsplit(".", 1)[1].lower()
-    unique_name   = f"visit_{visit_id}_cbct_{uuid.uuid4().hex}.{ext}"
-    safe_name     = secure_filename(unique_name)
-
-    upload_folder = current_app.config.get("CBCT_UPLOAD_FOLDER") or \
-                    os.path.join(current_app.config.get("UPLOAD_FOLDER", "/tmp"), "cbct")
-    os.makedirs(upload_folder, exist_ok=True)
-
-    save_path = os.path.join(upload_folder, safe_name)
-    file.save(save_path)
-
-    file_size = os.path.getsize(save_path)
-    uploaded_by = request.form.get("uploaded_by") or request.headers.get("X-Username")
-
-    cbct = CBCTFile(
-        visit_id      = visit_id,
-        filename      = safe_name,
-        original_name = original_name,
-        file_path     = save_path,
-        file_size     = file_size,
-        uploaded_by   = uploaded_by,
-    )
-    db.session.add(cbct)
-    db.session.commit()
-
-    # ═══════════════════════════════════════════════════════════════════════
-    # 🔧 FIX: Auto-create consultation if none exists for this visit
-    # ═══════════════════════════════════════════════════════════════════════
-    consultation_created = False
-    existing_consult = Consultation.query.filter_by(visit_id=visit_id).first()
-    
-    if not existing_consult:
-        # Create an empty consultation record so frontend polling succeeds
-        consult = Consultation(
-            visit_id=visit_id,
-            diagnosis="",
-            treatment_done_today="",
-            treatment_plan="",
-            advice="",
-            follow_up_date=None,
-        )
-        db.session.add(consult)
-        db.session.commit()
-        consultation_created = True
-
-    return jsonify({
-        "message":   "CBCT uploaded successfully",
-        "cbct":      cbct.to_dict(),
-        "consultation_created": consultation_created,  # Let frontend know if we auto-created
-    }), 200
-
-
-# ---------------------------------
-# GET CBCT FILES FOR A VISIT
-# GET /api/visits/<visit_id>/cbct
-# ---------------------------------
-@visits_bp.route("/visits/<int:visit_id>/cbct", methods=["GET"])
-def get_cbct(visit_id):
-    from models import CBCTFile
-
-    Visit.query.get_or_404(visit_id)  # 404 if visit doesn't exist
-    files = CBCTFile.query.filter_by(visit_id=visit_id).order_by(CBCTFile.uploaded_at.desc()).all()
-
-    return jsonify({
-        "visit_id": visit_id,
-        "cbct_files": [f.to_dict() for f in files],
-    }), 200
-
-
-# ---------------------------------
-# DELETE A CBCT FILE
-# DELETE /api/visits/<visit_id>/cbct/<cbct_id>
-# ---------------------------------
-@visits_bp.route("/visits/<int:visit_id>/cbct/<int:cbct_id>", methods=["DELETE"])
-def delete_cbct(visit_id, cbct_id):
-    from models import CBCTFile
-
-    cbct = CBCTFile.query.filter_by(id=cbct_id, visit_id=visit_id).first_or_404()
-
-    # Remove file from disk (best-effort)
-    try:
-        if os.path.exists(cbct.file_path):
-            os.remove(cbct.file_path)
-    except OSError:
-        pass
-
-    db.session.delete(cbct)
-    db.session.commit()
-
-    return jsonify({"message": "CBCT file deleted", "cbct_id": cbct_id}), 200
 
 
 # ---------------------------------
