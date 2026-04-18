@@ -445,3 +445,50 @@ def save_annotations(volume_id):
     finally:
         conn.close()
     return jsonify({"status": "saved"})
+
+""
+ 
+@cbct_bp.route("/cbct/debug", methods=["GET"])
+def cbct_debug():
+    conn = db.engine.connect()
+    try:
+        # All volumes
+        volumes = conn.execute(text("""
+            SELECT id, visit_id, num_slices, slice_step, uploaded_at
+            FROM cbct_volumes
+            ORDER BY id DESC
+            LIMIT 20
+        """)).fetchall()
+ 
+        # Slice counts per volume per axis
+        slices = conn.execute(text("""
+            SELECT volume_id, axis, COUNT(*) as cnt,
+                   MIN(index) as min_idx, MAX(index) as max_idx
+            FROM cbct_slices
+            GROUP BY volume_id, axis
+            ORDER BY volume_id DESC, axis
+        """)).fetchall()
+ 
+    finally:
+        conn.close()
+ 
+    return jsonify({
+        "volumes": [
+            {
+                "id":          r[0],
+                "visit_id":    r[1],
+                "num_slices":  r[2],
+                "slice_step":  r[3],
+                "uploaded_at": str(r[4]),
+            } for r in volumes
+        ],
+        "slice_counts": [
+            {
+                "volume_id": r[0],
+                "axis":      r[1],
+                "count":     r[2],
+                "min_index": r[3],
+                "max_index": r[4],
+            } for r in slices
+        ],
+    })
