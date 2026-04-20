@@ -186,6 +186,14 @@ def upload_cbct(visit_id):
             arr = ds.pixel_array.astype(np.float32)
             slope     = float(getattr(ds, "RescaleSlope",     1))
             intercept = float(getattr(ds, "RescaleIntercept", 0))
+            # ── Diagnostic: log every file's shape and key tags ──
+            print(f"[cbct] file shape={arr.shape} "
+                  f"SOPClass={getattr(ds,'SOPClassUID','?')} "
+                  f"Modality={getattr(ds,'Modality','?')} "
+                  f"Rows={getattr(ds,'Rows','?')} "
+                  f"Cols={getattr(ds,'Columns','?')} "
+                  f"Frames={getattr(ds,'NumberOfFrames','1')} "
+                  f"SamplesPerPixel={getattr(ds,'SamplesPerPixel','?')}")
 
             if arr.ndim == 2:
                 # Standard single slice
