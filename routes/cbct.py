@@ -127,10 +127,25 @@ def upload_cbct(visit_id):
             return jsonify({"error": "Invalid or corrupted ZIP file"}), 400
 
         with zf_obj as zf:
-            names = [
-                n for n in zf.namelist()
-                if not n.startswith("__MACOSX") and not n.endswith("/")
-            ]
+            # ✅ Recursively find ALL .dcm files anywhere in the ZIP
+            # (handles nested folders, S0000001/*, IMGDATA/date/series/*, etc.)
+            all_names = zf.namelist()
+            names = []
+            for n in all_names:
+                if n.startswith("__MACOSX") or n.endswith("/"):
+                    continue  # skip macOS metadata and directories
+                lower = n.lower()
+                # Accept .dcm files OR files with no extension (raw DICOM)
+                if lower.endswith(".dcm") or "." not in lower.split("/")[-1]:
+                    names.append(n)
+            # If nothing matched, fall back to trying every file
+            if not names:
+                names = [n for n in all_names
+                         if not n.startswith("__MACOSX") and not n.endswith("/")]
+
+            print(f"[cbct] ZIP contains {len(all_names)} entries, "
+                  f"trying {len(names)} candidate files")
+
             dicom_files = []
             for name in names:
                 raw = zf.read(name)
@@ -140,6 +155,8 @@ def upload_cbct(visit_id):
                         dicom_files.append(ds)
                 except Exception:
                     pass  # skip non-DICOM files silently
+
+            print(f"[cbct] Valid DICOM files found: {len(dicom_files)}")
 
         if not dicom_files:
             return jsonify({"error": "No valid DICOM files found inside the ZIP"}), 400
@@ -481,3 +498,34 @@ def save_annotations(volume_id):
     finally:
         conn.close()
     return jsonify({"status": "saved"})
+
+# ─── Temporary ZIP inspector ─────────────────────────────────────────────────
+# POST /api/cbct/inspect-zip  — upload a ZIP and see what's inside
+# DELETE after debugging
+
+@cbct_bp.route("/cbct/inspect-zip", methods=["POST"])
+def inspect_zip():
+    if "file" not in request.files:
+        return jsonify({"error": "no file"}), 400
+    import zipfile, io
+    zfile = request.files["file"]
+    zb = zfile.read()
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(zb))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+    entries = zf.namelist()
+    result = []
+    for n in entries[:50]:  # first 50 entries
+        info = zf.getinfo(n)
+        result.append({
+            "name": n,
+            "size": info.file_size,
+            "is_dir": n.endswith("/"),
+        })
+    return jsonify({
+        "total_entries": len(entries),
+        "first_50": result,
+        "all_names_sample": entries[:20],
+    })
