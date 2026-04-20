@@ -150,13 +150,48 @@ def upload_cbct(visit_id):
             for name in names:
                 raw = zf.read(name)
                 try:
-                    ds = pydicom.dcmread(io.BytesIO(raw))
-                    if hasattr(ds, "pixel_array"):
+                    # force=True skips missing-file errors
+                    # stop_before_pixels=False ensures pixel data is read
+                    ds = pydicom.dcmread(io.BytesIO(raw), force=True)
+
+                    # Skip non-image DICOMs (no PixelData tag at all)
+                    if 0x7FE00010 not in ds:
+                        continue
+
+                    # Try accessing pixel_array — may fail for compressed
+                    try:
+                        _ = ds.pixel_array
                         dicom_files.append(ds)
+                    except Exception:
+                        # Compressed transfer syntax — decompress manually
+                        try:
+                            ds.decompress()
+                            _ = ds.pixel_array
+                            dicom_files.append(ds)
+                        except Exception:
+                            # Last resort: force raw pixel data as uint16
+                            try:
+                                rows    = int(getattr(ds, "Rows",    256))
+                                cols    = int(getattr(ds, "Columns", 256))
+                                raw_px  = bytes(ds.PixelData)
+                                arr     = np.frombuffer(raw_px, dtype=np.uint16)
+                                if arr.size >= rows * cols:
+                                    ds._pixel_array_override = arr[:rows*cols].reshape(rows, cols).astype(np.float32)
+                                    dicom_files.append(ds)
+                            except Exception:
+                                pass
+
                 except Exception:
-                    pass  # skip non-DICOM files silently
+                    pass
 
             print(f"[cbct] Valid DICOM files found: {len(dicom_files)}")
+
+            # Patch pixel_array for files that used the raw override
+            _orig_pixel_array = None
+            for ds in dicom_files:
+                if hasattr(ds, "_pixel_array_override"):
+                    # monkey-patch so downstream code works uniformly
+                    ds.pixel_array = ds._pixel_array_override
 
         if not dicom_files:
             return jsonify({"error": "No valid DICOM files found inside the ZIP"}), 400
