@@ -147,51 +147,41 @@ def upload_cbct(visit_id):
                   f"trying {len(names)} candidate files")
 
             dicom_files = []
+            skip_reasons = {}
             for name in names:
                 raw = zf.read(name)
                 try:
-                    # force=True skips missing-file errors
-                    # stop_before_pixels=False ensures pixel data is read
                     ds = pydicom.dcmread(io.BytesIO(raw), force=True)
-
-                    # Skip non-image DICOMs (no PixelData tag at all)
                     if 0x7FE00010 not in ds:
+                        skip_reasons["no_pixel_data"] = skip_reasons.get("no_pixel_data", 0) + 1
                         continue
-
-                    # Try accessing pixel_array — may fail for compressed
                     try:
                         _ = ds.pixel_array
                         dicom_files.append(ds)
-                    except Exception:
-                        # Compressed transfer syntax — decompress manually
+                    except Exception as px_err:
+                        err_key = type(px_err).__name__ + ":" + str(px_err)[:80]
+                        skip_reasons[err_key] = skip_reasons.get(err_key, 0) + 1
+                        # Raw fallback — read PixelData bytes directly as uint16
                         try:
-                            ds.decompress()
-                            _ = ds.pixel_array
-                            dicom_files.append(ds)
-                        except Exception:
-                            # Last resort: force raw pixel data as uint16
-                            try:
-                                rows    = int(getattr(ds, "Rows",    256))
-                                cols    = int(getattr(ds, "Columns", 256))
-                                raw_px  = bytes(ds.PixelData)
-                                arr     = np.frombuffer(raw_px, dtype=np.uint16)
-                                if arr.size >= rows * cols:
-                                    ds._pixel_array_override = arr[:rows*cols].reshape(rows, cols).astype(np.float32)
-                                    dicom_files.append(ds)
-                            except Exception:
-                                pass
-
-                except Exception:
-                    pass
+                            rows = int(getattr(ds, "Rows", 0))
+                            cols = int(getattr(ds, "Columns", 0))
+                            bits = int(getattr(ds, "BitsAllocated", 16))
+                            dtype = np.uint16 if bits == 16 else np.uint8
+                            px_bytes = bytes(ds.PixelData)
+                            arr = np.frombuffer(px_bytes, dtype=dtype).astype(np.float32)
+                            if rows > 0 and cols > 0 and arr.size >= rows * cols:
+                                arr = arr[:rows * cols].reshape(rows, cols)
+                                # store as attribute, access in loop below
+                                ds._raw_arr = arr
+                                dicom_files.append(ds)
+                                skip_reasons[err_key] = skip_reasons.get(err_key, 0) - 1
+                        except Exception as raw_err:
+                            skip_reasons["raw_fail:" + str(raw_err)[:60]] = skip_reasons.get("raw_fail:" + str(raw_err)[:60], 0) + 1
+                except Exception as read_err:
+                    skip_reasons["read_err:" + str(read_err)[:60]] = skip_reasons.get("read_err:" + str(read_err)[:60], 0) + 1
 
             print(f"[cbct] Valid DICOM files found: {len(dicom_files)}")
-
-            # Patch pixel_array for files that used the raw override
-            _orig_pixel_array = None
-            for ds in dicom_files:
-                if hasattr(ds, "_pixel_array_override"):
-                    # monkey-patch so downstream code works uniformly
-                    ds.pixel_array = ds._pixel_array_override
+            print(f"[cbct] Skip reasons: {skip_reasons}")
 
         if not dicom_files:
             return jsonify({"error": "No valid DICOM files found inside the ZIP"}), 400
@@ -235,17 +225,13 @@ def upload_cbct(visit_id):
         print(f"[cbct] Building 3D volume from {len(dicom_files)} DICOM file(s)…")
         slices_arr = []
         for ds in dicom_files:
-            arr = ds.pixel_array.astype(np.float32)
+            # Use raw fallback array if pixel_array failed
+            if hasattr(ds, "_raw_arr"):
+                arr = ds._raw_arr.astype(np.float32)
+            else:
+                arr = ds.pixel_array.astype(np.float32)
             slope     = float(getattr(ds, "RescaleSlope",     1))
             intercept = float(getattr(ds, "RescaleIntercept", 0))
-            # ── Diagnostic: log every file's shape and key tags ──
-            print(f"[cbct] file shape={arr.shape} "
-                  f"SOPClass={getattr(ds,'SOPClassUID','?')} "
-                  f"Modality={getattr(ds,'Modality','?')} "
-                  f"Rows={getattr(ds,'Rows','?')} "
-                  f"Cols={getattr(ds,'Columns','?')} "
-                  f"Frames={getattr(ds,'NumberOfFrames','1')} "
-                  f"SamplesPerPixel={getattr(ds,'SamplesPerPixel','?')}")
 
             if arr.ndim == 2:
                 # Standard single slice
