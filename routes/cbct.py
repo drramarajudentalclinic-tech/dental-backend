@@ -180,30 +180,47 @@ def upload_cbct(visit_id):
             vz = 1.0
 
         # ── Build 3-D volume ──────────────────────────────────────────────────
-        print(f"[cbct] Building 3D volume from {len(dicom_files)} slices…")
+        print(f"[cbct] Building 3D volume from {len(dicom_files)} DICOM file(s)…")
         slices_arr = []
         for ds in dicom_files:
             arr = ds.pixel_array.astype(np.float32)
-            # Handle multi-frame or RGB DICOM — collapse to 2D grayscale
-            if arr.ndim == 3 and arr.shape[2] in (3, 4):
-                # RGB/RGBA → luminance
-                arr = arr[..., 0] * 0.299 + arr[..., 1] * 0.587 + arr[..., 2] * 0.114
-            elif arr.ndim == 3:
-                # Multi-frame single file — take first frame
-                arr = arr[0]
-            elif arr.ndim > 3:
-                # 4D+ — flatten to 2D by taking first slice of extra dims
-                arr = arr.reshape(-1, arr.shape[-2], arr.shape[-1])[0]
             slope     = float(getattr(ds, "RescaleSlope",     1))
             intercept = float(getattr(ds, "RescaleIntercept", 0))
-            slices_arr.append(arr * slope + intercept)
 
+            if arr.ndim == 2:
+                # Standard single slice
+                slices_arr.append(arr * slope + intercept)
+
+            elif arr.ndim == 3:
+                if arr.shape[2] in (3, 4):
+                    # RGB/RGBA single frame → grayscale luminance
+                    gray = arr[..., 0] * 0.299 + arr[..., 1] * 0.587 + arr[..., 2] * 0.114
+                    slices_arr.append(gray * slope + intercept)
+                else:
+                    # Multi-frame DICOM — each frame is a separate slice
+                    for frame in arr:
+                        slices_arr.append(frame * slope + intercept)
+
+            elif arr.ndim == 4:
+                # Multi-frame RGB — (frames, Y, X, channels)
+                for frame in arr:
+                    if frame.shape[-1] in (3, 4):
+                        gray = frame[..., 0] * 0.299 + frame[..., 1] * 0.587 + frame[..., 2] * 0.114
+                    else:
+                        gray = frame[..., 0]
+                    slices_arr.append(gray * slope + intercept)
+
+            else:
+                # Fallback: flatten unknown dims → treat each sub-array as a slice
+                flat = arr.reshape(-1, arr.shape[-2], arr.shape[-1])
+                for frame in flat:
+                    slices_arr.append(frame * slope + intercept)
+
+        if not slices_arr:
+            raise ValueError("No valid 2D slices could be extracted from DICOM files")
+
+        print(f"[cbct] Extracted {len(slices_arr)} slices total")
         volume = np.stack(slices_arr, axis=0)   # shape: (Z, Y, X)
-        # Safety: ensure exactly 3D
-        if volume.ndim == 4:
-            volume = volume[:, :, :, 0]
-        elif volume.ndim != 3:
-            raise ValueError(f"Unexpected volume shape: {volume.shape}")
         Z, Y, X = volume.shape
         print(f"[cbct] Volume shape: Z={Z}, Y={Y}, X={X}")
 
