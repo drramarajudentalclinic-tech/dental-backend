@@ -12,26 +12,35 @@ from database import db
 # ---------------------------
 # Import Blueprints
 # ---------------------------
-from routes.patients      import patients_bp
-from routes.visits        import visits_bp
-from routes.medical       import medical_bp
-from routes.allergies     import allergy_bp
-from routes.habits        import habits_bp
-from routes.dental_chart  import dental_bp
-from routes.findings      import findings_bp
-from routes.images        import images_bp, run_image_migrations
-from routes.consultation  import consult_bp
-from routes.prescription  import presc_bp
-from routes.women         import women_bp
-from routes.doctor        import doctor_bp
-from routes.payments      import payments_bp, run_payment_migrations, run_visit_migrations
-from routes.receipts      import receipts_bp
-from routes.family_doctor import family_doctor_bp
-from routes.consent       import consent_bp
-from routes.appointments  import appointments_bp
+from routes.patients       import patients_bp
+from routes.visits         import visits_bp
+from routes.medical        import medical_bp
+from routes.allergies      import allergy_bp
+from routes.habits         import habits_bp
+from routes.dental_chart   import dental_bp
+from routes.findings       import findings_bp
+from routes.images         import images_bp, run_image_migrations
+from routes.consultation   import consult_bp
+from routes.prescription   import presc_bp
+from routes.women          import women_bp
+from routes.doctor         import doctor_bp
+from routes.payments       import payments_bp, run_payment_migrations, run_visit_migrations
+from routes.receipts       import receipts_bp
+from routes.family_doctor  import family_doctor_bp
+from routes.consent        import consent_bp
+from routes.appointments   import appointments_bp
 from routes.other_expenses import other_expenses_bp, run_other_expense_migrations
-from routes.auth          import auth_bp
-from routes.cbct          import cbct_bp, run_cbct_migrations
+from routes.auth           import auth_bp
+from routes.cbct           import cbct_bp, run_cbct_migrations
+
+# ---------------------------
+# Single source of truth for allowed origins
+# ---------------------------
+ALLOWED_ORIGINS = [
+    "https://dental-frontend-zp4w.onrender.com",
+    "http://localhost:5173",
+    "http://localhost:3000",
+]
 
 # ---------------------------
 # CREATE APP
@@ -41,12 +50,11 @@ app.config.from_object(Config)
 
 # ---------------------------
 # JWT CONFIGURATION
-# ✅ All JWT config MUST be set before JWTManager(app) is called —
-#    JWTManager snapshots the config at init time.
+# All JWT config MUST be set before JWTManager(app) is called.
 # ---------------------------
-app.config['JWT_SECRET_KEY']          = os.getenv("JWT_SECRET_KEY", "fallback-secret")
-app.config["JWT_TOKEN_LOCATION"]      = ["headers", "query_string"]   # ✅ accept ?token=
-app.config["JWT_QUERY_STRING_NAME"]   = "token"                       # ✅ matches ?token=...
+app.config["JWT_SECRET_KEY"]        = os.getenv("JWT_SECRET_KEY", "fallback-secret")
+app.config["JWT_TOKEN_LOCATION"]    = ["headers", "query_string"]
+app.config["JWT_QUERY_STRING_NAME"] = "token"
 
 jwt = JWTManager(app)
 
@@ -56,26 +64,32 @@ jwt = JWTManager(app)
 CORS(
     app,
     resources={r"/api/*": {
-        "origins": [
-            "https://dental-frontend-zp4w.onrender.com",
-            "http://localhost:5173",
-            "http://localhost:3000"
-        ],
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-        "allow_headers": ["Content-Type", "Authorization"],
+        "origins":        ALLOWED_ORIGINS,
+        "methods":        ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+        "allow_headers":  ["Content-Type", "Authorization"],
         "expose_headers": ["Content-Type", "Authorization"],
-        "max_age": 600,
+        "max_age":        600,
     }},
-    supports_credentials=True
+    supports_credentials=True,
 )
+
 
 # ---------------------------
 # JWT PROTECTION
 # ---------------------------
 @app.before_request
 def protect_all_routes():
+    # ── Preflight: must return CORS headers or the browser blocks the real request ──
     if request.method == "OPTIONS":
-        return make_response(), 200
+        origin = request.headers.get("Origin", "")
+        res = make_response()
+        if origin in ALLOWED_ORIGINS:
+            res.headers["Access-Control-Allow-Origin"]      = origin
+            res.headers["Access-Control-Allow-Credentials"] = "true"
+            res.headers["Access-Control-Allow-Methods"]     = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+            res.headers["Access-Control-Allow-Headers"]     = "Content-Type, Authorization"
+            res.headers["Access-Control-Max-Age"]           = "600"
+        return res, 200
 
     public_paths = [
         "/",
@@ -84,20 +98,15 @@ def protect_all_routes():
         "/api/auth/setup",
         "/health",
     ]
-
     if request.path in public_paths:
         return
 
-    # Allow receipt preview/download without JWT
+    # Receipt preview/download are public (used in generated PDF links)
     if request.path.startswith("/api/receipts/") and (
         request.path.endswith("/preview") or request.path.endswith("/download")
     ):
         return
 
-    # ✅ CBCT slice and meta routes use ?token= query param
-    #    verify_jwt_in_request() will find it automatically because
-    #    JWT_TOKEN_LOCATION now includes "query_string" — no exemption needed,
-    #    but we still route through the same call below.
     try:
         verify_jwt_in_request()
     except Exception as e:
@@ -105,17 +114,13 @@ def protect_all_routes():
 
 
 # ---------------------------
-# AFTER REQUEST — Ensure CORS headers are always present
+# AFTER REQUEST — Ensure CORS headers survive on every response
+# (handles edge cases where flask-cors misses a route)
 # ---------------------------
 @app.after_request
 def add_cors_headers(response):
     origin = request.headers.get("Origin", "")
-    allowed_origins = [
-        "https://dental-frontend-zp4w.onrender.com",
-        "http://localhost:5173",
-        "http://localhost:3000"
-    ]
-    if origin in allowed_origins:
+    if origin in ALLOWED_ORIGINS:
         response.headers["Access-Control-Allow-Origin"]      = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
         response.headers["Access-Control-Allow-Methods"]     = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
@@ -155,14 +160,9 @@ with app.app_context():
 # ---------------------------
 # REGISTER BLUEPRINTS
 # ---------------------------
-
-# Auth under /api
 app.register_blueprint(auth_bp)
-
-# Patients (no prefix inside blueprint)
 app.register_blueprint(patients_bp)
 
-# All other blueprints under /api
 other_blueprints = [
     visits_bp,
     medical_bp,
@@ -180,13 +180,12 @@ other_blueprints = [
     family_doctor_bp,
     consent_bp,
     appointments_bp,
-    cbct_bp,          # ✅ CBCT
+    cbct_bp,
 ]
 
 for bp in other_blueprints:
     app.register_blueprint(bp, url_prefix="/api")
 
-# Already has its own prefix
 app.register_blueprint(other_expenses_bp)
 
 
