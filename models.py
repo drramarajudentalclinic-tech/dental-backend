@@ -8,7 +8,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 # ═══════════════════════════════════════════════════════════════
 class User(db.Model):
     __tablename__ = "user"
-    __table_args__ = {'extend_existing': True}  # ✅ prevents table conflict
+    __table_args__ = {'extend_existing': True}
 
     id       = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
@@ -240,16 +240,15 @@ class Visit(db.Model):
     treatment_plan = db.Column(db.Text, nullable=True)
     diagnosis      = db.Column(db.Text, nullable=True)
 
-    # ── CBCT uploads ──
-    cbct_files     = db.relationship("CBCTFile", backref="visit", lazy=True, cascade="all, delete-orphan")
-
     # Relationships
-    dental_charts   = db.relationship("DentalChart",   backref="visit", lazy=True, cascade="all, delete-orphan")
-    other_findings  = db.relationship("OtherFinding",  backref="visit", lazy=True, cascade="all, delete-orphan")
-    consultations   = db.relationship("Consultation",  backref="visit", lazy=True, cascade="all, delete-orphan")
-    prescriptions   = db.relationship("Prescription",  backref="visit", lazy=True, cascade="all, delete-orphan")
-    images          = db.relationship("Image",         backref="visit", lazy=True, cascade="all, delete-orphan")
-    payments        = db.relationship("Payment",       backref="visit", lazy=True)
+    cbct_files      = db.relationship("CBCTFile",       backref="visit", lazy=True,    cascade="all, delete-orphan")
+    cbct_volumes    = db.relationship("CBCTVolume",     backref="visit", lazy=True,    cascade="all, delete-orphan")
+    dental_charts   = db.relationship("DentalChart",    backref="visit", lazy=True,    cascade="all, delete-orphan")
+    other_findings  = db.relationship("OtherFinding",   backref="visit", lazy=True,    cascade="all, delete-orphan")
+    consultations   = db.relationship("Consultation",   backref="visit", lazy=True,    cascade="all, delete-orphan")
+    prescriptions   = db.relationship("Prescription",   backref="visit", lazy=True,    cascade="all, delete-orphan")
+    images          = db.relationship("Image",          backref="visit", lazy=True,    cascade="all, delete-orphan")
+    payments        = db.relationship("Payment",        backref="visit", lazy=True)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -397,7 +396,7 @@ class Image(db.Model):
 
 
 # ═══════════════════════════════════════════════════════════════
-#  CBCT FILES
+#  CBCT FILES  (raw uploaded DICOM/zip archives)
 # ═══════════════════════════════════════════════════════════════
 class CBCTFile(db.Model):
     __tablename__ = "cbct_files"
@@ -422,6 +421,71 @@ class CBCTFile(db.Model):
             "uploaded_by":   self.uploaded_by,
             "uploaded_at":   self.uploaded_at.isoformat() if self.uploaded_at else None,
         }
+
+
+# ═══════════════════════════════════════════════════════════════
+#  CBCT VOLUME  (parsed / processed DICOM volume)
+# ═══════════════════════════════════════════════════════════════
+class CBCTVolume(db.Model):
+    __tablename__ = "cbct_volumes"
+
+    id              = db.Column(db.Integer, primary_key=True)
+    visit_id        = db.Column(db.Integer, db.ForeignKey("visits.id"), nullable=False, index=True)
+
+    # Patient / study metadata (from DICOM headers)
+    patient_name    = db.Column(db.String(120))
+    patient_id      = db.Column(db.String(64))
+    study_date      = db.Column(db.String(20))
+    modality        = db.Column(db.String(10),  default="CT")
+    institution     = db.Column(db.String(120))
+
+    # Volume dimensions
+    num_slices      = db.Column(db.Integer,   default=0)   # axial depth
+    coronal_slices  = db.Column(db.Integer,   default=0)
+    sagittal_slices = db.Column(db.Integer,   default=0)
+    rows            = db.Column(db.Integer,   default=512)
+    cols            = db.Column(db.Integer,   default=512)
+
+    # Voxel spacing (mm)
+    slice_thickness = db.Column(db.Float,     default=0.3)
+    pixel_spacing_x = db.Column(db.Float,     default=0.3)
+    pixel_spacing_y = db.Column(db.Float,     default=0.3)
+
+    # Storage: all slice images as base64 JPEG, packed in JSON
+    # Format: { "axial": [...], "coronal": [...], "sagittal": [...] }
+    # For large volumes consider moving this to object storage (S3/GCS)
+    slice_data      = db.Column(db.Text)
+
+    # Housekeeping
+    uploaded_by     = db.Column(db.String(80))
+    notes           = db.Column(db.Text)
+    uploaded_at     = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationship
+    annotations     = db.relationship(
+        "CBCTAnnotation", backref="volume", lazy="dynamic",
+        cascade="all, delete-orphan"
+    )
+
+    def __repr__(self):
+        return f"<CBCTVolume id={self.id} visit={self.visit_id} slices={self.num_slices}>"
+
+
+# ═══════════════════════════════════════════════════════════════
+#  CBCT ANNOTATION
+# ═══════════════════════════════════════════════════════════════
+class CBCTAnnotation(db.Model):
+    __tablename__ = "cbct_annotations"
+
+    id         = db.Column(db.Integer, primary_key=True)
+    cbct_id    = db.Column(db.Integer, db.ForeignKey("cbct_volumes.id"), nullable=False, index=True)
+    ann_type   = db.Column(db.String(30))   # distance | angle | hu | implant | ian
+    ann_view   = db.Column(db.String(20))   # axial | coronal | sagittal
+    data       = db.Column(db.Text)         # Full annotation JSON blob
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<CBCTAnnotation id={self.id} type={self.ann_type} view={self.ann_view}>"
 
 
 # ═══════════════════════════════════════════════════════════════
