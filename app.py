@@ -47,10 +47,10 @@ ALLOWED_ORIGINS = [
 # ---------------------------
 app = Flask(__name__)
 app.config.from_object(Config)
+app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB — must be after Flask()
 
 # ---------------------------
 # JWT CONFIGURATION
-# All JWT config MUST be set before JWTManager(app) is called.
 # ---------------------------
 app.config["JWT_SECRET_KEY"]        = os.getenv("JWT_SECRET_KEY", "fallback-secret")
 app.config["JWT_TOKEN_LOCATION"]    = ["headers", "query_string"]
@@ -79,7 +79,6 @@ CORS(
 # ---------------------------
 @app.before_request
 def protect_all_routes():
-    # ── Preflight: must return CORS headers or the browser blocks the real request ──
     if request.method == "OPTIONS":
         origin = request.headers.get("Origin", "")
         res = make_response()
@@ -101,7 +100,6 @@ def protect_all_routes():
     if request.path in public_paths:
         return
 
-    # Receipt preview/download are public (used in generated PDF links)
     if request.path.startswith("/api/receipts/") and (
         request.path.endswith("/preview") or request.path.endswith("/download")
     ):
@@ -114,8 +112,7 @@ def protect_all_routes():
 
 
 # ---------------------------
-# AFTER REQUEST — Ensure CORS headers survive on every response
-# (handles edge cases where flask-cors misses a route)
+# AFTER REQUEST — Ensure CORS headers on every response
 # ---------------------------
 @app.after_request
 def add_cors_headers(response):
@@ -181,7 +178,7 @@ other_blueprints = [
     consent_bp,
     appointments_bp,
     cbct_bp,
-    other_expenses_bp,  # ✅ moved here so it gets url_prefix="/api"
+    other_expenses_bp,
 ]
 
 for bp in other_blueprints:
