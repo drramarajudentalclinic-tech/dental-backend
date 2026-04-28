@@ -181,12 +181,11 @@ other_blueprints = [
     consent_bp,
     appointments_bp,
     cbct_bp,
+    other_expenses_bp,  # ✅ moved here so it gets url_prefix="/api"
 ]
 
 for bp in other_blueprints:
     app.register_blueprint(bp, url_prefix="/api")
-
-app.register_blueprint(other_expenses_bp)
 
 
 # ---------------------------

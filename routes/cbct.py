@@ -20,8 +20,22 @@ cbct_bp = Blueprint("cbct", __name__)
 SLICE_STEP = 3
 
 # ── Max ZIP size accepted (bytes). Reject early before reading into memory.
-MAX_ZIP_MB  = 300
+MAX_ZIP_MB    = 300
 MAX_ZIP_BYTES = MAX_ZIP_MB * 1024 * 1024
+
+
+# ─── Date formatting helper ────────────────────────────────────────────────────
+
+def fmt_date(val, fmt):
+    """Safely format a date/datetime value; handles None and string types."""
+    if not val:
+        return None
+    if isinstance(val, str):
+        return val  # already a string (some DB drivers return strings)
+    try:
+        return val.strftime(fmt)
+    except Exception:
+        return str(val)
 
 
 # ─── Migrations ───────────────────────────────────────────────────────────────
@@ -348,7 +362,7 @@ def upload_cbct(visit_id):
             "id":            volume_id,
             "visit_id":      visit_id,
             "patient_name":  patient_name,
-            "study_date":    study_date.strftime("%Y-%m-%d") if study_date else None,
+            "study_date":    fmt_date(study_date, "%Y-%m-%d"),
             "num_slices":    stored_axial,
             "slice_step":    SLICE_STEP,
             "dimensions":    {"z": Z, "y": Y, "x": X},
@@ -390,11 +404,11 @@ def list_cbct(visit_id):
     return jsonify([{
         "id":           r[0],
         "patient_name": r[1],
-        "study_date":   r[2].strftime("%Y-%m-%d") if r[2] else None,
+        "study_date":   fmt_date(r[2], "%Y-%m-%d"),        # ✅ safe
         "num_slices":   r[3],
         "voxel_spacing":{"x": r[4], "y": r[5], "z": r[6]},
         "dimensions":   {"rows": r[7], "cols": r[8]},
-        "uploaded_at":  r[9].strftime("%d-%b-%Y %H:%M") if r[9] else None,
+        "uploaded_at":  fmt_date(r[9], "%d-%b-%Y %H:%M"),  # ✅ safe
         "uploaded_by":  r[10],
         "notes":        r[11],
     } for r in rows])
@@ -428,7 +442,7 @@ def get_meta(volume_id):
         "id":           volume_id,
         "visit_id":     r[10],
         "patient_name": r[0],
-        "study_date":   r[1].strftime("%Y-%m-%d") if r[1] else None,
+        "study_date":   fmt_date(r[1], "%Y-%m-%d"),        # ✅ safe
         "dimensions": {
             "axial":    dim_map.get("axial",    r[2]),
             "coronal":  dim_map.get("coronal",  r[7]),
@@ -436,7 +450,7 @@ def get_meta(volume_id):
             "rows": r[6], "cols": r[7],
         },
         "voxel_spacing": {"x": r[3], "y": r[4], "z": r[5]},
-        "uploaded_at":   r[8].strftime("%d-%b-%Y %H:%M") if r[8] else None,
+        "uploaded_at":   fmt_date(r[8], "%d-%b-%Y %H:%M"), # ✅ safe
         "notes":         r[9],
     })
 
@@ -519,6 +533,7 @@ def save_annotations(volume_id):
     finally:
         conn.close()
     return jsonify({"status": "saved"})
+
 
 # ─── Temporary ZIP inspector ─────────────────────────────────────────────────
 # POST /api/cbct/inspect-zip  — upload a ZIP and see what's inside
