@@ -90,13 +90,15 @@ def protect_all_routes():
             res.headers["Access-Control-Max-Age"]           = "600"
         return res, 200
 
-    public_paths = [
-        "/",
-        "/api/auth/login",
-        "/api/auth/register",
-        "/api/auth/setup",
-        "/health",
-    ]
+   public_paths = [
+    "/",
+    "/api/auth/login",
+    "/api/auth/register",
+    "/api/auth/setup",
+    "/api/auth/reset-users",
+    "/health",
+]
+    
     if request.path in public_paths:
         return
 
