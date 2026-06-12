@@ -78,6 +78,7 @@ CORS(
 # JWT PROTECTION
 # ---------------------------
 @app.before_request
+@app.before_request
 def protect_all_routes():
     if request.method == "OPTIONS":
         origin = request.headers.get("Origin", "")
@@ -95,8 +96,10 @@ def protect_all_routes():
         "/api/auth/login",
         "/api/auth/register",
         "/api/auth/setup",
+    
         "/health",
     ]
+
     if request.path in public_paths:
         return
 
@@ -109,7 +112,6 @@ def protect_all_routes():
         verify_jwt_in_request()
     except Exception as e:
         return jsonify({"error": "Unauthorized", "message": str(e)}), 401
-
 
 # ---------------------------
 # AFTER REQUEST — Ensure CORS headers on every response
