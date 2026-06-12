@@ -39,14 +39,6 @@ def setup():
     return jsonify({"message": "Users created successfully!"}), 201
 
 
-@auth_bp.route("/reset-users", methods=["GET"])
-def reset_users():
-    User.query.delete()
-    db.session.commit()
-    db.session.add(User(username="doctor1", password=generate_password_hash("doctor123"), role="doctor"))
-    db.session.add(User(username="reception1", password=generate_password_hash("reception123"), role="reception"))
-    db.session.commit()
-    return jsonify({"message": "Users reset successfully!"}), 201
 
 
 @auth_bp.route("/login", methods=["POST"])
