@@ -96,7 +96,7 @@ def protect_all_routes():
         "/api/auth/login",
         "/api/auth/register",
         "/api/auth/setup",
-        "/api/auth/reset-users",
+    
         "/health",
     ]
 
