@@ -18,7 +18,8 @@ def save_women_history(patient_id):
             return jsonify({
                 "pregnant": record.pregnant,
                 "due_date": record.due_date.isoformat() if record.due_date else "",
-                "nursing_child": record.nursing_child
+                "nursing_child": record.nursing_child,
+                "no_known_women_conditions": record.no_known_women_conditions
             }), 200
 
         data = request.get_json() or {}
@@ -30,6 +31,11 @@ def save_women_history(patient_id):
         record.pregnant = bool(data.get("pregnant", False))
         record.nursing_child = bool(data.get("nursing_child", False))
 
+        # ADD THIS
+        record.no_known_women_conditions = bool(
+            data.get("no_known_women_conditions", False)
+        )
+
         if record.pregnant and data.get("due_date"):
             record.due_date = datetime.strptime(
                 data["due_date"],
@@ -40,7 +46,9 @@ def save_women_history(patient_id):
 
         db.session.commit()
 
-        return jsonify({"status": "women history saved"}), 200
+        return jsonify({
+            "status": "women history saved"
+        }), 200
 
     except Exception as e:
         traceback.print_exc()
