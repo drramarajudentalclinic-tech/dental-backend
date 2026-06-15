@@ -32,18 +32,17 @@ class Patient(db.Model):
     case_number    = db.Column(db.String(50), unique=True, nullable=False)
     name           = db.Column(db.String(150), nullable=False)
     date           = db.Column(db.Date, nullable=True)
-    age            = db.Column(db.Integer, nullable=True)
+    age            = db.Column(db.Integer, nullable=False)
     date_of_birth  = db.Column(db.Date, nullable=True)
-    gender         = db.Column(db.String(10))
+    gender         = db.Column(db.String(10), nullable=False)
     marital_status = db.Column(db.String(20))
-    mobile         = db.Column(db.String(20))
+    mobile         = db.Column(db.String(20), nullable=False)
     email          = db.Column(db.String(150))
     blood_group    = db.Column(db.String(10))
     address        = db.Column(db.Text)
     profession     = db.Column(db.String(100))
     referred_by    = db.Column(db.String(150))
     chief_complaint= db.Column(db.Text)
-    no_known_allergies = db.Column(db.Boolean, default=False)
     created_at     = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at     = db.Column(db.DateTime, onupdate=datetime.utcnow)
 
@@ -121,6 +120,7 @@ class MedicalHistory(db.Model):
     ulcer                   = db.Column(db.Boolean, default=False)
     venereal_disease        = db.Column(db.Boolean, default=False)
     other                   = db.Column(db.Text)
+    no_known_conditions     = db.Column(db.Boolean, default=False, nullable=False)
     updated_at              = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def to_dict(self):
@@ -150,6 +150,7 @@ class MedicalHistory(db.Model):
             "ulcer":                    self.ulcer,
             "venereal_disease":         self.venereal_disease,
             "other":                    self.other,
+            "no_known_conditions":      self.no_known_conditions,
         }
 
 
