@@ -43,6 +43,7 @@ class Patient(db.Model):
     profession     = db.Column(db.String(100))
     referred_by    = db.Column(db.String(150))
     chief_complaint= db.Column(db.Text)
+    no_known_allergies = db.Column(db.Boolean, default=False)
     created_at     = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at     = db.Column(db.DateTime, onupdate=datetime.utcnow)
 

@@ -31,6 +31,8 @@ def row_to_dict(h):
 #  2. Flat dict with string values (reception form format):
 #     { smoking: "yes/10/15", alcohol: "occasionally/5/daily", tobacco: "no" }
 #     Value format: "<yes|no>/<duration_years>/<frequency>"
+#     Also accepts plain "Yes" / "No" (any case) from the toggle UI,
+#     with optional "<field>_detail" free-text alongside it.
 #
 #  3. Single habit object (legacy):
 #     { habit_type: "smoking", frequency: "DAILY", duration_years: 10 }
@@ -55,20 +57,48 @@ def save_habits(patient_id):
         if is_flat:
             # Format 2: flat dict
             for habit_type, val in data.items():
-                if not val or val in ("no", "NO", False, "false"):
+                if habit_type not in known_habit_keys:
+                    continue  # skip *_detail and other keys, handled below
+
+                if val is None or val is False:
                     continue
-                parts = str(val).split("/")
-                has_habit    = parts[0].strip().lower() not in ("no", "false", "0", "")
-                duration     = parts[1].strip() if len(parts) > 1 else None
-                frequency    = parts[2].strip() if len(parts) > 2 else None
-                habit_list.append({
-                    "habit_type":     habit_type,
-                    "has_habit":      has_habit,
-                    "frequency":      frequency,
-                    "duration_years": int(duration) if duration and duration.isdigit() else None,
-                    "remarks":        None,
-                    "consent":        None,
-                })
+
+                val_str = str(val).strip()
+                val_lower = val_str.lower()
+
+                if not val_str or val_lower in ("no", "false", "0"):
+                    continue  # explicit "No" → skip, no habit recorded
+
+                detail = data.get(f"{habit_type}_detail")
+
+                if val_lower == "yes":
+                    # Toggle-UI format: "Yes" + optional free-text detail
+                    habit_list.append({
+                        "habit_type":     habit_type,
+                        "has_habit":      True,
+                        "frequency":      detail or None,
+                        "duration_years": None,
+                        "remarks":        None,
+                        "consent":        None,
+                    })
+                else:
+                    # Legacy slash format: "<yes|no>/<duration_years>/<frequency>"
+                    parts = val_str.split("/")
+                    has_habit = parts[0].strip().lower() not in ("no", "false", "0", "")
+                    duration  = parts[1].strip() if len(parts) > 1 else None
+                    frequency = parts[2].strip() if len(parts) > 2 else None
+
+                    if not has_habit:
+                        continue
+
+                    habit_list.append({
+                        "habit_type":     habit_type,
+                        "has_habit":      has_habit,
+                        "frequency":      frequency,
+                        "duration_years": int(duration) if duration and duration.isdigit() else None,
+                        "remarks":        None,
+                        "consent":        None,
+                    })
         else:
             # Format 3: single habit object
             if data.get("habit_type"):

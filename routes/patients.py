@@ -13,6 +13,7 @@ from models import (
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, date
 from flask_jwt_extended import jwt_required, get_jwt_identity
+
 patients_bp = Blueprint(
     "patients",
     __name__,
@@ -46,13 +47,20 @@ def parse_date(value):
 
 
 def parse_int(value):
-    """✅ Safely convert to int or return None — fixes PostgreSQL integer errors"""
     try:
         if value is None or str(value).strip() == "":
             return None
         return int(value)
     except (ValueError, TypeError):
         return None
+
+
+def to_bool(val):
+    """Convert YES/NO/1/0/True/False → Python bool."""
+    if isinstance(val, bool): return val
+    if isinstance(val, int):  return bool(val)
+    if isinstance(val, str):  return val.strip().upper() in ("YES", "TRUE", "1")
+    return False
 
 
 def get_chief_complaint(data):
@@ -116,32 +124,50 @@ def patients():
 
         print("📥 Patient POST keys:", list(data.keys()))
 
-        parsed_dob      = parse_date(data.get("dob") or data.get("date_of_birth"))
+        # ── Mandatory field validation ───────────────────────────
+        missing = []
+        if not data.get("name",        "").strip(): missing.append("Full Name")
+        if not data.get("case_number", "").strip(): missing.append("Case Number")
+        if not data.get("gender",      "").strip(): missing.append("Gender")
+        if not data.get("mobile",      "").strip(): missing.append("Mobile Number")
+
+        parsed_dob = parse_date(data.get("dob") or data.get("date_of_birth"))
+        age_val    = parse_int(data.get("age"))
+        if parsed_dob:
+            age_val = resolve_age(parsed_dob, age_val)
+        if age_val is None:
+            missing.append("Age")
+
+        if missing:
+            return jsonify({
+                "error":  "Missing required fields",
+                "fields": missing
+            }), 400
+        # ────────────────────────────────────────────────────────
+
         parsed_date     = parse_date(data.get("date"))
         chief_complaint = get_chief_complaint(data)
 
-        print("📥 chief_complaint value:", chief_complaint)
-
         patient = Patient(
-            case_number     = data.get("case_number"),
-            name            = data.get("name"),
-            date            = parsed_date,
-            age             = None if parsed_dob else parse_int(data.get("age")),  # ✅ fixed
-            date_of_birth   = parsed_dob,
-            gender          = data.get("gender"),
-            marital_status  = data.get("marital_status"),
-            mobile          = data.get("mobile"),
-            email           = data.get("email"),
-            blood_group     = data.get("blood_group"),
-            address         = data.get("address"),
-            profession      = data.get("profession"),
-            referred_by     = data.get("referred_by"),
-            chief_complaint = chief_complaint,
+            case_number    = data.get("case_number").strip(),
+            name           = data.get("name").strip(),
+            date           = parsed_date,
+            age            = age_val,
+            date_of_birth  = parsed_dob,
+            gender         = data.get("gender").strip(),
+            marital_status = data.get("marital_status"),
+            mobile         = data.get("mobile").strip(),
+            email          = data.get("email"),
+            blood_group    = data.get("blood_group"),
+            address        = data.get("address"),
+            profession     = data.get("profession"),
+            referred_by    = data.get("referred_by"),
+            chief_complaint= chief_complaint,
         )
 
         try:
             db.session.add(patient)
-            db.session.flush()   # get patient.id before visit insert
+            db.session.flush()
 
             visit = Visit(
                 patient_id      = patient.id,
@@ -182,7 +208,7 @@ def patients():
 
 
 # ══════════════════════════════════════════════
-#  SEARCH ALL PATIENTS (for doctor dashboard lookup)
+#  SEARCH ALL PATIENTS
 #  GET /api/patients/search?q=...
 # ══════════════════════════════════════════════
 @patients_bp.route("/search", methods=["GET"])
@@ -202,10 +228,10 @@ def search_patients():
         visits = []
         for v in p.visits:
             visits.append({
-                "visit_id":       v.id,
-                "visit_date":     v.visit_date.isoformat() if v.visit_date else None,
-                "status":         v.status,
-                "case_number":    p.case_number,
+                "visit_id":        v.id,
+                "visit_date":      v.visit_date.isoformat() if v.visit_date else None,
+                "status":          v.status,
+                "case_number":     p.case_number,
                 "chief_complaint": v.chief_complaint or "",
             })
         result.append({
@@ -229,8 +255,8 @@ def search_patients():
 def get_patient(patient_id):
     patient    = Patient.query.get_or_404(patient_id)
     medical    = MedicalHistory.query.filter_by(patient_id=patient_id).first()
-    allergies  = AllergyRecord.query.filter_by(patient_id=patient_id).all()
-    habits     = Habit.query.filter_by(patient_id=patient_id).all()
+    allergy    = AllergyRecord.query.filter_by(patient_id=patient_id).first()
+    habit      = Habit.query.filter_by(patient_id=patient_id).first()
     family_doc = FamilyDoctor.query.filter_by(patient_id=patient_id).first()
     consent    = Consent.query.filter_by(patient_id=patient_id).first()
 
@@ -240,15 +266,17 @@ def get_patient(patient_id):
 
     return jsonify({
         "patient":       serialize_patient(patient),
-        "medical":       model_to_dict(medical,    ["id", "patient_id"]),
-        "allergy": {
-            "rows": [
-                model_to_dict(a, ["id", "patient_id", "created_at"])
-                for a in allergies
-            ]
+        "medical":       medical.to_dict() if medical else {},
+        "allergy":       allergy.to_dict() if allergy else {
+            "drug_allergy": False, "food_allergy": False, "latex_allergy": False,
+            "iodine_allergy": False, "anesthesia_allergy": False,
+            "other_allergy": "", "no_known_allergies": False,
         },
-        "habits":        [model_to_dict(h, ["id", "patient_id"]) for h in habits],
-        "women":         model_to_dict(women,      ["id", "patient_id"]),
+        "habits":        habit.to_dict() if habit else {
+            "smoking": "", "alcohol": "", "tobacco": "",
+            "other_habit": "", "no_known_habits": False,
+        },
+        "women":         women.to_dict() if women else {},
         "family_doctor": model_to_dict(family_doc, ["id", "patient_id"]),
         "consent":       model_to_dict(consent,    ["id", "patient_id"]),
     }), 200
@@ -263,15 +291,30 @@ def update_patient(patient_id):
     patient = Patient.query.get_or_404(patient_id)
     data    = request.json or {}
 
+    # Re-validate mandatory fields if they are being updated
+    if "name" in data and not data["name"].strip():
+        return jsonify({"error": "Full Name is required"}), 400
+    if "case_number" in data and not data["case_number"].strip():
+        return jsonify({"error": "Case Number is required"}), 400
+    if "gender" in data and not data["gender"].strip():
+        return jsonify({"error": "Gender is required"}), 400
+    if "mobile" in data and not data["mobile"].strip():
+        return jsonify({"error": "Mobile Number is required"}), 400
+
     if "dob" in data or "date_of_birth" in data:
         patient.date_of_birth = parse_date(data.get("dob") or data.get("date_of_birth"))
-        patient.age = None if patient.date_of_birth else patient.age
+        if patient.date_of_birth:
+            patient.age = resolve_age(patient.date_of_birth, patient.age)
 
     if "date" in data:
         patient.date = parse_date(data["date"])
 
-    if "age" in data and not patient.date_of_birth:
-        patient.age = parse_int(data["age"])  # ✅ fixed
+    if "age" in data:
+        new_age = parse_int(data["age"])
+        if new_age is not None and not patient.date_of_birth:
+            patient.age = new_age
+        elif new_age is None and not patient.date_of_birth:
+            return jsonify({"error": "Age is required"}), 400
 
     new_complaint = get_chief_complaint(data)
 
@@ -306,22 +349,97 @@ def save_medical(patient_id):
     Patient.query.get_or_404(patient_id)
     data = request.json or {}
 
+    # ── Mandatory: must have at least one condition, other text,
+    #    OR explicitly set no_known_conditions = true ────────────
+    CONDITION_FIELDS = [
+        "aids", "asthma", "arthritis_rheumatism", "blood_disease",
+        "bp_high", "bp_low", "corticosteroid_treatment", "cancer",
+        "diabetes", "epilepsy", "heart_problems", "hepatitis", "herpes",
+        "jaundice", "liver_disease", "kidney_disease", "psychiatric_treatment",
+        "radiation_treatment", "respiratory_disease", "rheumatic_fever", "tb",
+        "thyroid_problems", "ulcer", "venereal_disease",
+    ]
+
+    # Map frontend keys (YES/NO strings or booleans)
+    has_condition = any(to_bool(data.get(f)) for f in CONDITION_FIELDS)
+    has_other     = bool((data.get("other") or data.get("Other") or "").strip())
+    no_known      = to_bool(data.get("no_known_conditions") or data.get("No_Known_Conditions"))
+
+    if not has_condition and not has_other and not no_known:
+        return jsonify({
+            "error": "Medical history acknowledgement required. "
+                     "Select at least one condition or confirm no known conditions."
+        }), 400
+
     medical = MedicalHistory.query.filter_by(patient_id=patient_id).first()
     if not medical:
         medical = MedicalHistory(patient_id=patient_id)
         db.session.add(medical)
 
-    valid = {col.name for col in medical.__table__.columns} - {"id", "patient_id"}
-    for field, val in data.items():
-        if field in valid:
-            setattr(medical, field, val)
+    # Field aliases from frontend (PascalCase → snake_case)
+    ALIASES = {
+        "Blood_Pressure_High":      "bp_high",
+        "Blood_Pressure_Low":       "bp_low",
+        "Blood_Disease":            "blood_disease",
+        "Arthritis_Rheumatism":     "arthritis_rheumatism",
+        "Corticosteroid_Treatment": "corticosteroid_treatment",
+        "Heart_Problems":           "heart_problems",
+        "Kidney_Disease":           "kidney_disease",
+        "Liver_Disease":            "liver_disease",
+        "Psychiatric_Treatment":    "psychiatric_treatment",
+        "Radiation_Treatment":      "radiation_treatment",
+        "Respiratory_Disease":      "respiratory_disease",
+        "Rheumatic_Fever":          "rheumatic_fever",
+        "Thyroid_Problems":         "thyroid_problems",
+        "Venereal_Disease":         "venereal_disease",
+        "AIDS":                     "aids",
+        "Asthma":                   "asthma",
+        "Cancer":                   "cancer",
+        "Diabetes":                 "diabetes",
+        "Epilepsy":                 "epilepsy",
+        "Hepatitis":                "hepatitis",
+        "Herpes":                   "herpes",
+        "Jaundice":                 "jaundice",
+        "TB":                       "tb",
+        "Ulcer":                    "ulcer",
+        "Other":                    "other",
+        "No_Known_Conditions":      "no_known_conditions",
+        # Old aliases
+        "aids_hiv":               "aids",
+        "cardiac_problem":        "heart_problems",
+        "hypertension":           "bp_high",
+        "other_conditions":       "other",
+        "corticosteroid_therapy": "corticosteroid_treatment",
+        "radiation_therapy":      "radiation_treatment",
+        "tuberculosis":           "tb",
+    }
+
+    valid_cols = {col.name for col in MedicalHistory.__table__.columns} - {"id", "patient_id"}
+
+    for raw_key, val in data.items():
+        db_key = ALIASES.get(raw_key, raw_key)
+        if db_key not in valid_cols:
+            continue
+        if db_key in ("other",):
+            setattr(medical, db_key, str(val) if val else None)
+        elif db_key == "no_known_conditions":
+            setattr(medical, db_key, to_bool(val))
+        else:
+            setattr(medical, db_key, to_bool(val))
+
+    # If no_known_conditions confirmed → clear all condition booleans
+    if no_known:
+        for f in CONDITION_FIELDS:
+            setattr(medical, f, False)
+        medical.other = None
+        medical.no_known_conditions = True
 
     db.session.commit()
-    return jsonify({"status": "medical saved"}), 200
+    return jsonify({"status": "medical history saved"}), 200
 
 
 # ══════════════════════════════════════════════
-#  SAVE ALLERGIES  (row-based)
+#  SAVE ALLERGIES  (flat checkbox model)
 #  POST/PUT /api/patients/<patient_id>/allergy
 # ══════════════════════════════════════════════
 @patients_bp.route("/<int:patient_id>/allergy", methods=["POST", "PUT"])
@@ -329,22 +447,37 @@ def save_allergy(patient_id):
     Patient.query.get_or_404(patient_id)
     data = request.json or {}
 
-    rows = data.get("rows", [])
-    AllergyRecord.query.filter_by(patient_id=patient_id).delete()
+    ALLERGY_FLAGS = [
+        "drug_allergy", "food_allergy", "latex_allergy",
+        "iodine_allergy", "anesthesia_allergy",
+    ]
 
-    for row in rows:
-        allergen_type = (row.get("type") or "").strip()
-        if not allergen_type and not row.get("allergen"):
-            continue
-        record = AllergyRecord(
-            patient_id = patient_id,
-            type       = allergen_type,
-            allergen   = row.get("allergen") or None,
-            reaction   = row.get("reaction") or None,
-            severity   = row.get("severity") or None,
-            notes      = row.get("notes")    or None,
-        )
+    has_allergy   = any(to_bool(data.get(f)) for f in ALLERGY_FLAGS)
+    has_other     = bool((data.get("other_allergy") or "").strip())
+    no_known      = to_bool(data.get("no_known_allergies") or data.get("No_Known_Allergies"))
+
+    if not has_allergy and not has_other and not no_known:
+        return jsonify({
+            "error": "Allergy acknowledgement required. "
+                     "Select at least one allergy or confirm no known allergies."
+        }), 400
+
+    record = AllergyRecord.query.filter_by(patient_id=patient_id).first()
+    if not record:
+        record = AllergyRecord(patient_id=patient_id)
         db.session.add(record)
+
+    if no_known:
+        # Confirmed no allergies — clear all flags
+        for f in ALLERGY_FLAGS:
+            setattr(record, f, False)
+        record.other_allergy      = None
+        record.no_known_allergies = True
+    else:
+        for f in ALLERGY_FLAGS:
+            setattr(record, f, to_bool(data.get(f, False)))
+        record.other_allergy      = (data.get("other_allergy") or "").strip() or None
+        record.no_known_allergies = False
 
     db.session.commit()
     return jsonify({"status": "allergies saved"}), 200
@@ -357,28 +490,37 @@ def save_allergy(patient_id):
 @patients_bp.route("/<int:patient_id>/habits", methods=["POST", "PUT"])
 def save_habits(patient_id):
     Patient.query.get_or_404(patient_id)
-    data = request.json
+    data = request.json or {}
 
-    if isinstance(data, dict):
-        habit_list = [
-            {"habit_type": k, "remarks": v}
-            for k, v in data.items()
-            if v not in (None, "", False)
-        ]
-    elif isinstance(data, list):
-        habit_list = data
+    HABIT_FIELDS = ["smoking", "alcohol", "tobacco"]
+
+    has_habit = any((data.get(f) or "").strip() for f in HABIT_FIELDS)
+    has_other = bool((data.get("other_habit") or "").strip())
+    no_known  = to_bool(data.get("no_known_habits") or data.get("No_Known_Habits"))
+
+    if not has_habit and not has_other and not no_known:
+        return jsonify({
+            "error": "Habits acknowledgement required. "
+                     "Enter at least one habit or confirm no known habits."
+        }), 400
+
+    habit = Habit.query.filter_by(patient_id=patient_id).first()
+    if not habit:
+        habit = Habit(patient_id=patient_id)
+        db.session.add(habit)
+
+    if no_known:
+        habit.smoking        = None
+        habit.alcohol        = None
+        habit.tobacco        = None
+        habit.other_habit    = None
+        habit.no_known_habits = True
     else:
-        return jsonify({"error": "Invalid habits format"}), 400
-
-    Habit.query.filter_by(patient_id=patient_id).delete()
-
-    valid = {col.name for col in Habit.__table__.columns} - {"id", "patient_id"}
-    for h in habit_list:
-        row = Habit(patient_id=patient_id)
-        for field, val in h.items():
-            if field in valid:
-                setattr(row, field, val)
-        db.session.add(row)
+        habit.smoking         = (data.get("smoking")     or "").strip() or None
+        habit.alcohol         = (data.get("alcohol")     or "").strip() or None
+        habit.tobacco         = (data.get("tobacco")     or "").strip() or None
+        habit.other_habit     = (data.get("other_habit") or "").strip() or None
+        habit.no_known_habits = False
 
     db.session.commit()
     return jsonify({"status": "habits saved"}), 200
@@ -396,18 +538,32 @@ def save_women_history(patient_id):
         return jsonify({"error": "Not a female patient"}), 400
 
     data  = request.json or {}
+
+    no_known  = to_bool(data.get("no_known_women_conditions") or data.get("No_Known_Women_Conditions"))
+    pregnant  = to_bool(data.get("pregnant"))
+    nursing   = to_bool(data.get("nursing_child"))
+
+    if not pregnant and not nursing and not no_known:
+        return jsonify({
+            "error": "Women's health acknowledgement required. "
+                     "Select an applicable condition or confirm none apply."
+        }), 400
+
     women = WomanHistory.query.filter_by(patient_id=patient_id).first()
     if not women:
         women = WomanHistory(patient_id=patient_id)
         db.session.add(women)
 
-    if "due_date" in data:
-        women.due_date = parse_date(data.pop("due_date"))
-
-    valid = {col.name for col in women.__table__.columns} - {"id", "patient_id", "due_date"}
-    for field, val in data.items():
-        if field in valid:
-            setattr(women, field, val)
+    if no_known:
+        women.pregnant                  = False
+        women.due_date                  = None
+        women.nursing_child             = False
+        women.no_known_women_conditions = True
+    else:
+        women.pregnant                  = pregnant
+        women.due_date                  = parse_date(data.get("due_date")) if pregnant else None
+        women.nursing_child             = nursing
+        women.no_known_women_conditions = False
 
     db.session.commit()
     return jsonify({"status": "women history saved"}), 200
