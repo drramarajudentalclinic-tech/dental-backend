@@ -59,67 +59,91 @@ ALIASES = {
 
 
 def to_bool(val):
-    """Convert YES/NO/1/0/True/False → Python bool."""
+    """Convert YES/NO/1/0/True/False/None → Python bool."""
+    if val is None:           return False
     if isinstance(val, bool): return val
     if isinstance(val, int):  return bool(val)
     if isinstance(val, str):  return val.strip().upper() in ("YES", "TRUE", "1")
     return False
 
 
+def _resolve_key(raw_key):
+    """Return the DB column name for any incoming key, or None if not allowed."""
+    db_key = ALIASES.get(raw_key, raw_key)
+    return db_key if db_key in ALLOWED_FIELDS else None
+
+
+def _check_has_condition(data):
+    """
+    Return True if any condition field in data resolves to a truthy bool.
+    Checks both snake_case DB keys and PascalCase frontend keys via ALIASES.
+    """
+    for raw_key, val in data.items():
+        db_key = _resolve_key(raw_key)
+        if db_key and db_key in CONDITION_FIELDS and to_bool(val):
+            return True
+    return False
+
+
 # ── PUT /api/medical/<patient_id> ─────────────────────────────────────────────
 @medical_bp.route("/medical/<int:patient_id>", methods=["PUT"])
 def save_medical(patient_id):
-    data = request.get_json() or {}
+    try:
+        data = request.get_json(silent=True) or {}
 
-    # ── Mandatory acknowledgement check ──────────────────────────────────────
-    has_condition = any(
-        to_bool(data.get(f) or data.get(raw))
-        for f in CONDITION_FIELDS
-        for raw in ([f] + [k for k, v in ALIASES.items() if v == f])
-    )
-    has_other = bool(
-        (data.get("other") or data.get("Other") or data.get("other_conditions") or "").strip()
-    )
-    no_known = to_bool(
-        data.get("no_known_conditions") or data.get("No_Known_Conditions")
-    )
+        # ── Mandatory acknowledgement check ──────────────────────────────────
+        has_condition = _check_has_condition(data)
 
-    if not has_condition and not has_other and not no_known:
-        return jsonify({
-            "error": "Medical history acknowledgement required. "
-                     "Select at least one condition or confirm no known conditions."
-        }), 400
-    # ─────────────────────────────────────────────────────────────────────────
+        has_other = bool(
+            str(data.get("other") or data.get("Other") or data.get("other_conditions") or "").strip()
+        )
 
-    record = MedicalHistory.query.filter_by(patient_id=patient_id).first()
-    if not record:
-        record = MedicalHistory(patient_id=patient_id)
-        db.session.add(record)
+        no_known = to_bool(
+            data.get("No_Known_Conditions") if "No_Known_Conditions" in data
+            else data.get("no_known_conditions")
+        )
 
-    # If "No Known Conditions" confirmed → clear all conditions
-    if no_known:
-        for f in CONDITION_FIELDS:
-            setattr(record, f, False)
-        record.other              = None
-        record.no_known_conditions = True
+        if not has_condition and not has_other and not no_known:
+            return jsonify({
+                "error": "Medical history acknowledgement required. "
+                         "Select at least one condition or confirm no known conditions."
+            }), 400
+        # ─────────────────────────────────────────────────────────────────────
+
+        record = MedicalHistory.query.filter_by(patient_id=patient_id).first()
+        if not record:
+            record = MedicalHistory(patient_id=patient_id)
+            db.session.add(record)
+
+        # If "No Known Conditions" confirmed → clear all conditions
+        if no_known:
+            for f in CONDITION_FIELDS:
+                setattr(record, f, False)
+            record.other               = None
+            record.no_known_conditions = True
+            db.session.commit()
+            return jsonify({"status": "medical history saved", "patient_id": patient_id}), 200
+
+        # Apply each incoming field to the record
+        for raw_key, val in data.items():
+            db_key = _resolve_key(raw_key)
+            if not db_key:
+                continue
+            if db_key == "other":
+                setattr(record, db_key, str(val).strip() if val else None)
+            else:
+                setattr(record, db_key, to_bool(val))
+
+        record.no_known_conditions = False  # at least one condition was set
+
         db.session.commit()
         return jsonify({"status": "medical history saved", "patient_id": patient_id}), 200
 
-    for raw_key, val in data.items():
-        db_key = ALIASES.get(raw_key, raw_key)
-        if db_key not in ALLOWED_FIELDS:
-            continue
-        if db_key == "other":
-            setattr(record, db_key, str(val) if val else None)
-        elif db_key == "no_known_conditions":
-            setattr(record, db_key, to_bool(val))
-        else:
-            setattr(record, db_key, to_bool(val))
-
-    record.no_known_conditions = False  # at least one condition was set
-
-    db.session.commit()
-    return jsonify({"status": "medical history saved", "patient_id": patient_id}), 200
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()          # prints full stack trace to Render logs
+        return jsonify({"error": "Internal server error", "detail": str(e)}), 500
 
 
 # ── GET /api/medical/<patient_id> ─────────────────────────────────────────────
