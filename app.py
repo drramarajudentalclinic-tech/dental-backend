@@ -78,7 +78,7 @@ CORS(
 # JWT PROTECTION
 # ---------------------------
 @app.before_request
-@app.before_request
+
 def protect_all_routes():
     if request.method == "OPTIONS":
         origin = request.headers.get("Origin", "")
@@ -157,12 +157,13 @@ with app.app_context():
     try:
         with db.engine.connect() as conn:
             for col, col_type in [
-                ("type",     "VARCHAR(100)"),
-                ("allergen", "VARCHAR(200)"),
-                ("reaction", "TEXT"),
-                ("severity", "VARCHAR(50)"),
-                ("notes",    "TEXT"),
-            ]:
+    ("type",               "VARCHAR(100)"),
+    ("allergen",           "VARCHAR(200)"),
+    ("reaction",           "TEXT"),
+    ("severity",           "VARCHAR(50)"),
+    ("notes",              "TEXT"),
+    ("no_known_allergies",   "BOOLEAN DEFAULT FALSE"),
+]:
                 try:
                     conn.execute(db.text(f'ALTER TABLE allergy_records ADD COLUMN {col} {col_type}'))
                     conn.commit()
@@ -171,7 +172,7 @@ with app.app_context():
                     pass
             for old_col in ["drug_allergy", "food_allergy", "latex_allergy",
                             "iodine_allergy", "anesthesia_allergy", "other_allergy",
-                            "no_known_allergies"]:
+                            ]:
                 try:
                     conn.execute(db.text(f'ALTER TABLE allergy_records DROP COLUMN {old_col}'))
                     conn.commit()
