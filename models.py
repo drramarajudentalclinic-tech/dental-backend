@@ -160,30 +160,28 @@ class MedicalHistory(db.Model):
 class AllergyRecord(db.Model):
     __tablename__ = "allergy_records"
 
-    id                 = db.Column(db.Integer, primary_key=True)
-    patient_id         = db.Column(db.Integer, db.ForeignKey("patients.id"), unique=True, nullable=False)
+    id         = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"), nullable=False)
 
-    drug_allergy       = db.Column(db.Boolean, default=False)
-    food_allergy       = db.Column(db.Boolean, default=False)
-    latex_allergy      = db.Column(db.Boolean, default=False)
-    iodine_allergy     = db.Column(db.Boolean, default=False)
-    anesthesia_allergy = db.Column(db.Boolean, default=False)
-    other_allergy      = db.Column(db.Text)
-    no_known_allergies = db.Column(db.Boolean, default=False, nullable=False)
+    type       = db.Column(db.String(100))   # e.g. "Drug", "Food", "Latex", etc.
+    allergen   = db.Column(db.String(200))   # specific substance
+    reaction   = db.Column(db.Text)
+    severity   = db.Column(db.String(50))    # e.g. "Mild", "Moderate", "Severe"
+    notes      = db.Column(db.Text)
 
-    created_at         = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at         = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def to_dict(self):
         return {
-            "drug_allergy":       self.drug_allergy,
-            "food_allergy":       self.food_allergy,
-            "latex_allergy":      self.latex_allergy,
-            "iodine_allergy":     self.iodine_allergy,
-            "anesthesia_allergy": self.anesthesia_allergy,
-            "other_allergy":      self.other_allergy,
-            "no_known_allergies": self.no_known_allergies,
+            "id":       self.id,
+            "type":     self.type,
+            "allergen": self.allergen,
+            "reaction": self.reaction,
+            "severity": self.severity,
+            "notes":    self.notes,
         }
+
 # Backwards-compatible alias
 Allergy = AllergyRecord
 

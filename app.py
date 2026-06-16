@@ -153,6 +153,42 @@ with app.app_context():
     run_other_expense_migrations(app)
     run_cbct_migrations(app)
 
+    # Migrate allergy_records to new row-based schema
+    try:
+        with db.engine.connect() as conn:
+            for col, col_type in [
+                ("type",     "VARCHAR(100)"),
+                ("allergen", "VARCHAR(200)"),
+                ("reaction", "TEXT"),
+                ("severity", "VARCHAR(50)"),
+                ("notes",    "TEXT"),
+            ]:
+                try:
+                    conn.execute(db.text(f'ALTER TABLE allergy_records ADD COLUMN {col} {col_type}'))
+                    conn.commit()
+                    print(f"allergy_records.{col} added")
+                except Exception:
+                    pass
+            for old_col in ["drug_allergy", "food_allergy", "latex_allergy",
+                            "iodine_allergy", "anesthesia_allergy", "other_allergy",
+                            "no_known_allergies"]:
+                try:
+                    conn.execute(db.text(f'ALTER TABLE allergy_records DROP COLUMN {old_col}'))
+                    conn.commit()
+                    print(f"allergy_records.{old_col} dropped")
+                except Exception:
+                    pass
+            try:
+                conn.execute(db.text(
+                    'ALTER TABLE allergy_records DROP CONSTRAINT IF EXISTS allergy_records_patient_id_key'
+                ))
+                conn.commit()
+                print("allergy_records unique constraint dropped")
+            except Exception:
+                pass
+    except Exception as e:
+        print(f"Allergy migration skipped: {e}")
+
     print("DONE ✅")
 
 
