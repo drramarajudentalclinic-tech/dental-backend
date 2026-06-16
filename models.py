@@ -161,30 +161,34 @@ class AllergyRecord(db.Model):
     __tablename__ = "allergy_records"
 
     id         = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"), nullable=False)
+    patient_id = db.Column(
+        db.Integer,
+        db.ForeignKey("patients.id"),
+        nullable=False
+    )
 
-    type       = db.Column(db.String(100))   # e.g. "Drug", "Food", "Latex", etc.
-    allergen   = db.Column(db.String(200))   # specific substance
+    type       = db.Column(db.String(100))
+    allergen   = db.Column(db.String(200))
     reaction   = db.Column(db.Text)
-    severity   = db.Column(db.String(50))    # e.g. "Mild", "Moderate", "Severe"
+    severity   = db.Column(db.String(50))
     notes      = db.Column(db.Text)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    no_known_allergies = db.Column(
+        db.Boolean,
+        default=False,
+        nullable=False
+    )
 
-    def to_dict(self):
-        return {
-            "id":       self.id,
-            "type":     self.type,
-            "allergen": self.allergen,
-            "reaction": self.reaction,
-            "severity": self.severity,
-            "notes":    self.notes,
-        }
+    created_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow
+    )
 
-# Backwards-compatible alias
-Allergy = AllergyRecord
-
+    updated_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow
+    )
 
 # ═══════════════════════════════════════════════════════════════
 #  HABITS
