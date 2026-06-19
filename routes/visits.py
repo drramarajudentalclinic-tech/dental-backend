@@ -157,7 +157,8 @@ def get_visit(visit_id):
         traceback.print_exc()
 
         return jsonify({
-            "error": str(e)
+            "error": str(e),
+            "type": type(e).__name__
         }), 500
 # ---------------------------------
 # CLOSE VISIT
