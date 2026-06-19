@@ -55,110 +55,110 @@ def create_visit():
     db.session.commit()
     return jsonify({"visit_id": visit.id}), 201
 
-
 # ---------------------------------
 # GET VISIT + FULL PATIENT SNAPSHOT
 # GET /api/visits/<visit_id>
 # ---------------------------------
 @visits_bp.route("/visits/<int:visit_id>", methods=["GET"])
 def get_visit(visit_id):
-    visit   = Visit.query.get_or_404(visit_id)
-    patient = Patient.query.get_or_404(visit.patient_id)
+    try:
+        visit = Visit.query.get_or_404(visit_id)
+        patient = Patient.query.get_or_404(visit.patient_id)
 
-    medical    = MedicalHistory.query.filter_by(patient_id=patient.id).first()
-    allergies  = AllergyRecord.query.filter_by(patient_id=patient.id).all()
-    habits     = Habit.query.filter_by(patient_id=patient.id).all()
-    women      = WomanHistory.query.filter_by(patient_id=patient.id).first()
-    family_doc = FamilyDoctor.query.filter_by(patient_id=patient.id).first()
-    consent    = Consent.query.filter_by(patient_id=patient.id).first()
+        medical = MedicalHistory.query.filter_by(patient_id=patient.id).first()
+        allergies = AllergyRecord.query.filter_by(patient_id=patient.id).all()
+        habits = Habit.query.filter_by(patient_id=patient.id).all()
+        women = WomanHistory.query.filter_by(patient_id=patient.id).first()
+        family_doc = FamilyDoctor.query.filter_by(patient_id=patient.id).first()
+        consent = Consent.query.filter_by(patient_id=patient.id).first()
 
-    # chief_complaint: use visit's if set, fall back to patient's
-    chief_complaint = (
-        visit.chief_complaint
-        if visit.chief_complaint and visit.chief_complaint.strip()
-        else (patient.chief_complaint or "")
-    )
+        chief_complaint = (
+            visit.chief_complaint
+            if visit.chief_complaint and visit.chief_complaint.strip()
+            else (patient.chief_complaint or "")
+        )
 
-    # Normalise status for frontend — always lowercase
-    status = (visit.status or "open").lower()   # "open" | "closed"
+        status = (visit.status or "open").lower()
 
-    return jsonify({
+        return jsonify({
+            "visit": {
+                "id": visit.id,
+                "status": status,
+                "chief_complaint": chief_complaint,
+                "followup_treatment": visit.followup_treatment or "",
+                "visit_date": visit.visit_date.isoformat() if visit.visit_date else None,
+                "date": visit.visit_date.strftime("%d-%b-%Y") if visit.visit_date else None,
+                "closed_at": visit.closed_at.isoformat() if visit.closed_at else None,
+                "billing_note": getattr(visit, "billing_note", "") or "",
+                "diagnosis": getattr(visit, "diagnosis", "") or "",
+                "treatment_done": getattr(visit, "treatment_done", "") or "",
+                "treatment_plan": getattr(visit, "treatment_plan", "") or "",
+                "advice": getattr(visit, "advice", "") or "",
+            },
 
-        "visit": {
-            "id":                visit.id,
-            "status":            status,
-            "chief_complaint":   chief_complaint,
-            "followup_treatment": visit.followup_treatment or "",
-            "visit_date":        visit.visit_date.isoformat() if visit.visit_date else None,
-            "date":              visit.visit_date.strftime("%d-%b-%Y") if visit.visit_date else None,
-            "closed_at":         visit.closed_at.isoformat() if getattr(visit, "closed_at", None) else None,
-            # ── Billing / clinical snapshot (written at close time) ──
-            "billing_note":      getattr(visit, "billing_note",   None) or "",
-            "diagnosis":         getattr(visit, "diagnosis",      None) or "",
-            "treatment_done":    getattr(visit, "treatment_done", None) or "",
-            "treatment_plan":    getattr(visit, "treatment_plan", None) or "",
-            "advice":            getattr(visit, "advice",         None) or "",
-        },
+            "patient": {
+                "id": patient.id,
+                "case_number": patient.case_number,
+                "name": patient.name,
+                "date": patient.date.isoformat() if patient.date else None,
+                "date_of_birth": patient.date_of_birth.isoformat() if patient.date_of_birth else None,
+                "age": resolve_age(patient.date_of_birth, patient.age),
+                "gender": patient.gender,
+                "marital_status": patient.marital_status,
+                "mobile": patient.mobile,
+                "email": patient.email,
+                "blood_group": patient.blood_group,
+                "address": patient.address,
+                "profession": patient.profession,
+                "referred_by": patient.referred_by,
+                "chief_complaint": patient.chief_complaint,
+            },
 
-        "patient": {
-            "id":              patient.id,
-            "case_number":     patient.case_number,
-            "name":            patient.name,
-            "date":            patient.date.isoformat() if patient.date else None,
-            "date_of_birth":   patient.date_of_birth.isoformat() if patient.date_of_birth else None,
-            "age":             resolve_age(patient.date_of_birth, patient.age),
-            "gender":          patient.gender,
-            "marital_status":  patient.marital_status,
-            "mobile":          patient.mobile,
-            "email":           patient.email,
-            "blood_group":     patient.blood_group,
-            "address":         patient.address,
-            "profession":      patient.profession,
-            "referred_by":     patient.referred_by,
-            "chief_complaint": patient.chief_complaint,
-        },
+            "medical": row_to_dict(medical, ["id", "patient_id", "updated_at"]),
 
-        "medical": row_to_dict(medical, ["id", "patient_id", "updated_at"]),
+            "allergy": {
+                "rows": [
+                    {
+                        "id": a.id,
+                        "type": a.type,
+                        "allergen": a.allergen,
+                        "reaction": a.reaction,
+                        "severity": a.severity,
+                        "notes": a.notes,
+                    }
+                    for a in allergies
+                ]
+            },
 
-        "allergy": {
-            "rows": [
+            "habits": [
                 {
-                    "id":       a.id,
-                    "type":     a.type,
-                    "allergen": a.allergen,
-                    "reaction": a.reaction,
-                    "severity": a.severity,
-                    "notes":    a.notes,
+                    "id": h.id,
+                    "smoking": h.smoking,
+                    "alcohol": h.alcohol,
+                    "tobacco": h.tobacco,
+                    "other_habit": h.other_habit,
+                    "no_known_habits": h.no_known_habits,
                 }
-                for a in allergies
-            ]
-        },
+                for h in habits
+            ],
 
-        "habits": [
-            {
-                "id":             h.id,
-                "habit_type":     h.habit_type,
-                "has_habit":      h.has_habit,
-                "frequency":      h.frequency,
-                "duration_years": h.duration_years,
-                "remarks":        h.remarks,
-            }
-            for h in habits
-        ],
+            "women": {
+                "pregnant": women.pregnant if women else False,
+                "due_date": women.due_date.isoformat() if women and women.due_date else None,
+                "nursing_child": women.nursing_child if women else False,
+            },
 
-        "women": {
-            "pregnant":      women.pregnant      if women else False,
-            "due_date":      women.due_date.isoformat() if women and women.due_date else None,
-            "nursing_child": women.nursing_child if women else False,
-        },
+            "family_doctor": row_to_dict(family_doc, ["id", "patient_id"]),
+            "consent": row_to_dict(consent, ["id", "patient_id"]),
+        }), 200
 
-        "family_doctor": row_to_dict(family_doc, ["id", "patient_id"]),
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
 
-        "consent": row_to_dict(consent, ["id", "patient_id"]),
-
-    }), 200
-
-
+        return jsonify({
+            "error": str(e)
+        }), 500
 # ---------------------------------
 # CLOSE VISIT
 # PUT /api/visits/<visit_id>/close

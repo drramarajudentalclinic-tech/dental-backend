@@ -43,6 +43,7 @@ class Patient(db.Model):
     profession     = db.Column(db.String(100))
     referred_by    = db.Column(db.String(150))
     chief_complaint= db.Column(db.Text)
+    no_known_allergies = db.Column(db.Boolean, default=False, nullable=False)
     created_at     = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at     = db.Column(db.DateTime, onupdate=datetime.utcnow)
 
@@ -173,22 +174,8 @@ class AllergyRecord(db.Model):
     severity   = db.Column(db.String(50))
     notes      = db.Column(db.Text)
 
-    no_known_allergies = db.Column(
-        db.Boolean,
-        default=False,
-        nullable=False
-    )
-
-    created_at = db.Column(
-        db.DateTime,
-        default=datetime.utcnow
-    )
-
-    updated_at = db.Column(
-        db.DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
-    )
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 # ═══════════════════════════════════════════════════════════════
 #  HABITS
@@ -218,20 +205,18 @@ class Habit(db.Model):
 class WomanHistory(db.Model):
     __tablename__ = "woman_history"
 
-    id                        = db.Column(db.Integer, primary_key=True)
-    patient_id                = db.Column(db.Integer, db.ForeignKey("patients.id"), unique=True, nullable=False)
-    pregnant                  = db.Column(db.Boolean, default=False)
-    due_date                  = db.Column(db.Date, nullable=True)
-    nursing_child             = db.Column(db.Boolean, default=False)
-    no_known_women_conditions = db.Column(db.Boolean, default=False, nullable=False)
-    updated_at                = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id            = db.Column(db.Integer, primary_key=True)
+    patient_id    = db.Column(db.Integer, db.ForeignKey("patients.id"), unique=True, nullable=False)
+    pregnant      = db.Column(db.Boolean, default=False)
+    due_date      = db.Column(db.Date, nullable=True)
+    nursing_child = db.Column(db.Boolean, default=False)
+    updated_at    = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def to_dict(self):
         return {
-            "pregnant":                  self.pregnant,
-            "due_date":                  self.due_date.isoformat() if self.due_date else None,
-            "nursing_child":             self.nursing_child,
-            "no_known_women_conditions": self.no_known_women_conditions,
+            "pregnant":      self.pregnant,
+            "due_date":      self.due_date.isoformat() if self.due_date else None,
+            "nursing_child": self.nursing_child,
         }
 
 
