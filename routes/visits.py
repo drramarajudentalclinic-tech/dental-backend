@@ -133,11 +133,20 @@ def get_visit(visit_id):
             "habits": [
                 {
                     "id": h.id,
-                    "smoking": h.smoking,
-                    "alcohol": h.alcohol,
-                    "tobacco": h.tobacco,
-                    "other_habit": h.other_habit,
-                    "no_known_habits": h.no_known_habits,
+                   "smoking": bool(h.smoking),
+"smoking_detail": h.smoking or "",
+
+"alcohol": bool(h.alcohol),
+"alcohol_detail": h.alcohol or "",
+
+"tobacco": bool(h.tobacco),
+"tobacco_detail": h.tobacco or "",
+
+"pan_chewing": bool(h.pan_chewing),
+"pan_chewing_detail": h.pan_chewing or "",
+
+"spicy_foods": bool(h.spicy_foods),
+"spicy_foods_detail": h.spicy_foods or "",
                 }
                 for h in habits
             ],

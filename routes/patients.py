@@ -272,10 +272,24 @@ def get_patient(patient_id):
             "iodine_allergy": False, "anesthesia_allergy": False,
             "other_allergy": "", "no_known_allergies": False,
         },
-        "habits":        habit.to_dict() if habit else {
-            "smoking": "", "alcohol": "", "tobacco": "",
-            "other_habit": "", "no_known_habits": False,
-        },
+        "habits": {
+    "smoking": bool(habit.smoking) if habit else False,
+    "smoking_detail": habit.smoking or "" if habit else "",
+
+    "alcohol": bool(habit.alcohol) if habit else False,
+    "alcohol_detail": habit.alcohol or "" if habit else "",
+
+    "tobacco": bool(habit.tobacco) if habit else False,
+    "tobacco_detail": habit.tobacco or "" if habit else "",
+
+    "pan_chewing": bool(habit.pan_chewing) if habit else False,
+    "pan_chewing_detail": habit.pan_chewing or "" if habit else "",
+
+    "spicy_foods": bool(habit.spicy_foods) if habit else False,
+    "spicy_foods_detail": habit.spicy_foods or "" if habit else "",
+
+    "no_habits": bool(habit.no_habits) if habit else False,
+},
         "women":         women.to_dict() if women else {},
         "family_doctor": model_to_dict(family_doc, ["id", "patient_id"]),
         "consent":       model_to_dict(consent,    ["id", "patient_id"]),
@@ -487,43 +501,79 @@ def save_allergy(patient_id):
 #  SAVE HABITS
 #  POST/PUT /api/patients/<patient_id>/habits
 # ══════════════════════════════════════════════
-@patients_bp.route("/<int:patient_id>/habits", methods=["POST", "PUT"])
+@patients_bp.route("/patients/<int:patient_id>/habits", methods=["POST", "PUT"])
 def save_habits(patient_id):
     Patient.query.get_or_404(patient_id)
+
     data = request.json or {}
 
-    HABIT_FIELDS = ["smoking", "alcohol", "tobacco"]
+    selected_habits = any([
+        data.get("smoking"),
+        data.get("alcohol"),
+        data.get("tobacco"),
+        data.get("pan_chewing"),
+        data.get("spicy_foods"),
+    ])
 
-    has_habit = any((data.get(f) or "").strip() for f in HABIT_FIELDS)
-    has_other = bool((data.get("other_habit") or "").strip())
-    no_known  = to_bool(data.get("no_known_habits") or data.get("No_Known_Habits"))
+    no_habits = bool(data.get("no_habits"))
 
-    if not has_habit and not has_other and not no_known:
+    if not selected_habits and not no_habits:
         return jsonify({
-            "error": "Habits acknowledgement required. "
-                     "Enter at least one habit or confirm no known habits."
+            "error": "Please select at least one habit or No Habits."
         }), 400
 
     habit = Habit.query.filter_by(patient_id=patient_id).first()
+
     if not habit:
         habit = Habit(patient_id=patient_id)
         db.session.add(habit)
 
-    if no_known:
-        habit.smoking        = None
-        habit.alcohol        = None
-        habit.tobacco        = None
-        habit.other_habit    = None
-        habit.no_known_habits = True
+    if no_habits:
+        habit.smoking = None
+        habit.alcohol = None
+        habit.tobacco = None
+        habit.pan_chewing = None
+        habit.spicy_foods = None
+        habit.no_habits = True
+
     else:
-        habit.smoking         = (data.get("smoking")     or "").strip() or None
-        habit.alcohol         = (data.get("alcohol")     or "").strip() or None
-        habit.tobacco         = (data.get("tobacco")     or "").strip() or None
-        habit.other_habit     = (data.get("other_habit") or "").strip() or None
-        habit.no_known_habits = False
+        habit.smoking = (
+            data.get("smoking_detail")
+            if data.get("smoking")
+            else None
+        )
+
+        habit.alcohol = (
+            data.get("alcohol_detail")
+            if data.get("alcohol")
+            else None
+        )
+
+        habit.tobacco = (
+            data.get("tobacco_detail")
+            if data.get("tobacco")
+            else None
+        )
+
+        habit.pan_chewing = (
+            data.get("pan_chewing_detail")
+            if data.get("pan_chewing")
+            else None
+        )
+
+        habit.spicy_foods = (
+            data.get("spicy_foods_detail")
+            if data.get("spicy_foods")
+            else None
+        )
+
+        habit.no_habits = False
 
     db.session.commit()
-    return jsonify({"status": "habits saved"}), 200
+
+    return jsonify({
+        "status": "habits saved"
+    }), 200
 
 
 # ══════════════════════════════════════════════
