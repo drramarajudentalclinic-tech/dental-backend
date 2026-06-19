@@ -133,7 +133,6 @@ def add_cors_headers(response):
 print("DATABASE_URL =", os.getenv("DATABASE_URL"))
 
 db.init_app(app)
-
 with app.app_context():
 
     print("Creating tables...")
@@ -171,7 +170,7 @@ with app.app_context():
     run_cbct_migrations(app)
 
     # ---------------------------
-    # Migrate allergy_records schema
+    # allergy_records migration
     # ---------------------------
     try:
         with db.engine.connect() as conn:
@@ -218,12 +217,10 @@ with app.app_context():
 
             try:
                 conn.execute(
-                    db.text(
-                        """
+                    db.text("""
                         ALTER TABLE allergy_records
                         DROP CONSTRAINT IF EXISTS allergy_records_patient_id_key
-                        """
-                    )
+                    """)
                 )
                 conn.commit()
                 print("allergy_records unique constraint dropped")
@@ -233,35 +230,39 @@ with app.app_context():
     except Exception as e:
         print(f"Allergy migration skipped: {e}")
 
-    print("DONE ✅")
-# habits migration
-try:
-    with db.engine.connect() as conn:
+    # ---------------------------
+    # HABITS MIGRATION
+    # ---------------------------
+    try:
+        with db.engine.connect() as conn:
 
-        columns = [
-            ("smoking", "TEXT"),
-            ("alcohol", "TEXT"),
-            ("tobacco", "TEXT"),
-            ("pan_chewing", "TEXT"),
-            ("spicy_foods", "TEXT"),
-            ("no_habits", "BOOLEAN DEFAULT FALSE"),
-            ("updated_at", "TIMESTAMP")
-        ]
+            columns = [
+                ("smoking", "TEXT"),
+                ("alcohol", "TEXT"),
+                ("tobacco", "TEXT"),
+                ("pan_chewing", "TEXT"),
+                ("spicy_foods", "TEXT"),
+                ("no_habits", "BOOLEAN DEFAULT FALSE"),
+                ("updated_at", "TIMESTAMP")
+            ]
 
-        for col, dtype in columns:
-            try:
-                conn.execute(
-                    db.text(
-                        f"ALTER TABLE habits ADD COLUMN {col} {dtype}"
+            for col, dtype in columns:
+                try:
+                    conn.execute(
+                        db.text(
+                            f"ALTER TABLE habits "
+                            f"ADD COLUMN IF NOT EXISTS {col} {dtype}"
+                        )
                     )
-                )
-                conn.commit()
-                print(f"habits.{col} added")
-            except:
-                pass
+                    conn.commit()
+                    print(f"habits.{col} ready")
+                except Exception as e:
+                    print(f"habits.{col} error: {e}")
 
-except Exception as e:
-    print("Habits migration skipped:", e)
+    except Exception as e:
+        print(f"Habits migration failed: {e}")
+
+    print("DONE ✅")
 
 # ---------------------------
 # REGISTER BLUEPRINTS
