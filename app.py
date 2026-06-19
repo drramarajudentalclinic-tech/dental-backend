@@ -126,7 +126,9 @@ def add_cors_headers(response):
         response.headers["Access-Control-Allow-Headers"]     = "Content-Type, Authorization"
     return response
 
+import os
 
+print("DATABASE_URL =", os.getenv("DATABASE_URL"))
 # ---------------------------
 # INIT DB
 # ---------------------------
