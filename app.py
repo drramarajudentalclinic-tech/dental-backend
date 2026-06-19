@@ -120,23 +120,37 @@ def protect_all_routes():
 def add_cors_headers(response):
     origin = request.headers.get("Origin", "")
     if origin in ALLOWED_ORIGINS:
-        response.headers["Access-Control-Allow-Origin"]      = origin
+        response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Access-Control-Allow-Methods"]     = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-        response.headers["Access-Control-Allow-Headers"]     = "Content-Type, Authorization"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
     return response
 
-import os
 
-print("DATABASE_URL =", os.getenv("DATABASE_URL"))
 # ---------------------------
 # INIT DB
 # ---------------------------
+print("DATABASE_URL =", os.getenv("DATABASE_URL"))
+
 db.init_app(app)
 
 with app.app_context():
+
     print("Creating tables...")
     db.create_all()
+
+    # ---------------------------
+    # allergy_records migration
+    # ---------------------------
+    try:
+        db.session.execute(db.text("""
+            ALTER TABLE allergy_records
+            ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP
+        """))
+        db.session.commit()
+        print("✅ allergy_records.updated_at column added")
+    except Exception as e:
+        print("Migration error:", e)
 
     try:
         with db.engine.connect() as conn:
@@ -149,50 +163,78 @@ with app.app_context():
         print(f"Role column already exists or skipped: {e}")
 
     print("Running migrations...")
+
     run_payment_migrations(app)
     run_image_migrations(app)
     run_visit_migrations(app)
     run_other_expense_migrations(app)
     run_cbct_migrations(app)
 
-    # Migrate allergy_records to new row-based schema
+    # ---------------------------
+    # Migrate allergy_records schema
+    # ---------------------------
     try:
         with db.engine.connect() as conn:
+
             for col, col_type in [
-    ("type",               "VARCHAR(100)"),
-    ("allergen",           "VARCHAR(200)"),
-    ("reaction",           "TEXT"),
-    ("severity",           "VARCHAR(50)"),
-    ("notes",              "TEXT"),
-    ("no_known_allergies",   "BOOLEAN DEFAULT FALSE"),
-]:
+                ("type", "VARCHAR(100)"),
+                ("allergen", "VARCHAR(200)"),
+                ("reaction", "TEXT"),
+                ("severity", "VARCHAR(50)"),
+                ("notes", "TEXT"),
+                ("no_known_allergies", "BOOLEAN DEFAULT FALSE"),
+            ]:
                 try:
-                    conn.execute(db.text(f'ALTER TABLE allergy_records ADD COLUMN {col} {col_type}'))
+                    conn.execute(
+                        db.text(
+                            f"ALTER TABLE allergy_records "
+                            f"ADD COLUMN IF NOT EXISTS {col} {col_type}"
+                        )
+                    )
                     conn.commit()
-                    print(f"allergy_records.{col} added")
+                    print(f"allergy_records.{col} ready")
                 except Exception:
                     pass
-            for old_col in ["drug_allergy", "food_allergy", "latex_allergy",
-                            "iodine_allergy", "anesthesia_allergy", "other_allergy",
-                            ]:
+
+            for old_col in [
+                "drug_allergy",
+                "food_allergy",
+                "latex_allergy",
+                "iodine_allergy",
+                "anesthesia_allergy",
+                "other_allergy",
+            ]:
                 try:
-                    conn.execute(db.text(f'ALTER TABLE allergy_records DROP COLUMN {old_col}'))
+                    conn.execute(
+                        db.text(
+                            f"ALTER TABLE allergy_records "
+                            f"DROP COLUMN IF EXISTS {old_col}"
+                        )
+                    )
                     conn.commit()
                     print(f"allergy_records.{old_col} dropped")
                 except Exception:
                     pass
+
             try:
-                conn.execute(db.text(
-                    'ALTER TABLE allergy_records DROP CONSTRAINT IF EXISTS allergy_records_patient_id_key'
-                ))
+                conn.execute(
+                    db.text(
+                        """
+                        ALTER TABLE allergy_records
+                        DROP CONSTRAINT IF EXISTS allergy_records_patient_id_key
+                        """
+                    )
+                )
                 conn.commit()
                 print("allergy_records unique constraint dropped")
             except Exception:
                 pass
+
     except Exception as e:
         print(f"Allergy migration skipped: {e}")
 
     print("DONE ✅")
+
 
 
 # ---------------------------
