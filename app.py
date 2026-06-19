@@ -235,7 +235,33 @@ with app.app_context():
 
     print("DONE ✅")
 
+# Migrate habits table
+try:
+    with db.engine.connect() as conn:
 
+        columns = [
+            ("smoking", "BOOLEAN DEFAULT FALSE"),
+            ("alcohol", "BOOLEAN DEFAULT FALSE"),
+            ("tobacco", "BOOLEAN DEFAULT FALSE"),
+            ("other_habit", "TEXT"),
+            ("no_known_habits", "BOOLEAN DEFAULT FALSE"),
+            ("updated_at", "TIMESTAMP")
+        ]
+
+        for col, col_type in columns:
+            try:
+                conn.execute(
+                    db.text(
+                        f"ALTER TABLE habits ADD COLUMN IF NOT EXISTS {col} {col_type}"
+                    )
+                )
+                conn.commit()
+                print(f"habits.{col} added")
+            except Exception as e:
+                print(e)
+
+except Exception as e:
+    print("Habits migration skipped:", e)
 
 # ---------------------------
 # REGISTER BLUEPRINTS
