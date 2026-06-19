@@ -234,31 +234,31 @@ with app.app_context():
         print(f"Allergy migration skipped: {e}")
 
     print("DONE ✅")
-
-# Migrate habits table
+# habits migration
 try:
     with db.engine.connect() as conn:
 
         columns = [
-            ("smoking", "BOOLEAN DEFAULT FALSE"),
-            ("alcohol", "BOOLEAN DEFAULT FALSE"),
-            ("tobacco", "BOOLEAN DEFAULT FALSE"),
-            ("other_habit", "TEXT"),
-            ("no_known_habits", "BOOLEAN DEFAULT FALSE"),
+            ("smoking", "TEXT"),
+            ("alcohol", "TEXT"),
+            ("tobacco", "TEXT"),
+            ("pan_chewing", "TEXT"),
+            ("spicy_foods", "TEXT"),
+            ("no_habits", "BOOLEAN DEFAULT FALSE"),
             ("updated_at", "TIMESTAMP")
         ]
 
-        for col, col_type in columns:
+        for col, dtype in columns:
             try:
                 conn.execute(
                     db.text(
-                        f"ALTER TABLE habits ADD COLUMN IF NOT EXISTS {col} {col_type}"
+                        f"ALTER TABLE habits ADD COLUMN {col} {dtype}"
                     )
                 )
                 conn.commit()
                 print(f"habits.{col} added")
-            except Exception as e:
-                print(e)
+            except:
+                pass
 
 except Exception as e:
     print("Habits migration skipped:", e)

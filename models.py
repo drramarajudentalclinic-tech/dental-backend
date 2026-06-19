@@ -183,25 +183,27 @@ class AllergyRecord(db.Model):
 class Habit(db.Model):
     __tablename__ = "habits"
 
-    id              = db.Column(db.Integer, primary_key=True)
-    patient_id      = db.Column(db.Integer, db.ForeignKey("patients.id"), unique=True, nullable=False)
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(
+        db.Integer,
+        db.ForeignKey("patients.id"),
+        unique=True,
+        nullable=False
+    )
 
-    smoking         = db.Column(db.String(100))
-    alcohol         = db.Column(db.String(100))
-    tobacco         = db.Column(db.String(100))
-    other_habit     = db.Column(db.Text)
-    no_known_habits = db.Column(db.Boolean, default=False, nullable=False)
+    smoking = db.Column(db.Text)
+    alcohol = db.Column(db.Text)
+    tobacco = db.Column(db.Text)
+    pan_chewing = db.Column(db.Text)
+    spicy_foods = db.Column(db.Text)
 
-    updated_at      = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    no_habits = db.Column(db.Boolean, default=False)
 
-    def to_dict(self):
-        return {
-            "smoking":         self.smoking,
-            "alcohol":         self.alcohol,
-            "tobacco":         self.tobacco,
-            "other_habit":     self.other_habit,
-            "no_known_habits": self.no_known_habits,
-        }
+    updated_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow
+    )
 class WomanHistory(db.Model):
     __tablename__ = "woman_history"
 
