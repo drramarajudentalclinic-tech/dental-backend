@@ -275,7 +275,21 @@ def get_patient(patient_id):
     habit      = Habit.query.filter_by(patient_id=patient_id).first()
     family_doc = FamilyDoctor.query.filter_by(patient_id=patient_id).first()
     consent    = Consent.query.filter_by(patient_id=patient_id).first()
+    visit_history = []
 
+    for v in sorted(patient.visits, key=lambda x: x.visit_date or datetime.min, reverse=True):
+        visit_history.append({
+            "visit_id": v.id,
+            "visit_date": v.visit_date.isoformat() if v.visit_date else None,
+            "status": v.status,
+            "chief_complaint": v.chief_complaint,
+            "diagnosis": v.diagnosis,
+            "treatment_plan": v.treatment_plan,
+            "treatment_done": v.treatment_done,
+            "advice": v.advice,
+            "billing_note": v.billing_note,
+            "followup_treatment": v.followup_treatment,
+        })
     women = None
     if patient.gender == "Female":
         women = WomanHistory.query.filter_by(patient_id=patient_id).first()
@@ -307,6 +321,7 @@ def get_patient(patient_id):
     "no_habits": bool(habit.no_habits) if habit else False,
 },
         "women":         women.to_dict() if women else {},
+        "visit_history": visit_history,
         "family_doctor": model_to_dict(family_doc, ["id", "patient_id"]),
         "consent":       model_to_dict(consent,    ["id", "patient_id"]),
     }), 200
