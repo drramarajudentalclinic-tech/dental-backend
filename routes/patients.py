@@ -11,6 +11,7 @@ from models import (
     Visit,
 )
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import or_
 from datetime import datetime, date
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
@@ -170,11 +171,12 @@ def patients():
             db.session.flush()
 
             visit = Visit(
-                patient_id      = patient.id,
-                status          = "OPEN",
-                chief_complaint = chief_complaint,
-                visit_date      = datetime.utcnow(),
+                patient_id=patient.id,
+                status="OPEN",
+                chief_complaint=chief_complaint,
+                visit_date=datetime.utcnow(),
             )
+
             db.session.add(visit)
             db.session.commit()
 
@@ -186,27 +188,32 @@ def patients():
         except Exception as e:
             db.session.rollback()
             print("❌ Unexpected error on patient save:", str(e))
-            return jsonify({"error": "Internal server error", "detail": str(e)}), 500
-
+            return jsonify({
+                "error": "Internal server error",
+                "detail": str(e)
+            }), 500
         return jsonify({
             "patient_id": patient.id,
-            "visit_id":   visit.id,
+            "visit_id": visit.id,
         }), 201
 
-    # ── SEARCH / LIST ────────────────────────────────────────────
+    # GET /api/patients
     search = request.args.get("search", "").strip()
-    query  = Patient.query
+    query = Patient.query
 
     if search:
         query = query.filter(
-            (Patient.name.contains(search)) |
-            (Patient.case_number.contains(search)) |
-            (Patient.mobile.contains(search))
+            or_(
+                Patient.name.ilike(f"%{search}%"),
+                Patient.case_number.ilike(f"%{search}%"),
+                Patient.mobile.ilike(f"%{search}%")
+            )
         )
 
     return jsonify([serialize_patient(p) for p in query.all()]), 200
 
 
+# ══════════════════════════════════════════════
 # ══════════════════════════════════════════════
 #  SEARCH ALL PATIENTS
 #  GET /api/patients/search?q=...
@@ -214,38 +221,47 @@ def patients():
 @patients_bp.route("/search", methods=["GET"])
 def search_patients():
     q = request.args.get("q", "").strip()
+
     if not q:
         return jsonify([]), 200
 
     patients = Patient.query.filter(
-        (Patient.name.contains(q)) |
-        (Patient.case_number.contains(q)) |
-        (Patient.mobile.contains(q))
+        or_(
+            Patient.name.ilike(f"%{q}%"),
+            Patient.case_number.ilike(f"%{q}%"),
+            Patient.mobile.ilike(f"%{q}%")
+        )
     ).all()
 
     result = []
+
     for p in patients:
         visits = []
+
         for v in p.visits:
             visits.append({
-                "visit_id":        v.id,
-                "visit_date":      v.visit_date.isoformat() if v.visit_date else None,
-                "status":          v.status,
-                "case_number":     p.case_number,
+                "visit_id": v.id,
+                "visit_date": v.visit_date.isoformat() if v.visit_date else None,
+                "status": v.status,
+                "case_number": p.case_number,
                 "chief_complaint": v.chief_complaint or "",
             })
+
         result.append({
-            "patient_id":  p.id,
-            "name":        p.name,
-            "mobile":      p.mobile or "",
-            "age":         resolve_age(p.date_of_birth, p.age),
-            "gender":      p.gender,
+            "patient_id": p.id,
+            "name": p.name,
+            "mobile": p.mobile or "",
+            "age": resolve_age(p.date_of_birth, p.age),
+            "gender": p.gender,
             "blood_group": p.blood_group,
-            "visits":      sorted(visits, key=lambda x: x["visit_date"] or "", reverse=True),
+            "visits": sorted(
+                visits,
+                key=lambda x: x["visit_date"] or "",
+                reverse=True
+            ),
         })
 
     return jsonify(result), 200
-
 
 # ══════════════════════════════════════════════
 #  GET FULL PATIENT
@@ -501,7 +517,7 @@ def save_allergy(patient_id):
 #  SAVE HABITS
 #  POST/PUT /api/patients/<patient_id>/habits
 # ══════════════════════════════════════════════
-@patients_bp.route("/patients/<int:patient_id>/habits", methods=["POST", "PUT"])
+@patients_bp.route("/<int:patient_id>/habits", methods=["POST", "PUT"])
 def save_habits(patient_id):
     Patient.query.get_or_404(patient_id)
 

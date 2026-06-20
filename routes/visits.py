@@ -10,6 +10,11 @@ from models import (
     WomanHistory,
     FamilyDoctor,
     Consent,
+    Consultation,
+    Prescription,
+    Image,
+    CBCTFile,
+    CBCTVolume,
 )
 from datetime import date, datetime
 
@@ -169,6 +174,123 @@ def get_visit(visit_id):
             "error": str(e),
             "type": type(e).__name__
         }), 500
+        
+@visits_bp.route("/patients/<int:patient_id>/full-history", methods=["GET"])
+def full_patient_history(patient_id):
+
+    patient = Patient.query.get_or_404(patient_id)
+
+    visits = (
+        Visit.query
+        .filter_by(patient_id=patient_id)
+        .order_by(Visit.visit_date.desc())
+        .all()
+    )
+
+    history = []
+
+    for visit in visits:
+
+        consultations = Consultation.query.filter_by(
+            visit_id=visit.id
+        ).all()
+
+        prescriptions = Prescription.query.filter_by(
+            visit_id=visit.id
+        ).all()
+
+        images = Image.query.filter_by(
+            visit_id=visit.id
+        ).all()
+
+        cbct_files = CBCTFile.query.filter_by(
+            visit_id=visit.id
+        ).all()
+
+        cbct_volumes = CBCTVolume.query.filter_by(
+            visit_id=visit.id
+        ).all()
+
+        history.append({
+            "visit_id": visit.id,
+            "visit_date": visit.visit_date.isoformat()
+            if visit.visit_date else None,
+
+            "status": visit.status,
+            "chief_complaint": visit.chief_complaint,
+
+            "diagnosis": visit.diagnosis,
+            "treatment_done": visit.treatment_done,
+            "treatment_plan": visit.treatment_plan,
+            "advice": visit.advice,
+
+            "consultations": [
+                {
+                    "id": c.id,
+                    "diagnosis": c.diagnosis,
+                    "treatment_done_today": c.treatment_done_today,
+                    "treatment_plan": c.treatment_plan,
+                    "advice": c.advice,
+                    "doctor": c.doctor,
+                    "created_at": c.created_at.isoformat()
+                    if c.created_at else None,
+                }
+                for c in consultations
+            ],
+
+            "prescriptions": [
+                p.to_dict()
+                for p in prescriptions
+            ],
+
+            "images": [
+                {
+                    "id": i.id,
+                    "image_path": i.image_path,
+                    "image_type": i.image_type,
+                    "description": i.description,
+                    "uploaded_at": i.uploaded_at.isoformat()
+                    if i.uploaded_at else None,
+                }
+                for i in images
+            ],
+
+            "cbct_files": [
+                f.to_dict()
+                for f in cbct_files
+            ],
+
+            "cbct_volumes": [
+                {
+                    "id": v.id,
+                    "num_slices": v.num_slices,
+                    "study_date": v.study_date,
+                    "institution": v.institution,
+                }
+                for v in cbct_volumes
+            ]
+        })
+
+    return jsonify({
+    "patient": {
+        "id": patient.id,
+        "case_number": patient.case_number,
+        "name": patient.name,
+        "date": patient.date.isoformat() if patient.date else None,
+        "date_of_birth": patient.date_of_birth.isoformat() if patient.date_of_birth else None,
+        "age": resolve_age(patient.date_of_birth, patient.age),
+        "gender": patient.gender,
+        "marital_status": patient.marital_status,
+        "mobile": patient.mobile,
+        "email": patient.email,
+        "blood_group": patient.blood_group,
+        "address": patient.address,
+        "profession": patient.profession,
+        "referred_by": patient.referred_by,
+        "chief_complaint": patient.chief_complaint,
+    },
+    "history": history
+}), 200
 # ---------------------------------
 # CLOSE VISIT
 # PUT /api/visits/<visit_id>/close
