@@ -138,10 +138,7 @@ def search_patients():
             "visits": [
                 {
                     "visit_id": v.id,
-                    "visit_date": (
-                        v.visit_date.isoformat()
-                        if v.visit_date else None
-                    ),
+                    "visit_date": v.visit_date.isoformat() if v.visit_date else None,
                     "status": v.status,
                     "chief_complaint": v.chief_complaint,
                 }
