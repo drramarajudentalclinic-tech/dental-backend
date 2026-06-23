@@ -135,9 +135,7 @@ print("DATABASE_URL =", os.getenv("DATABASE_URL"))
 db.init_app(app)
 with app.app_context():
 
-    print("Creating tables...")
-    db.create_all()
-
+    print("Database connected ✅")
     # ---------------------------
     # allergy_records migration
     # ---------------------------
