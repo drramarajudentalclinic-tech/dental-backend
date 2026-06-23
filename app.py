@@ -78,29 +78,28 @@ CORS(
 # JWT PROTECTION
 # ---------------------------
 @app.before_request
-
 def protect_all_routes():
+
     if request.method == "OPTIONS":
-        origin = request.headers.get("Origin", "")
-        res = make_response()
-        if origin in ALLOWED_ORIGINS:
-            res.headers["Access-Control-Allow-Origin"]      = origin
-            res.headers["Access-Control-Allow-Credentials"] = "true"
-            res.headers["Access-Control-Allow-Methods"]     = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-            res.headers["Access-Control-Allow-Headers"]     = "Content-Type, Authorization"
-            res.headers["Access-Control-Max-Age"]           = "600"
-        return res, 200
+        ...
 
     public_paths = [
         "/",
         "/api/auth/login",
         "/api/auth/register",
         "/api/auth/setup",
-    
         "/health",
     ]
 
     if request.path in public_paths:
+        return
+
+    # Allow patient search without JWT
+    if request.path.startswith("/patients/search"):
+        return
+
+    # If route is registered with /api prefix
+    if request.path.startswith("/api/patients/search"):
         return
 
     if request.path.startswith("/api/receipts/") and (
@@ -111,7 +110,10 @@ def protect_all_routes():
     try:
         verify_jwt_in_request()
     except Exception as e:
-        return jsonify({"error": "Unauthorized", "message": str(e)}), 401
+        return jsonify({
+            "error": "Unauthorized",
+            "message": str(e)
+        }), 401
 
 # ---------------------------
 # AFTER REQUEST — Ensure CORS headers on every response
