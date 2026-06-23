@@ -1,5 +1,7 @@
 from flask import Blueprint, request, jsonify
 from database import db
+from flask import request, jsonify
+from models import Patient, Visit
 from models import (
     Patient,
     MedicalHistory,
@@ -218,50 +220,7 @@ def patients():
 #  SEARCH ALL PATIENTS
 #  GET /api/patients/search?q=...
 # ══════════════════════════════════════════════
-@patients_bp.route("/search", methods=["GET"])
-def search_patients():
-    q = request.args.get("q", "").strip()
 
-    if not q:
-        return jsonify([]), 200
-
-    patients = Patient.query.filter(
-        or_(
-            Patient.name.ilike(f"%{q}%"),
-            Patient.case_number.ilike(f"%{q}%"),
-            Patient.mobile.ilike(f"%{q}%")
-        )
-    ).all()
-
-    result = []
-
-    for p in patients:
-        visits = []
-
-        for v in p.visits:
-            visits.append({
-                "visit_id": v.id,
-                "visit_date": v.visit_date.isoformat() if v.visit_date else None,
-                "status": v.status,
-                "case_number": p.case_number,
-                "chief_complaint": v.chief_complaint or "",
-            })
-
-        result.append({
-            "patient_id": p.id,
-            "name": p.name,
-            "mobile": p.mobile or "",
-            "age": resolve_age(p.date_of_birth, p.age),
-            "gender": p.gender,
-            "blood_group": p.blood_group,
-            "visits": sorted(
-                visits,
-                key=lambda x: x["visit_date"] or "",
-                reverse=True
-            ),
-        })
-
-    return jsonify(result), 200
 
 # ══════════════════════════════════════════════
 #  GET FULL PATIENT
@@ -693,3 +652,57 @@ def save_consent(patient_id):
 
     db.session.commit()
     return jsonify({"status": "consent saved"}), 200
+
+
+
+@patients_bp.route("/patients/search", methods=["GET"])
+def search_patients():
+
+    q = request.args.get("q", "").strip()
+
+    if not q:
+        return jsonify([])
+
+    patients = (
+        Patient.query.filter(
+            (Patient.name.ilike(f"%{q}%")) |
+            (Patient.mobile.ilike(f"%{q}%")) |
+            (Patient.case_number.ilike(f"%{q}%"))
+        )
+        .all()
+    )
+
+    results = []
+
+    for patient in patients:
+
+        visits = (
+            Visit.query
+            .filter_by(patient_id=patient.id)
+            .order_by(Visit.visit_date.desc())
+            .all()
+        )
+
+        results.append({
+            "patient_id": patient.id,
+            "case_number": patient.case_number,
+            "name": patient.name,
+            "mobile": patient.mobile,
+            "age": patient.age,
+            "gender": patient.gender,
+            "blood_group": patient.blood_group,
+            "visits": [
+                {
+                    "visit_id": v.id,
+                    "visit_date": (
+                        v.visit_date.isoformat()
+                        if v.visit_date else None
+                    ),
+                    "status": v.status,
+                    "chief_complaint": v.chief_complaint,
+                }
+                for v in visits
+            ]
+        })
+
+    return jsonify(results)
