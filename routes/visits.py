@@ -15,6 +15,7 @@ from models import (
     Image,
     CBCTFile,
     CBCTVolume,
+    Payment, 
 )
 from datetime import date, datetime
 
@@ -210,6 +211,9 @@ def full_patient_history(patient_id):
         cbct_volumes = CBCTVolume.query.filter_by(
             visit_id=visit.id
         ).all()
+        payments = Payment.query.filter_by(
+    visit_id=visit.id
+).all()
 
         history.append({
             "visit_id": visit.id,
@@ -268,7 +272,23 @@ def full_patient_history(patient_id):
                     "institution": v.institution,
                 }
                 for v in cbct_volumes
-            ]
+            ],
+            "payments": [
+    {
+        "id": p.id,
+        "fee": p.fee,
+        "discount": p.discount,
+        "paid_amount": p.paid_amount,
+        "balance": p.balance,
+        "payment_method": p.payment_method,
+        "payment_date": (
+            p.payment_date.isoformat()
+            if p.payment_date else None
+        ),
+        "receipt_number": p.receipt_number,
+    }
+    for p in payments
+],
         })
 
     return jsonify({
