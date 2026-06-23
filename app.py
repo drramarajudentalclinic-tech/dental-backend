@@ -81,7 +81,7 @@ CORS(
 def protect_all_routes():
 
     if request.method == "OPTIONS":
-        ...
+        return
 
     public_paths = [
         "/",
@@ -94,16 +94,24 @@ def protect_all_routes():
     if request.path in public_paths:
         return
 
-    # Allow patient search without JWT
+    # Patient search
     if request.path.startswith("/patients/search"):
         return
 
-    # If route is registered with /api prefix
     if request.path.startswith("/api/patients/search"):
         return
 
+    # Patient history
+    if request.path.startswith("/patients/") and request.path.endswith("/history"):
+        return
+
+    if request.path.startswith("/api/patients/") and request.path.endswith("/history"):
+        return
+
+    # Receipts
     if request.path.startswith("/api/receipts/") and (
-        request.path.endswith("/preview") or request.path.endswith("/download")
+        request.path.endswith("/preview")
+        or request.path.endswith("/download")
     ):
         return
 
@@ -114,7 +122,6 @@ def protect_all_routes():
             "error": "Unauthorized",
             "message": str(e)
         }), 401
-
 # ---------------------------
 # AFTER REQUEST — Ensure CORS headers on every response
 # ---------------------------
