@@ -13,7 +13,14 @@ class User(db.Model):
     id       = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
-    role     = db.Column(db.String(20), nullable=False, default="reception")  # 'doctor' or 'reception'
+    role = db.Column(
+    db.String(20),
+    nullable=False,
+    default="reception"
+)
+# reception
+# doctor
+# admin
 
     def set_password(self, password):
         self.password = generate_password_hash(password)
@@ -52,10 +59,28 @@ class Patient(db.Model):
     medical        = db.relationship("MedicalHistory",backref="patient", uselist=False)
     allergies      = db.relationship("AllergyRecord", backref="patient", lazy=True)
     habits         = db.relationship("Habit",         backref="patient", lazy=True)
+    medications    = db.relationship(
+    "Medication",
+    backref="patient",
+    lazy=True,
+    cascade="all, delete-orphan"
+)
     women_history  = db.relationship("WomanHistory",  backref="patient", uselist=False)
     family_doctor  = db.relationship("FamilyDoctor",  backref="patient", uselist=False)
     consent        = db.relationship("Consent",       backref="patient", uselist=False)
+is_active = db.Column(
+    db.Boolean,
+    default=True
+)
 
+last_visit_date = db.Column(
+    db.DateTime
+)
+
+total_visits = db.Column(
+    db.Integer,
+    default=0
+)
 
 # ═══════════════════════════════════════════════════════════════
 #  FAMILY DOCTOR
@@ -157,6 +182,11 @@ class MedicalHistory(db.Model):
 
 # ═══════════════════════════════════════════════════════════════
 #  ALLERGY RECORDS
+#  Flat Yes/No checklist — one row per patient (matches MedicalHistory,
+#  Habit, WomanHistory). This replaces an earlier free-form
+#  type/allergen/reaction/severity/notes design that was never actually
+#  written to by any route — save_allergy(), get_patient(), and
+#  PatientAllergy.jsx all consistently expect this flag-based shape.
 # ═══════════════════════════════════════════════════════════════
 class AllergyRecord(db.Model):
     __tablename__ = "allergy_records"
@@ -165,17 +195,30 @@ class AllergyRecord(db.Model):
     patient_id = db.Column(
         db.Integer,
         db.ForeignKey("patients.id"),
+        unique=True,
         nullable=False
     )
 
-    type       = db.Column(db.String(100))
-    allergen   = db.Column(db.String(200))
-    reaction   = db.Column(db.Text)
-    severity   = db.Column(db.String(50))
-    notes      = db.Column(db.Text)
+    drug_allergy        = db.Column(db.Boolean, default=False)
+    food_allergy         = db.Column(db.Boolean, default=False)
+    latex_allergy        = db.Column(db.Boolean, default=False)
+    iodine_allergy       = db.Column(db.Boolean, default=False)
+    anesthesia_allergy   = db.Column(db.Boolean, default=False)
+    other_allergy        = db.Column(db.Text)     # free-text detail, not boolean
+    no_known_allergies   = db.Column(db.Boolean, default=False)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "drug_allergy":        bool(self.drug_allergy),
+            "food_allergy":        bool(self.food_allergy),
+            "latex_allergy":       bool(self.latex_allergy),
+            "iodine_allergy":      bool(self.iodine_allergy),
+            "anesthesia_allergy":  bool(self.anesthesia_allergy),
+            "other_allergy":       self.other_allergy or "",
+            "no_known_allergies":  bool(self.no_known_allergies),
+        }
 
 # ═══════════════════════════════════════════════════════════════
 #  HABITS
@@ -204,6 +247,62 @@ class Habit(db.Model):
         default=datetime.utcnow,
         onupdate=datetime.utcnow
     )
+    
+    # ═══════════════════════════════════════════════════════════════
+# MEDICATIONS
+# ═══════════════════════════════════════════════════════════════
+
+class Medication(db.Model):
+    __tablename__ = "medications"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    patient_id = db.Column(
+        db.Integer,
+        db.ForeignKey("patients.id"),
+        nullable=False
+    )
+
+    medicine_name = db.Column(db.String(200), nullable=False)
+
+    dosage = db.Column(db.String(100))
+
+    frequency = db.Column(db.String(100))
+
+    duration = db.Column(db.String(100))
+
+    purpose = db.Column(db.String(200))
+
+    prescribed_by = db.Column(db.String(200))
+
+    notes = db.Column(db.Text)
+
+    active = db.Column(db.Boolean, default=True)
+
+    created_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow
+    )
+
+    updated_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "medicine_name": self.medicine_name,
+            "dosage": self.dosage,
+            "frequency": self.frequency,
+            "duration": self.duration,
+            "purpose": self.purpose,
+            "prescribed_by": self.prescribed_by,
+            "notes": self.notes,
+            "active": self.active
+        }
+    
 class WomanHistory(db.Model):
     __tablename__ = "woman_history"
 
@@ -225,34 +324,252 @@ class WomanHistory(db.Model):
 # ═══════════════════════════════════════════════════════════════
 #  VISITS
 # ═══════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
+#  VISITS
+# ═══════════════════════════════════════════════════════════════
 class Visit(db.Model):
     __tablename__ = "visits"
 
-    id                 = db.Column(db.Integer, primary_key=True)
-    patient_id         = db.Column(db.Integer, db.ForeignKey("patients.id"), nullable=False)
-    visit_date         = db.Column(db.DateTime, default=datetime.utcnow)
-    chief_complaint    = db.Column(db.Text)
+    id = db.Column(db.Integer, primary_key=True)
+
+    patient_id = db.Column(
+        db.Integer,
+        db.ForeignKey("patients.id"),
+        nullable=False
+    )
+
+    # -----------------------------
+    # Visit Information
+    # -----------------------------
+    visit_date = db.Column(
+        db.DateTime,
+        default=datetime.utcnow
+    )
+
+    chief_complaint = db.Column(db.Text)
+
+    # -----------------------------
+    # Visit Status
+    # CREATED
+    # IN_PROGRESS
+    # READY_FOR_BILLING
+    # COMPLETED
+    # REOPENED
+    # CANCELLED
+    # -----------------------------
+    status = db.Column(
+        db.String(30),
+        default="CREATED",
+        nullable=False
+    )
+
+    # -----------------------------
+    # Visit Ownership
+    # -----------------------------
+    created_by = db.Column(
+        db.String(100),
+        nullable=True
+    )   # Reception or Doctor username
+
+    assigned_doctor = db.Column(
+        db.String(100),
+        nullable=True
+    )
+
+    # -----------------------------
+    # Clinical Details
+    # -----------------------------
+    diagnosis = db.Column(db.Text)
+
+    treatment_plan = db.Column(db.Text)
+
+    treatment_done = db.Column(db.Text)
+
+    advice = db.Column(db.Text)
+
     followup_treatment = db.Column(db.Text)
-    status             = db.Column(db.String(10), default="OPEN")   # OPEN / CLOSED
-    closed_at          = db.Column(db.DateTime, nullable=True)
 
-    billing_note   = db.Column(db.Text, nullable=True)
-    treatment_done = db.Column(db.Text, nullable=True)
-    advice         = db.Column(db.Text, nullable=True)
-    treatment_plan = db.Column(db.Text, nullable=True)
-    diagnosis      = db.Column(db.Text, nullable=True)
+    # -----------------------------
+    # Billing Instructions
+    # -----------------------------
+    treatment_type = db.Column(
+        db.String(150),
+        nullable=True
+    )
 
+    estimated_charges = db.Column(
+        db.Float,
+        default=0.0
+    )
+
+    amount_collected_today = db.Column(
+        db.Float,
+        default=0.0
+    )
+
+    billing_note = db.Column(
+        db.Text,
+        nullable=True
+    )
+
+    reception_notes = db.Column(
+        db.Text,
+        nullable=True
+    )
+
+    # -----------------------------
+    # Follow-up
+    # -----------------------------
+    next_appointment = db.Column(
+        db.Date,
+        nullable=True
+    )
+
+    # -----------------------------
+    # Visit Closing
+    # -----------------------------
+    closed_at = db.Column(
+        db.DateTime,
+        nullable=True
+    )
+
+    closed_by = db.Column(
+        db.String(100),
+        nullable=True
+    )
+
+    # -----------------------------
+    # Visit Reopening
+    # -----------------------------
+    reopened_at = db.Column(
+        db.DateTime,
+        nullable=True
+    )
+
+    reopened_by = db.Column(
+        db.String(100),
+        nullable=True
+    )
+
+    reopen_reason = db.Column(
+        db.Text,
+        nullable=True
+    )
+
+    # -----------------------------
     # Relationships
-    cbct_files      = db.relationship("CBCTFile",       backref="visit", lazy=True,    cascade="all, delete-orphan")
-    cbct_volumes    = db.relationship("CBCTVolume",     backref="visit", lazy=True,    cascade="all, delete-orphan")
-    dental_charts   = db.relationship("DentalChart",    backref="visit", lazy=True,    cascade="all, delete-orphan")
-    other_findings  = db.relationship("OtherFinding",   backref="visit", lazy=True,    cascade="all, delete-orphan")
-    consultations   = db.relationship("Consultation",   backref="visit", lazy=True,    cascade="all, delete-orphan")
-    prescriptions   = db.relationship("Prescription",   backref="visit", lazy=True,    cascade="all, delete-orphan")
-    images          = db.relationship("Image",          backref="visit", lazy=True,    cascade="all, delete-orphan")
-    payments        = db.relationship("Payment",        backref="visit", lazy=True)
+    # -----------------------------
+    cbct_files = db.relationship(
+        "CBCTFile",
+        backref="visit",
+        lazy=True,
+        cascade="all, delete-orphan"
+    )
 
+    cbct_volumes = db.relationship(
+        "CBCTVolume",
+        backref="visit",
+        lazy=True,
+        cascade="all, delete-orphan"
+    )
 
+    dental_charts = db.relationship(
+        "DentalChart",
+        backref="visit",
+        lazy=True,
+        cascade="all, delete-orphan"
+    )
+
+    other_findings = db.relationship(
+        "OtherFinding",
+        backref="visit",
+        lazy=True,
+        cascade="all, delete-orphan"
+    )
+
+    consultations = db.relationship(
+        "Consultation",
+        backref="visit",
+        lazy=True,
+        cascade="all, delete-orphan"
+    )
+
+    prescriptions = db.relationship(
+        "Prescription",
+        backref="visit",
+        lazy=True,
+        cascade="all, delete-orphan"
+    )
+
+    images = db.relationship(
+        "Image",
+        backref="visit",
+        lazy=True,
+        cascade="all, delete-orphan"
+    )
+
+    payments = db.relationship(
+        "Payment",
+        backref="visit",
+        lazy=True
+    )
+    
+    audit_logs = db.relationship(
+    "VisitAudit",
+    backref="visit",
+    lazy=True,
+    cascade="all, delete-orphan"
+)
+
+# ═══════════════════════════════════════════════════════════════
+# VISIT AUDIT
+# ═══════════════════════════════════════════════════════════════
+class VisitAudit(db.Model):
+    __tablename__ = "visit_audit"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    visit_id = db.Column(
+        db.Integer,
+        db.ForeignKey("visits.id"),
+        nullable=False
+    )
+
+    action = db.Column(
+        db.String(100),
+        nullable=False
+    )
+
+    old_status = db.Column(
+        db.String(30)
+    )
+
+    new_status = db.Column(
+        db.String(30)
+    )
+
+    performed_by = db.Column(
+        db.String(100)
+    )
+
+    reason = db.Column(
+        db.Text
+    )
+
+    created_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow
+    )
+
+    # Relationship
+    visit = db.relationship(
+        "Visit",
+        backref=db.backref(
+            "audit_logs",
+            lazy=True,
+            cascade="all, delete-orphan"
+        )
+    )
 # ═══════════════════════════════════════════════════════════════
 #  DENTAL CHART
 # ═══════════════════════════════════════════════════════════════

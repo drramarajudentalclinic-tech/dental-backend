@@ -628,6 +628,7 @@ def closed_visits():
             "closed_at":      v.closed_at.strftime("%d-%b-%Y") if v.closed_at else "",
             "total_paid":     paid_map.get(v.id, 0.0),
             "balance_due":    balance_map.get(v.id, 0.0),
+            "next_appointment": v.next_appointment.isoformat() if getattr(v, "next_appointment", None) else None,
         })
     return jsonify(result)
 
@@ -861,6 +862,15 @@ def create_payment():
     treatments = data.get("treatments") or _parse_treatments(payment)
     vdata      = _visit_data(payment.visit_id)
 
+    # Reception may adjust the receipt-facing "Advice" / "Treatment Plan"
+    # wording without touching the doctor's actual clinical record
+    # (Visit/Consultation stay untouched — this only affects what gets
+    # printed on this specific receipt).
+    if data.get("advice"):
+        vdata["advice"] = data["advice"]
+    if data.get("treatment_plan"):
+        vdata["treatment_plan"] = data["treatment_plan"]
+
     try:
         pdf_path           = _save_receipt_pdf(payment, treatments, vdata)
         payment.receipt_path = pdf_path
@@ -925,6 +935,13 @@ def edit_payment(pay_id):
 
     treatments = data.get("treatments") or _parse_treatments(payment)
     vdata      = _visit_data(payment.visit_id)
+
+    # Same override as create_payment — receipt-copy text only, doctor's
+    # clinical record is untouched.
+    if data.get("advice"):
+        vdata["advice"] = data["advice"]
+    if data.get("treatment_plan"):
+        vdata["treatment_plan"] = data["treatment_plan"]
 
     try:
         if payment.receipt_path and os.path.exists(payment.receipt_path):

@@ -43,21 +43,28 @@ def create_appointment():
     # name, date, time always required
     # mobile optional for auto-bookings from consultation
     # case_number required only when booking comes from consultation (source="consultation")
+    #
+    # NOTE: an explicit null (e.g. {"name": null}) used to slip past this
+    # check — str(None).strip() is the non-empty string "None", which is
+    # truthy, so validation passed and then crashed later at
+    # data["name"].strip() since the real value was still None. Checking
+    # the raw value first (before stringifying) closes that gap.
     for field in ["name", "date", "time"]:
-        if not str(data.get(field, "")).strip():
+        raw = data.get(field)
+        if raw is None or not str(raw).strip():
             return jsonify({"error": f"'{field}' is required"}), 422
     if data.get("source") == "consultation":
-        if not str(data.get("case_number", "")).strip():
+        if not str(data.get("case_number") or "").strip():
             return jsonify({"error": "'case_number' is required for consultation bookings"}), 422
     appt = Appointment(
         name        = data["name"].strip(),
         date        = data["date"].strip(),
         time        = data["time"].strip(),
-        mobile      = data.get("mobile", "").strip() or None,
-        case_number = data.get("case_number", "").strip() or None,
-        treatment   = data.get("treatment",   "").strip() or None,
-        notes       = data.get("notes",       "").strip() or None,
-        status      = data.get("status", "pending"),
+        mobile      = (data.get("mobile") or "").strip() or None,
+        case_number = (data.get("case_number") or "").strip() or None,
+        treatment   = (data.get("treatment") or "").strip() or None,
+        notes       = (data.get("notes") or "").strip() or None,
+        status      = data.get("status") or "pending",
     )
     db.session.add(appt)
     db.session.commit()
@@ -67,14 +74,25 @@ def create_appointment():
 def update_appointment(appt_id):
     appt = Appointment.query.get_or_404(appt_id)
     data = request.get_json() or {}
-    appt.name        = data.get("name",        appt.name)
-    appt.date        = data.get("date",        appt.date)
-    appt.time        = data.get("time",        appt.time)
-    appt.mobile      = data.get("mobile",      appt.mobile)
-    appt.case_number = data.get("case_number", appt.case_number)
-    appt.treatment   = data.get("treatment",   appt.treatment)
-    appt.notes       = data.get("notes",       appt.notes)
-    appt.status      = data.get("status",      appt.status)
+
+    # Required fields: only overwrite if a real, non-empty value was sent —
+    # never let an explicit null wipe out name/date/time (the DB column is
+    # nullable=False, so that would otherwise crash at commit time).
+    for field in ["name", "date", "time"]:
+        if field in data:
+            val = data.get(field)
+            if val is not None and str(val).strip():
+                setattr(appt, field, str(val).strip())
+
+    # Optional fields: null explicitly clears them; a real value updates them.
+    for field in ["mobile", "case_number", "treatment", "notes"]:
+        if field in data:
+            val = data.get(field)
+            setattr(appt, field, (str(val).strip() or None) if val is not None else None)
+
+    if data.get("status"):
+        appt.status = data["status"]
+
     db.session.commit()
     return jsonify(appt.to_dict()), 200
 

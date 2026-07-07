@@ -1,6 +1,10 @@
 from flask import Blueprint, jsonify, request
+from database import db
+from datetime import datetime
+
 from models import (
     Visit,
+    VisitAudit,
     Patient,
     MedicalHistory,
     WomanHistory,
@@ -15,7 +19,7 @@ from models import (
     CBCTVolume,
     DentalChart,
     OtherFinding,
-    Payment,   # <-- add this
+    Payment,
 )
 
 doctor_bp = Blueprint("doctor", __name__)
@@ -26,41 +30,127 @@ doctor_bp = Blueprint("doctor", __name__)
 # GET /api/doctor/visits
 # ─────────────────────────────────────────────
 @doctor_bp.route("/doctor/visits", methods=["GET"])
-def get_open_visits():
+def get_doctor_visits():
+
     visits = (
-        Visit.query
-        .filter_by(status="OPEN")
+        Visit.query.filter(
+            Visit.status.in_(["CREATED", "IN_PROGRESS"])
+        )
         .order_by(Visit.visit_date.desc())
         .all()
     )
 
     result = []
 
-    for v in visits:
-        patient = Patient.query.get(v.patient_id)
+    for visit in visits:
+
+        patient = Patient.query.get(visit.patient_id)
 
         if not patient:
             continue
 
+        # Workflow safeguard: let the dashboard warn if a doctor tries to
+        # complete a visit with no diagnosis/treatment/consultation
+        # recorded yet.
+        has_consultation = (
+            Consultation.query.filter_by(visit_id=visit.id).first() is not None
+        )
+        has_clinical_notes = bool(
+            has_consultation
+            or (visit.diagnosis or "").strip()
+            or (visit.treatment_done or "").strip()
+        )
+
         result.append({
-            "visit_id": v.id,
+
+            "visit_id": visit.id,
+
             "patient_id": patient.id,
+
             "case_number": patient.case_number,
+
             "patient_name": patient.name,
-            "age": patient.age,
-            "gender": patient.gender,
+
             "mobile": patient.mobile,
-            "chief_complaint": v.chief_complaint,
+
+            "age": patient.age,
+
+            "gender": patient.gender,
+
+            "chief_complaint": visit.chief_complaint,
+
+            "status": visit.status,
+
+            "assigned_doctor": visit.assigned_doctor,
+
+            "created_by": visit.created_by,
+
+            "has_clinical_notes": has_clinical_notes,
+
             "visit_date": (
-                v.visit_date.isoformat()
-                if v.visit_date else None
-            ),
-            "status": v.status,
+                visit.visit_date.isoformat()
+                if visit.visit_date
+                else None
+            )
+
         })
 
     return jsonify(result), 200
 
+# ══════════════════════════════════════════════
+# START / CONTINUE VISIT
+# POST /api/doctor/visit/<visit_id>/start
+# ══════════════════════════════════════════════
 
+@doctor_bp.route("/doctor/visit/<int:visit_id>/start", methods=["POST"])
+def start_visit(visit_id):
+
+    visit = Visit.query.get_or_404(visit_id)
+
+    data = request.get_json() or {}
+
+    # Already started
+    if (visit.status or "").upper() == "IN_PROGRESS":
+        return jsonify({
+            "message": "Visit already in progress.",
+            "visit_id": visit.id
+        }), 200
+
+    # Closed visits cannot be started
+    # NOTE: close_visit() (visits.py) stores the status as lowercase
+    # "closed" — compare case-insensitively so this guard actually works.
+    if (visit.status or "").lower() == "closed":
+        return jsonify({
+            "error": "Visit already closed."
+        }), 400
+
+    old_status = visit.status
+
+    visit.status = "IN_PROGRESS"
+
+    visit.assigned_doctor = (
+        data.get("doctor_name")
+        or visit.assigned_doctor
+    )
+
+    # ── Workflow step 7: "Status changes to IN_PROGRESS and an
+    #    audit entry is created." ──
+    audit = VisitAudit(
+        visit_id=visit.id,
+        action="START_VISIT",
+        old_status=old_status,
+        new_status=visit.status,
+        performed_by=data.get("doctor_name") or visit.assigned_doctor or "Doctor",
+        reason=data.get("reason"),
+    )
+    db.session.add(audit)
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "Visit started successfully.",
+        "visit_id": visit.id
+    }), 200
 # ─────────────────────────────────────────────
 # OPEN SINGLE VISIT (DOCTOR VIEW)
 # GET /api/doctor/visit/<visit_id>
@@ -75,7 +165,7 @@ def open_visit(visit_id):
     woman   = WomanHistory.query.filter_by(patient_id=patient.id).first()
 
     # one-to-many — return list
-    allergies = AllergyRecord.query.filter_by(patient_id=patient.id).all()
+    allergy = AllergyRecord.query.filter_by(patient_id=patient.id).first()
 
     return jsonify({
         "patient": {
@@ -90,7 +180,11 @@ def open_visit(visit_id):
         "medical_history": medical.to_dict() if medical else None,
         "woman_history":   woman.to_dict()   if woman   else None,
         # .to_dict() added to AllergyRecord in models.py
-        "allergies":       [a.to_dict() for a in allergies],
+        "allergies":       allergy.to_dict() if allergy else {
+            "drug_allergy": False, "food_allergy": False, "latex_allergy": False,
+            "iodine_allergy": False, "anesthesia_allergy": False,
+            "other_allergy": "", "no_known_allergies": False,
+        },
         "visit": {
             "id":                  visit.id,
             "date":                visit.visit_date.isoformat() if visit.visit_date else None,
@@ -99,182 +193,19 @@ def open_visit(visit_id):
             "status":              visit.status,
         },
     }), 200
-@doctor_bp.route("/patients/search", methods=["GET"])
-def search_patients():
-
-    q = request.args.get("q", "").strip()
-
-    if not q:
-        return jsonify([])
-
-    patients = (
-        Patient.query.filter(
-            (Patient.name.ilike(f"%{q}%")) |
-            (Patient.mobile.ilike(f"%{q}%")) |
-            (Patient.case_number.ilike(f"%{q}%"))
-        )
-        .all()
-    )
-
-    results = []
-
-    for patient in patients:
-
-        visits = (
-            Visit.query
-            .filter_by(patient_id=patient.id)
-            .order_by(Visit.visit_date.desc())
-            .all()
-        )
-
-        results.append({
-            "patient_id": patient.id,
-            "case_number": patient.case_number,
-            "name": patient.name,
-            "mobile": patient.mobile,
-            "age": patient.age,
-            "gender": patient.gender,
-            "blood_group": patient.blood_group,
-            "visits": [
-                {
-                    "visit_id": v.id,
-                    "visit_date": v.visit_date.isoformat() if v.visit_date else None,
-                    "status": v.status,
-                    "chief_complaint": v.chief_complaint,
-                }
-                for v in visits
-            ]
-        })
-
-    return jsonify(results)
-
-@doctor_bp.route("/patients/<int:patient_id>/history", methods=["GET"])
-def full_patient_history(patient_id):
-
-    patient = Patient.query.get_or_404(patient_id)
-
-    visits = (
-        Visit.query
-        .filter_by(patient_id=patient.id)
-        .order_by(Visit.visit_date.desc())
-        .all()
-    )
-
-    history = []
-
-    for visit in visits:
-
-        consultations = Consultation.query.filter_by(
-            visit_id=visit.id
-        ).all()
-
-        prescriptions = Prescription.query.filter_by(
-            visit_id=visit.id
-        ).all()
-
-        images = Image.query.filter_by(
-            visit_id=visit.id
-        ).all()
-
-        cbct_files = CBCTFile.query.filter_by(
-            visit_id=visit.id
-        ).all()
-
-        cbct_volumes = CBCTVolume.query.filter_by(
-            visit_id=visit.id
-        ).all()
-
-        payments = Payment.query.filter_by(
-            visit_id=visit.id
-        ).all()
-
-        history.append({
-
-            "visit_id": visit.id,
-
-            "visit_date":
-                visit.visit_date.isoformat()
-                if visit.visit_date else None,
-
-            "status": visit.status,
-
-            "chief_complaint": visit.chief_complaint,
-
-            "diagnosis": visit.diagnosis,
-
-            "treatment_done": visit.treatment_done,
-
-            "treatment_plan": visit.treatment_plan,
-
-            "advice": visit.advice,
-
-            "consultations": [
-                {
-                    "id": c.id,
-                    "diagnosis": c.diagnosis,
-                    "treatment_done_today": c.treatment_done_today,
-                    "treatment_plan": c.treatment_plan,
-                    "advice": c.advice,
-                    "doctor": c.doctor,
-                }
-                for c in consultations
-            ],
-
-            "prescriptions": [
-                p.to_dict()
-                for p in prescriptions
-            ],
-
-            "images": [
-                {
-                    "id": i.id,
-                    "image_path": i.image_path,
-                    "image_type": i.image_type,
-                    "description": i.description,
-                }
-                for i in images
-            ],
-
-            "cbct_files": [
-                f.to_dict()
-                for f in cbct_files
-            ],
-
-            "cbct_volumes": [
-                {
-                    "id": c.id,
-                    "study_date": c.study_date,
-                    "institution": c.institution,
-                    "num_slices": c.num_slices,
-                }
-                for c in cbct_volumes
-            ],
-
-            "payments": [
-                {
-                    "id": p.id,
-                    "fee": p.fee,
-                    "discount": p.discount,
-                    "paid_amount": p.paid_amount,
-                    "balance": p.balance,
-                    "payment_method": p.payment_method,
-                    "receipt_number": p.receipt_number,
-                }
-                for p in payments
-            ]
-        })
-
-    return jsonify({
-        "patient": {
-            "id": patient.id,
-            "case_number": patient.case_number,
-            "name": patient.name,
-            "age": patient.age,
-            "gender": patient.gender,
-            "mobile": patient.mobile,
-            "blood_group": patient.blood_group,
-            "address": patient.address,
-            "profession": patient.profession,
-        },
-        "history": history
-    })
+# ─────────────────────────────────────────────
+# NOTE:
+# "/patients/search" and "/patients/<id>/history" used to be duplicated
+# here. They collided with the routes of the same URL already defined in
+# patients.py (patients_bp: GET /api/patients/search) and were incomplete
+# (missing medical/habits/allergy/women/medication/family-doctor/consent
+# and dental-chart/findings data required for the "View Complete Patient
+# History" screen). Both Doctor and Reception now call the single,
+# fully-implemented endpoint instead:
+#
+#   GET /api/patients/search                          (patients.py)
+#   GET /api/patients/<patient_id>/complete-history    (patients.py)
+#
+# Keeping one implementation avoids the two blueprints fighting over the
+# same URL and keeps Doctor + Reception showing identical data.
+# ─────────────────────────────────────────────
