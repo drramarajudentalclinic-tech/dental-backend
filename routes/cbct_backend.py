@@ -29,7 +29,12 @@ import numpy as np
 
 from datetime import datetime
 from flask import Blueprint, request, jsonify, Response, send_file
+from sqlalchemy import create_engine, text
+import os
 
+# Somewhere near the top of the file, defined once
+DATABASE_URL = os.environ.get("DATABASE_URL")  # or however you store it
+engine = create_engine(DATABASE_URL)
 # Optional: pydicom for real DICOM; gracefully degrade to synthetic data
 try:
     import pydicom
@@ -528,48 +533,72 @@ def export_png(cbct_id):
 # ══════════════════════════════════════════════════════════════════════════════
 #  DB Migrations  (safe to run on every startup)
 # ══════════════════════════════════════════════════════════════════════════════
-
 def run_cbct_migrations(app):
     """
-    Ensure all CBCT-related columns and tables exist.
-    Safe to call on every startup — skips columns that already exist.
+    Safe CBCT migrations for both SQLite and PostgreSQL.
     """
+
     with app.app_context():
-        from sqlalchemy import text, inspect
+
+        from sqlalchemy import inspect, text
+
         conn = db.engine.connect()
-        insp = inspect(db.engine)
+        inspector = inspect(db.engine)
 
-        # ── cbct_volumes columns ──────────────────────────────────────────────
-        existing_cols = (
-            {c["name"] for c in insp.get_columns("cbct_volumes")}
-            if "cbct_volumes" in insp.get_table_names()
-            else set()
-        )
-        new_cols = {
-            "patient_id":       "VARCHAR(64)",
-            "study_date":       "VARCHAR(20)",
-            "modality":         "VARCHAR(10)",
-            "institution":      "VARCHAR(120)",
-            "coronal_slices":   "INTEGER DEFAULT 0",
-            "sagittal_slices":  "INTEGER DEFAULT 0",
-            "rows":             "INTEGER DEFAULT 512",
-            "cols":             "INTEGER DEFAULT 512",
-            "slice_thickness":  "FLOAT DEFAULT 0.3",
-            "pixel_spacing_x":  "FLOAT DEFAULT 0.3",
-            "pixel_spacing_y":  "FLOAT DEFAULT 0.3",
-            "notes":            "TEXT",
-            "slice_data":       "TEXT",
+        # ----------------------------------------------------
+        # Create cbct_volumes table if missing
+        # ----------------------------------------------------
+
+        CBCTVolume.__table__.create(bind=db.engine, checkfirst=True)
+
+        # ----------------------------------------------------
+        # Add missing columns
+        # ----------------------------------------------------
+
+        existing = {
+            c["name"]
+            for c in inspector.get_columns("cbct_volumes")
         }
-        for col, col_type in new_cols.items():
-            if col not in existing_cols:
-                try:
-                    conn.execute(text(f"ALTER TABLE cbct_volumes ADD COLUMN {col} {col_type}"))
-                    conn.commit()
-                    print(f"[cbct migration] Added column: {col}")
-                except Exception as e:
-                    print(f"[cbct migration] Skipped {col}: {e}")
 
-        # ── cbct_annotations table ────────────────────────────────────────────
+        columns = {
+            "patient_id": "VARCHAR(64)",
+            "study_date": "VARCHAR(20)",
+            "modality": "VARCHAR(10)",
+            "institution": "VARCHAR(120)",
+            "coronal_slices": "INTEGER DEFAULT 0",
+            "sagittal_slices": "INTEGER DEFAULT 0",
+            "rows": "INTEGER DEFAULT 512",
+            "cols": "INTEGER DEFAULT 512",
+            "slice_thickness": "FLOAT DEFAULT 0.3",
+            "pixel_spacing_x": "FLOAT DEFAULT 0.3",
+            "pixel_spacing_y": "FLOAT DEFAULT 0.3",
+            "notes": "TEXT",
+            "slice_data": "TEXT",
+        }
+
+        for col, dtype in columns.items():
+
+            if col not in existing:
+
+                try:
+                    conn.execute(
+                        text(
+                            f"ALTER TABLE cbct_volumes ADD COLUMN {col} {dtype}"
+                        )
+                    )
+
+                    conn.commit()
+
+                    print(f"[CBCT] Added {col}")
+
+                except Exception as e:
+
+                    print(f"[CBCT] {col}: {e}")
+
+        # ----------------------------------------------------
+        # Create cbct_annotations table (PostgreSQL)
+        # ----------------------------------------------------
+
         try:
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS cbct_annotations (
@@ -582,8 +611,10 @@ def run_cbct_migrations(app):
                 )
             """))
             conn.commit()
-            print("[cbct migration] cbct_annotations table ready")
-        except Exception as e:
-            print(f"[cbct migration] annotations table: {e}")
+            print("[CBCT] cbct_annotations table ready")
 
-        conn.close()
+        except Exception as e:
+            print(f"[CBCT] {e}")
+
+        finally:
+            conn.close()

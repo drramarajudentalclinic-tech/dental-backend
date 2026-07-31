@@ -17,9 +17,10 @@ def get_month_name(date: datetime) -> str:
     return date.strftime("%B")  # e.g. 'March', 'April'
 
 
-def ensure_month_folders(base: str = "Receipts") -> tuple:
+def ensure_month_folders(base: str = "Receipts", for_date: datetime = None) -> tuple:
     """
-    Creates and returns folder paths based on current date.
+    Creates and returns folder paths based on the given date (defaults to
+    current date if not provided).
 
     Structure:
         Receipts/
@@ -32,7 +33,7 @@ def ensure_month_folders(base: str = "Receipts") -> tuple:
     Returns:
         (month, pdf_dir, excel_dir, other_expenses_dir)
     """
-    now = datetime.now()
+    now = for_date or datetime.now()
     fy = get_financial_year(now)
     month = get_month_name(now)
 
@@ -48,14 +49,19 @@ def ensure_month_folders(base: str = "Receipts") -> tuple:
     return month, pdf_dir, excel_dir, other_exp_dir
 
 
-def get_excel_path(month: str, base: str = "Receipts") -> str:
+def get_excel_path(month: str, base: str = "Receipts", for_date: datetime = None) -> str:
     """
     Returns path to the monthly receipts Excel file.
     e.g. Receipts/Financial year2025-2026/March/Excel/March2026.xlsx
+
+    NOTE: previously this always used datetime.now() regardless of which
+    month/date the caller actually wanted — editing a payment from a
+    prior month would misfile its Excel row into the current month's
+    file with the wrong year. Pass for_date to route correctly.
     """
-    now = datetime.now()
-    fy = get_financial_year(now)
-    filename = f"{month}{now.year}.xlsx"
+    ref = for_date or datetime.now()
+    fy = get_financial_year(ref)
+    filename = f"{month}{ref.year}.xlsx"
 
     return os.path.join(
         base,

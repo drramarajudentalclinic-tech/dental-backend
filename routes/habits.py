@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from database import db
-from models import Habit
+from models import Habit, Patient
 from datetime import datetime
 
 habits_bp = Blueprint("habits", __name__)
@@ -37,7 +37,24 @@ def get_habits(patient_id):
 @habits_bp.route("/habits/<int:patient_id>", methods=["POST", "PUT"])
 def save_habits(patient_id):
 
-    data = request.get_json()
+    data = request.get_json() or {}
+
+    selected_habits = any([
+        data.get("smoking"),
+        data.get("alcohol"),
+        data.get("tobacco"),
+        data.get("pan_chewing"),
+        data.get("spicy_foods"),
+    ])
+
+    no_habits = bool(data.get("no_habits"))
+
+    if not selected_habits and not no_habits:
+        return jsonify({
+            "error": "Please select at least one habit or No Habits."
+        }), 400
+
+    Patient.query.get_or_404(patient_id)
 
     record = Habit.query.filter_by(patient_id=patient_id).first()
 
@@ -58,33 +75,38 @@ def save_habits(patient_id):
         record.spicy_foods = None
 
     else:
+        # NOTE: presence (checkbox) and detail (free text) are stored in
+        # the same column, so a checked habit with no detail text must
+        # never collapse to an empty string — that reads back as False
+        # via bool(record.field) in get_habits(). Fall back to "Yes" so
+        # the presence flag survives even when detail is blank.
 
         record.smoking = (
-            data.get("smoking_detail")
+            (data.get("smoking_detail") or "Yes")
             if data.get("smoking")
             else None
         )
 
         record.alcohol = (
-            data.get("alcohol_detail")
+            (data.get("alcohol_detail") or "Yes")
             if data.get("alcohol")
             else None
         )
 
         record.tobacco = (
-            data.get("tobacco_detail")
+            (data.get("tobacco_detail") or "Yes")
             if data.get("tobacco")
             else None
         )
 
         record.pan_chewing = (
-            data.get("pan_chewing_detail")
+            (data.get("pan_chewing_detail") or "Yes")
             if data.get("pan_chewing")
             else None
         )
 
         record.spicy_foods = (
-            data.get("spicy_foods_detail")
+            (data.get("spicy_foods_detail") or "Yes")
             if data.get("spicy_foods")
             else None
         )

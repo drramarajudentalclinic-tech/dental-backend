@@ -83,35 +83,91 @@ total_visits = db.Column(
 )
 
 # ═══════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
 #  FAMILY DOCTOR
 # ═══════════════════════════════════════════════════════════════
 class FamilyDoctor(db.Model):
     __tablename__ = "family_doctors"
 
-    id             = db.Column(db.Integer, primary_key=True)
-    patient_id     = db.Column(db.Integer, db.ForeignKey("patients.id"), unique=True, nullable=False)
-    doctor_name    = db.Column(db.String(150))
-    doctor_phone   = db.Column(db.String(50))
+    id = db.Column(db.Integer, primary_key=True)
+
+    patient_id = db.Column(
+        db.Integer,
+        db.ForeignKey("patients.id"),
+        unique=True,
+        nullable=False
+    )
+
+    doctor_name = db.Column(db.String(150))
+    doctor_phone = db.Column(db.String(50))
     doctor_address = db.Column(db.Text)
-    updated_at     = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    updated_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow
+    )
 
-# ═══════════════════════════════════════════════════════════════
+    def to_dict(self):
+        return {
+            "doctor_name": self.doctor_name or "",
+            "doctor_phone": self.doctor_phone or "",
+            "doctor_address": self.doctor_address or "",
+            "updated_at": (
+                self.updated_at.isoformat()
+                if self.updated_at else None
+            ),
+        }
+        
+        # ═══════════════════════════════════════════════════════════════
 #  CONSENT
 # ═══════════════════════════════════════════════════════════════
 class Consent(db.Model):
     __tablename__ = "consents"
 
-    id             = db.Column(db.Integer, primary_key=True)
-    patient_id     = db.Column(db.Integer, db.ForeignKey("patients.id"), unique=True, nullable=False)
-    agreed         = db.Column(db.Boolean, default=False)
-    signature      = db.Column(db.String(200))
-    relationship   = db.Column(db.String(100))
-    consent_date   = db.Column(db.Date, nullable=True)
-    created_at     = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at     = db.Column(db.DateTime, onupdate=datetime.utcnow)
+    id = db.Column(db.Integer, primary_key=True)
 
+    patient_id = db.Column(
+        db.Integer,
+        db.ForeignKey("patients.id"),
+        unique=True,
+        nullable=False
+    )
 
+    agreed = db.Column(db.Boolean, default=False)
+    signature = db.Column(db.String(200))
+    relationship = db.Column(db.String(100))
+    consent_date = db.Column(db.Date, nullable=True)
+
+    created_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow
+    )
+
+    updated_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow
+    )
+
+    def to_dict(self):
+        return {
+            "agreed": bool(self.agreed),
+            "signature": self.signature or "",
+            "relationship": self.relationship or "",
+            "consent_date": (
+                self.consent_date.isoformat()
+                if self.consent_date else None
+            ),
+            "created_at": (
+                self.created_at.isoformat()
+                if self.created_at else None
+            ),
+            "updated_at": (
+                self.updated_at.isoformat()
+                if self.updated_at else None
+            ),
+        }
 # ═══════════════════════════════════════════════════════════════
 #  MEDICAL HISTORY
 # ═══════════════════════════════════════════════════════════════
@@ -191,7 +247,8 @@ class MedicalHistory(db.Model):
 class AllergyRecord(db.Model):
     __tablename__ = "allergy_records"
 
-    id         = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)
+
     patient_id = db.Column(
         db.Integer,
         db.ForeignKey("patients.id"),
@@ -199,27 +256,45 @@ class AllergyRecord(db.Model):
         nullable=False
     )
 
-    drug_allergy        = db.Column(db.Boolean, default=False)
-    food_allergy         = db.Column(db.Boolean, default=False)
-    latex_allergy        = db.Column(db.Boolean, default=False)
-    iodine_allergy       = db.Column(db.Boolean, default=False)
-    anesthesia_allergy   = db.Column(db.Boolean, default=False)
-    other_allergy        = db.Column(db.Text)     # free-text detail, not boolean
-    no_known_allergies   = db.Column(db.Boolean, default=False)
+    drug_allergy = db.Column(db.Boolean, default=False)
+    food_allergy = db.Column(db.Boolean, default=False)
+    latex_allergy = db.Column(db.Boolean, default=False)
+    iodine_allergy = db.Column(db.Boolean, default=False)
+    anesthesia_allergy = db.Column(db.Boolean, default=False)
 
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    other_allergy = db.Column(db.Text)
+    no_known_allergies = db.Column(db.Boolean, default=False)
 
+    # ⭐ ADD THESE COLUMNS
+    allergen = db.Column(db.String(255))
+    reaction = db.Column(db.String(255))
+    severity = db.Column(db.String(50))
+    notes = db.Column(db.Text)
+
+    updated_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow
+    )
+
+    # ⭐ REPLACE YOUR EXISTING to_dict() WITH THIS
     def to_dict(self):
         return {
-            "drug_allergy":        bool(self.drug_allergy),
-            "food_allergy":        bool(self.food_allergy),
-            "latex_allergy":       bool(self.latex_allergy),
-            "iodine_allergy":      bool(self.iodine_allergy),
-            "anesthesia_allergy":  bool(self.anesthesia_allergy),
-            "other_allergy":       self.other_allergy or "",
-            "no_known_allergies":  bool(self.no_known_allergies),
-        }
+            "drug_allergy": bool(self.drug_allergy),
+            "food_allergy": bool(self.food_allergy),
+            "latex_allergy": bool(self.latex_allergy),
+            "iodine_allergy": bool(self.iodine_allergy),
+            "anesthesia_allergy": bool(self.anesthesia_allergy),
+            "other_allergy": self.other_allergy or "",
+            "no_known_allergies": bool(self.no_known_allergies),
 
+            # NEW FIELDS
+            "allergen": self.allergen or "",
+            "reaction": self.reaction or "",
+            "severity": self.severity or "",
+            "notes": self.notes or "",
+        }
+# ═══════════════════════════════════════════════════════════════
 # ═══════════════════════════════════════════════════════════════
 #  HABITS
 # ═══════════════════════════════════════════════════════════════
@@ -227,6 +302,7 @@ class Habit(db.Model):
     __tablename__ = "habits"
 
     id = db.Column(db.Integer, primary_key=True)
+
     patient_id = db.Column(
         db.Integer,
         db.ForeignKey("patients.id"),
@@ -234,12 +310,14 @@ class Habit(db.Model):
         nullable=False
     )
 
+    # Store habit details (None = No, Text = Yes + Details)
     smoking = db.Column(db.Text)
     alcohol = db.Column(db.Text)
     tobacco = db.Column(db.Text)
     pan_chewing = db.Column(db.Text)
     spicy_foods = db.Column(db.Text)
 
+    # If checked, all other habits should be empty
     no_habits = db.Column(db.Boolean, default=False)
 
     updated_at = db.Column(
@@ -247,7 +325,31 @@ class Habit(db.Model):
         default=datetime.utcnow,
         onupdate=datetime.utcnow
     )
-    
+
+    def to_dict(self):
+        return {
+            "smoking": bool(self.smoking),
+            "smoking_detail": self.smoking or "",
+
+            "alcohol": bool(self.alcohol),
+            "alcohol_detail": self.alcohol or "",
+
+            "tobacco": bool(self.tobacco),
+            "tobacco_detail": self.tobacco or "",
+
+            "pan_chewing": bool(self.pan_chewing),
+            "pan_chewing_detail": self.pan_chewing or "",
+
+            "spicy_foods": bool(self.spicy_foods),
+            "spicy_foods_detail": self.spicy_foods or "",
+
+            "no_habits": bool(self.no_habits),
+
+            "updated_at": (
+                self.updated_at.isoformat()
+                if self.updated_at else None
+            )
+        }
     # ═══════════════════════════════════════════════════════════════
 # MEDICATIONS
 # ═══════════════════════════════════════════════════════════════
@@ -522,6 +624,7 @@ class Visit(db.Model):
 )
 
 # ═══════════════════════════════════════════════════════════════
+# V# ═══════════════════════════════════════════════════════════════
 # VISIT AUDIT
 # ═══════════════════════════════════════════════════════════════
 class VisitAudit(db.Model):
@@ -561,15 +664,16 @@ class VisitAudit(db.Model):
         default=datetime.utcnow
     )
 
-    # Relationship
-    visit = db.relationship(
-        "Visit",
-        backref=db.backref(
-            "audit_logs",
-            lazy=True,
-            cascade="all, delete-orphan"
-        )
-    )
+    # Do NOT define another relationship here.
+    # The relationship is already defined in the Visit model
+    # using:
+    #
+    # audit_logs = db.relationship(
+    #     "VisitAudit",
+    #     backref="visit",
+    #     lazy=True,
+    #     cascade="all, delete-orphan"
+    # )
 # ═══════════════════════════════════════════════════════════════
 #  DENTAL CHART
 # ═══════════════════════════════════════════════════════════════
@@ -634,6 +738,7 @@ class Consultation(db.Model):
     treatment_plan       = db.Column(db.Text)
     treatment_done_today = db.Column(db.Text)
     follow_up_date       = db.Column(db.Date, nullable=True)
+    follow_up_time       = db.Column(db.Text, nullable=True)
     doctor               = db.Column(db.String(100))
     created_at           = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -664,6 +769,7 @@ class Prescription(db.Model):
 
     # ── Follow-up ──
     follow_up_date       = db.Column(db.String(30))
+    follow_up_time       = db.Column(db.String(20))
 
     # ── Status ──
     status               = db.Column(db.String(20), default="confirmed")
@@ -692,6 +798,7 @@ class Prescription(db.Model):
             "treatment_done_today": self.treatment_done_today,
             "medicines":            self.medicines or "[]",
             "follow_up_date":       self.follow_up_date,
+            "follow_up_time":       self.follow_up_time,
             "status":               self.status,
             "doctor":               self.doctor,
             "created_at":           self.created_at.isoformat() if self.created_at else None,
@@ -712,6 +819,11 @@ class Image(db.Model):
     uploaded_by = db.Column(db.String(100))
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
     image_date  = db.Column(db.Date, nullable=True)
+    # NOTE: these two were being set by images.py's upload_image() but were
+    # never declared here — since SQLAlchemy only persists mapped columns,
+    # every uploaded image's actual bytes were silently discarded on save.
+    image_data  = db.Column(db.Text, nullable=True)   # base64-encoded file content
+    mime_type   = db.Column(db.String(50), nullable=True)
 
 
 # ═══════════════════════════════════════════════════════════════

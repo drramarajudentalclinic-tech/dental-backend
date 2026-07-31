@@ -1,25 +1,18 @@
 import os
 from datetime import timedelta
 
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-
 class Config:
-    _db_url = os.getenv(
-        "DATABASE_URL",
-        "postgresql://dental_db_user_main:tcRpSQcFsaph9pi7bFeHdtU0sBnLyrI3@dpg-d77qmi2dbo4c73av3jo0-a/dental_db_malm"
-    )
+    DATABASE_URL = os.getenv("DATABASE_URL")
 
-    if _db_url.startswith("postgres://"):
-        _db_url = _db_url.replace("postgres://", "postgresql://", 1)
+    if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-    # Add SSL if missing
-    if "sslmode=" not in _db_url:
-        if "?" in _db_url:
-            _db_url += "&sslmode=require"
-        else:
-            _db_url += "?sslmode=require"
+    # Local PostgreSQL fix
+    if DATABASE_URL and "localhost" in DATABASE_URL:
+        if "sslmode=" not in DATABASE_URL:
+            DATABASE_URL += "?sslmode=disable"
 
-    SQLALCHEMY_DATABASE_URI = _db_url
+    SQLALCHEMY_DATABASE_URI = DATABASE_URL
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     SECRET_KEY = "clinic-secret"
@@ -30,8 +23,5 @@ class Config:
         "pool_recycle": 300,
         "pool_timeout": 20,
         "pool_size": 5,
-        "max_overflow": 2,
-        "connect_args": {
-            "sslmode": "require"
-        }
+        "max_overflow": 2
     }

@@ -106,7 +106,13 @@ def get_visit(visit_id):
 
         medical = MedicalHistory.query.filter_by(patient_id=patient.id).first()
         allergy = AllergyRecord.query.filter_by(patient_id=patient.id).first()
-        habits = Habit.query.filter_by(patient_id=patient.id).all()
+        # NOTE: Habit is a one-row-per-patient model (see habits.py, which
+        # always does .first()). This used to be .all() + list-wrapped,
+        # which mismatched every sibling relation here (medical/allergy/
+        # women/family_doc/consent all use .first() + a flat dict) and
+        # caused the frontend to receive habits as Array(1) instead of a
+        # flat object, breaking DoctorHabitsSummary's rendering.
+        habits = Habit.query.filter_by(patient_id=patient.id).first()
         women = WomanHistory.query.filter_by(patient_id=patient.id).first()
         family_doc = FamilyDoctor.query.filter_by(patient_id=patient.id).first()
         consent = Consent.query.filter_by(patient_id=patient.id).first()
@@ -162,26 +168,24 @@ def get_visit(visit_id):
                 "other_allergy": "", "no_known_allergies": False,
             },
 
-            "habits": [
-                {
-                    "id": h.id,
-                    "smoking": bool(h.smoking),
-                    "smoking_detail": h.smoking or "",
+            "habits": {
+                "smoking": bool(habits.smoking) if habits else False,
+                "smoking_detail": (habits.smoking or "") if habits else "",
 
-                    "alcohol": bool(h.alcohol),
-                    "alcohol_detail": h.alcohol or "",
+                "alcohol": bool(habits.alcohol) if habits else False,
+                "alcohol_detail": (habits.alcohol or "") if habits else "",
 
-                    "tobacco": bool(h.tobacco),
-                    "tobacco_detail": h.tobacco or "",
+                "tobacco": bool(habits.tobacco) if habits else False,
+                "tobacco_detail": (habits.tobacco or "") if habits else "",
 
-                    "pan_chewing": bool(h.pan_chewing),
-                    "pan_chewing_detail": h.pan_chewing or "",
+                "pan_chewing": bool(habits.pan_chewing) if habits else False,
+                "pan_chewing_detail": (habits.pan_chewing or "") if habits else "",
 
-                    "spicy_foods": bool(h.spicy_foods),
-                    "spicy_foods_detail": h.spicy_foods or "",
-                }
-                for h in habits
-            ],
+                "spicy_foods": bool(habits.spicy_foods) if habits else False,
+                "spicy_foods_detail": (habits.spicy_foods or "") if habits else "",
+
+                "no_habits": bool(habits.no_habits) if habits else False,
+            },
 
             "women": {
                 "pregnant": women.pregnant if women else False,

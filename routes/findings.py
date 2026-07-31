@@ -59,7 +59,7 @@ def add_finding(visit_id):
     if isinstance(data, list):
         created = []
         for item in data:
-            finding_type = item.get("finding_type", "").strip()
+            finding_type = (item.get("finding_type") or "").strip()
             if not finding_type:
                 continue                          # skip rows without a type
             entry = OtherFinding(

@@ -1,9 +1,10 @@
 from dotenv import load_dotenv
+import models
 load_dotenv()
 from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, verify_jwt_in_request
-
+from sqlalchemy import inspect
 import os
 
 from config import Config
@@ -31,7 +32,7 @@ from routes.consent        import consent_bp
 from routes.appointments   import appointments_bp
 from routes.other_expenses import other_expenses_bp, run_other_expense_migrations
 from routes.auth           import auth_bp
-from routes.cbct           import cbct_bp, run_cbct_migrations
+from routes.cbct_backend import cbct_bp, run_cbct_migrations
 
 # ---------------------------
 # Single source of truth for allowed origins
@@ -102,10 +103,19 @@ def protect_all_routes():
         return
 
     # Patient history
+    # NOTE: /history was replaced by /complete-history (see patients.py) —
+    # kept this exemption for any old bookmarked/cached callers, and added
+    # the same exemption for the new route so behavior is unchanged.
     if request.path.startswith("/patients/") and request.path.endswith("/history"):
         return
 
     if request.path.startswith("/api/patients/") and request.path.endswith("/history"):
+        return
+
+    if request.path.startswith("/patients/") and request.path.endswith("/complete-history"):
+        return
+
+    if request.path.startswith("/api/patients/") and request.path.endswith("/complete-history"):
         return
 
     # Receipts
@@ -145,103 +155,65 @@ db.init_app(app)
 with app.app_context():
 
     print("Database connected ✅")
-    # ---------------------------
-    # allergy_records migration
-    # ---------------------------
-    try:
-        db.session.execute(db.text("""
-            ALTER TABLE allergy_records
-            ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP
-        """))
-        db.session.commit()
-        print("✅ allergy_records.updated_at column added")
-    except Exception as e:
-        print("Migration error:", e)
 
-    try:
-        with db.engine.connect() as conn:
-            conn.execute(db.text(
-                'ALTER TABLE "user" ADD COLUMN role VARCHAR(20) DEFAULT \'reception\''
-            ))
-            conn.commit()
-            print("Role column added ✅")
-    except Exception as e:
-        print(f"Role column already exists or skipped: {e}")
+    # Create all tables
+    db.create_all()
 
     print("Running migrations...")
 
+    # Existing migrations
     run_payment_migrations(app)
     run_image_migrations(app)
     run_visit_migrations(app)
     run_other_expense_migrations(app)
     run_cbct_migrations(app)
 
-    # ---------------------------
-    # allergy_records migration
-    # ---------------------------
+    # --------------------------------------------------
+    # Allergy table migration
+    # --------------------------------------------------
     try:
         with db.engine.connect() as conn:
 
-            for col, col_type in [
-                ("type", "VARCHAR(100)"),
-                ("allergen", "VARCHAR(200)"),
-                ("reaction", "TEXT"),
-                ("severity", "VARCHAR(50)"),
-                ("notes", "TEXT"),
+            inspector = inspect(db.engine)
+            existing_columns = [
+                c["name"] for c in inspector.get_columns("allergy_records")
+            ]
+
+            columns = [
+                ("drug_allergy", "BOOLEAN DEFAULT FALSE"),
+                ("food_allergy", "BOOLEAN DEFAULT FALSE"),
+                ("latex_allergy", "BOOLEAN DEFAULT FALSE"),
+                ("iodine_allergy", "BOOLEAN DEFAULT FALSE"),
+                ("anesthesia_allergy", "BOOLEAN DEFAULT FALSE"),
+                ("other_allergy", "TEXT"),
                 ("no_known_allergies", "BOOLEAN DEFAULT FALSE"),
-            ]:
-                try:
+                ("updated_at", "TIMESTAMP"),
+            ]
+
+            for col, col_type in columns:
+                if col not in existing_columns:
                     conn.execute(
                         db.text(
-                            f"ALTER TABLE allergy_records "
-                            f"ADD COLUMN IF NOT EXISTS {col} {col_type}"
+                            f"ALTER TABLE allergy_records ADD COLUMN {col} {col_type}"
                         )
                     )
-                    conn.commit()
-                    print(f"allergy_records.{col} ready")
-                except Exception:
-                    pass
 
-            for old_col in [
-                "drug_allergy",
-                "food_allergy",
-                "latex_allergy",
-                "iodine_allergy",
-                "anesthesia_allergy",
-                "other_allergy",
-            ]:
-                try:
-                    conn.execute(
-                        db.text(
-                            f"ALTER TABLE allergy_records "
-                            f"DROP COLUMN IF EXISTS {old_col}"
-                        )
-                    )
-                    conn.commit()
-                    print(f"allergy_records.{old_col} dropped")
-                except Exception:
-                    pass
-
-            try:
-                conn.execute(
-                    db.text("""
-                        ALTER TABLE allergy_records
-                        DROP CONSTRAINT IF EXISTS allergy_records_patient_id_key
-                    """)
-                )
-                conn.commit()
-                print("allergy_records unique constraint dropped")
-            except Exception:
-                pass
+            conn.commit()
+            print("✅ Allergy migration completed")
 
     except Exception as e:
         print(f"Allergy migration skipped: {e}")
 
-    # ---------------------------
-    # HABITS MIGRATION
-    # ---------------------------
+    # --------------------------------------------------
+    # Habits table migration
+    # --------------------------------------------------
     try:
         with db.engine.connect() as conn:
+
+            inspector = inspect(db.engine)
+            existing_columns = [
+                c["name"] for c in inspector.get_columns("habits")
+            ]
 
             columns = [
                 ("smoking", "TEXT"),
@@ -250,27 +222,22 @@ with app.app_context():
                 ("pan_chewing", "TEXT"),
                 ("spicy_foods", "TEXT"),
                 ("no_habits", "BOOLEAN DEFAULT FALSE"),
-                ("updated_at", "TIMESTAMP")
+                ("updated_at", "TIMESTAMP"),
             ]
 
             for col, dtype in columns:
-                try:
+                if col not in existing_columns:
                     conn.execute(
                         db.text(
-                            f"ALTER TABLE habits "
-                            f"ADD COLUMN IF NOT EXISTS {col} {dtype}"
+                            f"ALTER TABLE habits ADD COLUMN {col} {dtype}"
                         )
                     )
-                    conn.commit()
-                    print(f"habits.{col} ready")
-                except Exception as e:
-                    print(f"habits.{col} error: {e}")
+
+            conn.commit()
+            print("✅ Habits migration completed")
 
     except Exception as e:
         print(f"Habits migration failed: {e}")
-
-    print("DONE ✅")
-
 # ---------------------------
 # REGISTER BLUEPRINTS
 # ---------------------------
@@ -323,3 +290,4 @@ def health():
 # ---------------------------
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
+    

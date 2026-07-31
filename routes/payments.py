@@ -56,21 +56,35 @@ EXCEL_HEADERS = [
 
 
 def _excel_folder(dt: date):
-    month_name = dt.strftime("%B")
-    year       = dt.year
-    month_year = f"{month_name}{year}"
-    if dt.month >= 4:
-        fy = f"FY{dt.year}-{str(dt.year+1)[2:]}"
-    else:
-        fy = f"FY{dt.year-1}-{str(dt.year)[2:]}"
-    folder = os.path.join(RECEIPTS_ROOT, fy, month_year)
-    os.makedirs(folder, exist_ok=True)
-    return folder, month_year
+    """
+    Folder structure now delegates to utils/folders.py, which matches the
+    clinic's actual spec:
+        Receipts/Financial year<FY>/<Month>/Excel/
+        Receipts/Financial year<FY>/<Month>/Pdf/
+    instead of the previous flatter FY2026-27/July2026/ layout (no
+    separate Pdf/Excel subfolders).
+    """
+    from datetime import datetime as _dt
+    from utils.folders import ensure_month_folders
+    ref = _dt(dt.year, dt.month, dt.day) if dt else None
+    month, pdf_dir, excel_dir, _ = ensure_month_folders(base=RECEIPTS_ROOT, for_date=ref)
+    return excel_dir, month
+
+
+def _pdf_folder(dt: date):
+    from datetime import datetime as _dt
+    from utils.folders import ensure_month_folders
+    ref = _dt(dt.year, dt.month, dt.day) if dt else None
+    month, pdf_dir, excel_dir, _ = ensure_month_folders(base=RECEIPTS_ROOT, for_date=ref)
+    return pdf_dir, month
 
 
 def _excel_path(dt: date) -> str:
+    from datetime import datetime as _dt
+    from utils.folders import get_excel_path
     folder, month_year = _excel_folder(dt)
-    return os.path.join(folder, f"{month_year}.xlsx")
+    ref = _dt(dt.year, dt.month, dt.day) if dt else None
+    return get_excel_path(month_year, base=RECEIPTS_ROOT, for_date=ref)
 
 
 def _load_or_create_wb(path: str):
@@ -486,8 +500,9 @@ def _generate_receipt_pdf(payment, treatments: list, visit_data: dict = None) ->
 
 def _save_receipt_pdf(payment, treatments: list, visit_data: dict = None) -> str:
     dt         = _payment_date(payment)
-    folder, _  = _excel_folder(dt)
-    filename   = f"receipt_{payment.receipt_number}_{payment.patient_name.replace(' ', '_')}.pdf"
+    folder, _  = _pdf_folder(dt)
+    safe_name  = (payment.patient_name or "patient").replace(" ", "")
+    filename   = f"{safe_name}.{int(payment.receipt_number):04d}.pdf"
     filepath   = os.path.join(folder, filename)
     pdf_bytes  = _generate_receipt_pdf(payment, treatments, visit_data)
     with open(filepath, "wb") as f:
@@ -1027,3 +1042,36 @@ def run_visit_migrations(app):
                         print(f"[visits migration] {col_name} skipped: {e}")
         finally:
             conn.close()
+
+
+# ══════════════════════════════════════════════════════════════════
+#  DOWNLOAD FULL RECEIPTS ARCHIVE
+#  GET /api/billing/receipts-archive/download
+#
+#  IMPORTANT: RECEIPTS_ROOT is plain local disk. On most hosts (e.g. a
+#  Render web service without a paid persistent-disk add-on) local disk
+#  is wiped on every deploy/restart — every Excel ledger and every PDF
+#  receipt would be lost with no warning. This endpoint at least lets
+#  reception manually download and back up the whole folder structure
+#  before that happens. It is not a substitute for real persistent or
+#  cloud storage (a Render persistent disk, S3/R2/B2, or storing PDFs as
+#  base64 in the DB the way images.py does) — that decision is still
+#  pending and should be made before relying on this in production.
+# ══════════════════════════════════════════════════════════════════
+@payments_bp.route("/billing/receipts-archive/download", methods=["GET"])
+def download_receipts_archive():
+    import shutil
+    import tempfile as _tempfile
+
+    if not os.path.isdir(RECEIPTS_ROOT):
+        return jsonify({"error": "No receipts folder exists yet."}), 404
+
+    tmp_dir = _tempfile.mkdtemp()
+    zip_base = os.path.join(tmp_dir, "receipts_archive")
+    zip_path = shutil.make_archive(zip_base, "zip", RECEIPTS_ROOT)
+
+    return send_file(
+        zip_path,
+        as_attachment=True,
+        download_name=f"receipts_archive_{datetime.now().strftime('%Y-%m-%d')}.zip",
+    )

@@ -163,38 +163,52 @@ def open_visit(visit_id):
     # uselist=False relationships — may be None
     medical = MedicalHistory.query.filter_by(patient_id=patient.id).first()
     woman   = WomanHistory.query.filter_by(patient_id=patient.id).first()
-
+    habits = Habit.query.filter_by(patient_id=patient.id).first()
+    family_doctor = FamilyDoctor.query.filter_by(patient_id=patient.id).first()
+    consent = Consent.query.filter_by(patient_id=patient.id).first()
     # one-to-many — return list
     allergy = AllergyRecord.query.filter_by(patient_id=patient.id).first()
 
     return jsonify({
-        "patient": {
-            "id":          patient.id,
-            "name":        patient.name,
-            "case_number": patient.case_number,
-            "age":         patient.age,
-            "gender":      patient.gender,
-            "mobile":      patient.mobile or "",
-        },
-        # .to_dict() added to MedicalHistory & WomanHistory in models.py
-        "medical_history": medical.to_dict() if medical else None,
-        "woman_history":   woman.to_dict()   if woman   else None,
-        # .to_dict() added to AllergyRecord in models.py
-        "allergies":       allergy.to_dict() if allergy else {
-            "drug_allergy": False, "food_allergy": False, "latex_allergy": False,
-            "iodine_allergy": False, "anesthesia_allergy": False,
-            "other_allergy": "", "no_known_allergies": False,
-        },
-        "visit": {
-            "id":                  visit.id,
-            "date":                visit.visit_date.isoformat() if visit.visit_date else None,
-            "chief_complaint":     visit.chief_complaint    or "",
-            "followup_treatment":  visit.followup_treatment or "",
-            "status":              visit.status,
-        },
-    }), 200
-# ─────────────────────────────────────────────
-# NOTE:
+    "patient": {
+        "id": patient.id,
+        "name": patient.name,
+        "case_number": patient.case_number,
+        "age": patient.age,
+        "gender": patient.gender,
+        "mobile": patient.mobile or "",
+    },
+
+    # These names must match DoctorPatientView.jsx
+    "medical": medical.to_dict() if medical else {},
+
+    "women": woman.to_dict() if woman else {},
+
+    "allergy": allergy.to_dict() if allergy else {
+        "drug_allergy": False,
+        "food_allergy": False,
+        "latex_allergy": False,
+        "iodine_allergy": False,
+        "anesthesia_allergy": False,
+        "other_allergy": "",
+        "no_known_allergies": False,
+    },
+
+    "habits": habits.to_dict() if habits else {},
+
+    "family_doctor": family_doctor.to_dict() if family_doctor else {},
+
+    "consent": consent.to_dict() if consent else {},
+
+    "visit": {
+        "id": visit.id,
+        "date": visit.visit_date.isoformat() if visit.visit_date else None,
+        "chief_complaint": visit.chief_complaint or "",
+        "followup_treatment": visit.followup_treatment or "",
+        "status": visit.status,
+    },
+}), 200
+    # NOTE:
 # "/patients/search" and "/patients/<id>/history" used to be duplicated
 # here. They collided with the routes of the same URL already defined in
 # patients.py (patients_bp: GET /api/patients/search) and were incomplete

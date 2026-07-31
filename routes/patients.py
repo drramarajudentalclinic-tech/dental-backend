@@ -18,6 +18,7 @@ from models import (
     OtherFinding,
     Image,
     Payment,
+    CBCTVolume,
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_, func
@@ -389,6 +390,7 @@ def complete_history(patient_id):
         dental_chart  = DentalChart.query.filter_by(visit_id=visit.id).all()
         findings      = OtherFinding.query.filter_by(visit_id=visit.id).all()
         payments      = Payment.query.filter_by(visit_id=visit.id).all()
+        cbct_volumes  = CBCTVolume.query.filter_by(visit_id=visit.id).order_by(CBCTVolume.uploaded_at.desc()).all()
 
         visit_history.append({
             "visit_id":       visit.id,
@@ -425,6 +427,7 @@ def complete_history(patient_id):
                     "treatment_plan":       c.treatment_plan,
                     "treatment_done_today": c.treatment_done_today,
                     "follow_up_date":       c.follow_up_date.isoformat() if c.follow_up_date else None,
+                    "follow_up_time":       c.follow_up_time,
                     "doctor":               c.doctor,
                 }
                 for c in consultations
@@ -432,15 +435,39 @@ def complete_history(patient_id):
 
             "prescriptions": [p.to_dict() for p in prescriptions],
 
+            # NOTE: images are stored as base64 in Image.image_data and
+            # served via GET /api/images/<id>/data (see images.py) —
+            # image_path is just the original filename, not a loadable
+            # URL. Building the real url/mime_type here so the frontend
+            # can actually render these instead of a broken <img src>.
             "images": [
                 {
                     "id":          i.id,
-                    "image_path":  i.image_path,
+                    "url":         f"/api/images/{i.id}/data",
+                    "mime_type":   getattr(i, "mime_type", None) or "image/jpeg",
                     "image_type":  i.image_type,
                     "description": i.description,
                     "image_date":  i.image_date.isoformat() if i.image_date else None,
                 }
                 for i in images
+            ],
+
+            # Summary only — full slice_data (all axial/coronal/sagittal
+            # base64 images) stays out of this response on purpose; it can
+            # be very large. The dedicated CBCT viewer
+            # (GET /api/cbct/<id>/slices) loads that separately.
+            "cbct_scans": [
+                {
+                    "id":              v.id,
+                    "study_date":      v.study_date or "",
+                    "modality":        v.modality or "CT",
+                    "institution":     v.institution or "",
+                    "num_slices":      v.num_slices,
+                    "uploaded_by":     v.uploaded_by or "",
+                    "uploaded_at":     v.uploaded_at.strftime("%d-%b-%Y %H:%M") if v.uploaded_at else None,
+                    "notes":           v.notes or "",
+                }
+                for v in cbct_volumes
             ],
 
             "payments": [
@@ -688,141 +715,24 @@ def save_medical(patient_id):
     return jsonify({"status": "medical history saved"}), 200
 
 
-# ══════════════════════════════════════════════
-#  SAVE ALLERGIES  (flat checkbox model)
-#  POST/PUT /api/patients/<patient_id>/allergy
-# ══════════════════════════════════════════════
-@patients_bp.route("/<int:patient_id>/allergy", methods=["GET"])
-def get_allergy(patient_id):
-    Patient.query.get_or_404(patient_id)
-    record = AllergyRecord.query.filter_by(patient_id=patient_id).first()
-    if not record:
-        return jsonify({
-            "drug_allergy": False, "food_allergy": False, "latex_allergy": False,
-            "iodine_allergy": False, "anesthesia_allergy": False,
-            "other_allergy": "", "no_known_allergies": False,
-        }), 200
-    return jsonify(record.to_dict()), 200
+# ─────────────────────────────────────────────
+# NOTE: allergies are now saved/read exclusively via allergies.py's
+#   GET/POST/PUT /api/allergies/<patient_id>
+# Same schema, same acknowledgment validation as this route used to have —
+# consolidated here to match the same standalone-blueprint pattern already
+# used for habits.py and women.py, avoiding two blueprints independently
+# writing to the same AllergyRecord row.
+# ─────────────────────────────────────────────
 
 
-@patients_bp.route("/<int:patient_id>/allergy", methods=["POST", "PUT"])
-def save_allergy(patient_id):
-    Patient.query.get_or_404(patient_id)
-    data = request.json or {}
-
-    ALLERGY_FLAGS = [
-        "drug_allergy", "food_allergy", "latex_allergy",
-        "iodine_allergy", "anesthesia_allergy",
-    ]
-
-    has_allergy   = any(to_bool(data.get(f)) for f in ALLERGY_FLAGS)
-    has_other     = bool((data.get("other_allergy") or "").strip())
-    no_known      = to_bool(data.get("no_known_allergies") or data.get("No_Known_Allergies"))
-
-    if not has_allergy and not has_other and not no_known:
-        return jsonify({
-            "error": "Allergy acknowledgement required. "
-                     "Select at least one allergy or confirm no known allergies."
-        }), 400
-
-    record = AllergyRecord.query.filter_by(patient_id=patient_id).first()
-    if not record:
-        record = AllergyRecord(patient_id=patient_id)
-        db.session.add(record)
-
-    if no_known:
-        # Confirmed no allergies — clear all flags
-        for f in ALLERGY_FLAGS:
-            setattr(record, f, False)
-        record.other_allergy      = None
-        record.no_known_allergies = True
-    else:
-        for f in ALLERGY_FLAGS:
-            setattr(record, f, to_bool(data.get(f, False)))
-        record.other_allergy      = (data.get("other_allergy") or "").strip() or None
-        record.no_known_allergies = False
-
-    db.session.commit()
-    return jsonify({"status": "allergies saved"}), 200
-
-
-# ══════════════════════════════════════════════
-#  SAVE HABITS
-#  POST/PUT /api/patients/<patient_id>/habits
-# ══════════════════════════════════════════════
-@patients_bp.route("/<int:patient_id>/habits", methods=["POST", "PUT"])
-def save_habits(patient_id):
-    Patient.query.get_or_404(patient_id)
-
-    data = request.json or {}
-
-    selected_habits = any([
-        data.get("smoking"),
-        data.get("alcohol"),
-        data.get("tobacco"),
-        data.get("pan_chewing"),
-        data.get("spicy_foods"),
-    ])
-
-    no_habits = bool(data.get("no_habits"))
-
-    if not selected_habits and not no_habits:
-        return jsonify({
-            "error": "Please select at least one habit or No Habits."
-        }), 400
-
-    habit = Habit.query.filter_by(patient_id=patient_id).first()
-
-    if not habit:
-        habit = Habit(patient_id=patient_id)
-        db.session.add(habit)
-
-    if no_habits:
-        habit.smoking = None
-        habit.alcohol = None
-        habit.tobacco = None
-        habit.pan_chewing = None
-        habit.spicy_foods = None
-        habit.no_habits = True
-
-    else:
-        habit.smoking = (
-            data.get("smoking_detail")
-            if data.get("smoking")
-            else None
-        )
-
-        habit.alcohol = (
-            data.get("alcohol_detail")
-            if data.get("alcohol")
-            else None
-        )
-
-        habit.tobacco = (
-            data.get("tobacco_detail")
-            if data.get("tobacco")
-            else None
-        )
-
-        habit.pan_chewing = (
-            data.get("pan_chewing_detail")
-            if data.get("pan_chewing")
-            else None
-        )
-
-        habit.spicy_foods = (
-            data.get("spicy_foods_detail")
-            if data.get("spicy_foods")
-            else None
-        )
-
-        habit.no_habits = False
-
-    db.session.commit()
-
-    return jsonify({
-        "status": "habits saved"
-    }), 200
+# ─────────────────────────────────────────────
+# NOTE: habits are now saved/read exclusively via habits.py's
+#   GET/POST/PUT /api/habits/<patient_id>
+# which has the identical mandatory-acknowledgment validation and field
+# mapping as this route used to, plus a GET endpoint this one never had.
+# Removed to avoid two blueprints independently writing to the same
+# Habit row.
+# ─────────────────────────────────────────────
 
 @patients_bp.route("/<int:patient_id>/medications", methods=["GET"])
 def get_medications(patient_id):
@@ -1000,48 +910,18 @@ def delete_medication(patient_id, medication_id):
     return jsonify({
         "status": "Medication deleted"
     })
-# ══════════════════════════════════════════════
-#  SAVE WOMEN HISTORY
-#  POST/PUT /api/patients/<patient_id>/women
-# ══════════════════════════════════════════════
-@patients_bp.route("/<int:patient_id>/women", methods=["POST", "PUT"])
-def save_women_history(patient_id):
-    patient = Patient.query.get_or_404(patient_id)
 
-    if patient.gender != "Female":
-        return jsonify({"error": "Not a female patient"}), 400
-
-    data  = request.json or {}
-
-    no_known  = to_bool(data.get("no_known_women_conditions") or data.get("No_Known_Women_Conditions"))
-    pregnant  = to_bool(data.get("pregnant"))
-    nursing   = to_bool(data.get("nursing_child"))
-
-    if not pregnant and not nursing and not no_known:
-        return jsonify({
-            "error": "Women's health acknowledgement required. "
-                     "Select an applicable condition or confirm none apply."
-        }), 400
-
-    women = WomanHistory.query.filter_by(patient_id=patient_id).first()
-    if not women:
-        women = WomanHistory(patient_id=patient_id)
-        db.session.add(women)
-
-    if no_known:
-        women.pregnant                  = False
-        women.due_date                  = None
-        women.nursing_child             = False
-        women.no_known_women_conditions = True
-    else:
-        women.pregnant                  = pregnant
-        women.due_date                  = parse_date(data.get("due_date")) if pregnant else None
-        women.nursing_child             = nursing
-        women.no_known_women_conditions = False
-
-    db.session.commit()
-    return jsonify({"status": "women history saved"}), 200
-
+# ─────────────────────────────────────────────
+# NOTE: women's history is now saved/read exclusively via women.py's
+#   GET/POST/PUT /api/women/<patient_id>
+# This route used to also try to set women.no_known_women_conditions,
+# a column that doesn't exist on WomanHistory (pregnant/due_date/
+# nursing_child are the only real columns) — a silent no-op. The
+# validation also unconditionally required that phantom flag whenever
+# both pregnant and nursing were false, which would have rejected every
+# legitimate "not pregnant, not nursing" answer once a frontend actually
+# sent the required keys. women.py's version fixes both issues.
+# ─────────────────────────────────────────────
 
 # ══════════════════════════════════════════════
 #  SAVE FAMILY DOCTOR
