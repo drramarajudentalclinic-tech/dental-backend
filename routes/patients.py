@@ -792,34 +792,22 @@ def add_medication(patient_id):
             "error": "Medicine Name is required."
         }), 400
 
-    if not data.get("frequency"):
-        return jsonify({
-            "error": "Frequency is required."
-        }), 400
-
-    if not data.get("duration"):
-        return jsonify({
-            "error": "Duration is required."
-        }), 400
-
-    if not data.get("purpose"):
-        return jsonify({
-            "error": "Purpose is required."
-        }), 400
+    # Frequency, Duration and Purpose are optional — only validated against
+    # the allowed dropdown values when the reception staff actually picks one.
 # -----------------------------
-# Dropdown Validation
+# Dropdown Validation (only when a value is provided)
 # -----------------------------
-    if data.get("frequency") not in VALID_FREQUENCIES:
+    if data.get("frequency") and data.get("frequency") not in VALID_FREQUENCIES:
         return jsonify({
             "error": "Invalid frequency"
         }), 400
 
-    if data.get("duration") not in VALID_DURATIONS:
+    if data.get("duration") and data.get("duration") not in VALID_DURATIONS:
         return jsonify({
             "error": "Invalid duration"
         }), 400
 
-    if data.get("purpose") not in VALID_PURPOSES:
+    if data.get("purpose") and data.get("purpose") not in VALID_PURPOSES:
         return jsonify({
             "error": "Invalid purpose"
         }), 400
