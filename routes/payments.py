@@ -1368,6 +1368,23 @@ def run_visit_migrations(app):
                 # able to find it again via search by name/mobile/case no.
                 ("billing_closed",    "ALTER TABLE visits ADD COLUMN billing_closed BOOLEAN DEFAULT FALSE"),
                 ("billing_closed_at", "ALTER TABLE visits ADD COLUMN billing_closed_at TIMESTAMP"),
+                # Visit ownership / assignment
+                ("created_by",      "ALTER TABLE visits ADD COLUMN created_by VARCHAR(100)"),
+                ("assigned_doctor", "ALTER TABLE visits ADD COLUMN assigned_doctor VARCHAR(100)"),
+                # Billing instructions / follow-up
+                ("followup_treatment",     "ALTER TABLE visits ADD COLUMN followup_treatment TEXT"),
+                ("treatment_type",         "ALTER TABLE visits ADD COLUMN treatment_type VARCHAR(150)"),
+                ("estimated_charges",      "ALTER TABLE visits ADD COLUMN estimated_charges FLOAT DEFAULT 0.0"),
+                ("amount_collected_today", "ALTER TABLE visits ADD COLUMN amount_collected_today FLOAT DEFAULT 0.0"),
+                ("reception_notes",        "ALTER TABLE visits ADD COLUMN reception_notes TEXT"),
+                ("next_appointment",       "ALTER TABLE visits ADD COLUMN next_appointment DATE"),
+                # Visit closing
+                ("closed_at", "ALTER TABLE visits ADD COLUMN closed_at TIMESTAMP"),
+                ("closed_by", "ALTER TABLE visits ADD COLUMN closed_by VARCHAR(100)"),
+                # Visit reopening
+                ("reopened_at",   "ALTER TABLE visits ADD COLUMN reopened_at TIMESTAMP"),
+                ("reopened_by",   "ALTER TABLE visits ADD COLUMN reopened_by VARCHAR(100)"),
+                ("reopen_reason", "ALTER TABLE visits ADD COLUMN reopen_reason TEXT"),
             ]
             for col_name, sql in migrations:
                 if col_name not in cols:
