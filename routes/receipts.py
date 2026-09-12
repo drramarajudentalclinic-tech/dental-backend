@@ -35,7 +35,7 @@ def generate_receipt(payment_id):
     paid = float(payment.paid_amount or 0)
     fee  = float(getattr(payment, "total_fee",   None) or paid)
     disc = float(getattr(payment, "discount",    None) or 0)
-    bal  = float(getattr(payment, "balance_due", None) or 0)
+    bal  = float(getattr(payment, "balance", None) or 0)
 
     receipt_data = {
         "date":           datetime.now().strftime("%d-%b-%Y"),
@@ -92,19 +92,20 @@ def preview_receipt(receipt_no):
     import json as _json
 
     raw_treatments = payment.treatment_description or ""
-
+    billing_meta = {}
     try:
-        treatments_list = _json.loads(raw_treatments)
-        if not isinstance(treatments_list, list):
-            treatments_list = [{
-                "description": raw_treatments,
-                "amount": float(payment.paid_amount or 0)
-            }]
+        parsed = _json.loads(raw_treatments)
+        if isinstance(parsed, dict) and parsed.get("schema") == "billing_v2":
+            billing_meta = parsed
+            treatments_list = parsed.get("treatments") or []
+        elif isinstance(parsed, list):
+            treatments_list = [x for x in parsed if isinstance(x, dict) and not x.get("_meta")]
+        else:
+            treatments_list = []
     except Exception:
-        treatments_list = [{
-            "description": raw_treatments,
-            "amount": float(payment.paid_amount or 0)
-        }]
+        treatments_list = []
+    if not treatments_list:
+        treatments_list = [{"description": raw_treatments, "amount": float(payment.paid_amount or 0)}]
 
     # ✅ FIX 1: ALWAYS DEFINE OUTSIDE TRY/EXCEPT
     rows_html = ""
@@ -141,7 +142,7 @@ def preview_receipt(receipt_no):
         """
 
     paid_total = float(payment.paid_amount or 0)
-    bal_due    = float(getattr(payment, "balance_due", None) or 0)
+    bal_due    = float(getattr(payment, "balance", None) or 0)
 
     words = _rupees_in_words(paid_total)
     amount_in_words = f"Rupees {words} Only"
@@ -177,6 +178,7 @@ def preview_receipt(receipt_no):
         amount_in_words=amount_in_words,
         method=payment.payment_method,
     )
+
 
     return html, 200, {"Content-Type": "text/html"}
 # -----------------------------
@@ -427,7 +429,7 @@ table.treat tbody td.amt { text-align: right; white-space: nowrap; }
     <div class="header-text">
         <h2>Sri Satya Sai Oral Health Center &amp; Dental Clinic</h2>
         <p><span class="lbl">Address:</span> G-15, Rajnigandha Apartments, Chaitanyapuri, Hyderabad - 500060</p>
-        <p><span class="lbl">Ph:</span> 040-66718100 &nbsp;|&nbsp; 9949094449</p>
+        <p><span class="lbl">Ph:</span> 9908894449 &nbsp;|&nbsp; 9949094449</p>
     </div>
 </div>
 <hr class="divider-blue" />

@@ -193,7 +193,7 @@ def generate_receipt_pdf(path: str, data: dict):
           [Paragraph("Sri Satya Sai Oral Health Center &amp; Dental Clinic", st_clinic_name),
            Spacer(1, 2),
            Paragraph("Address: G-15, Rajnigandha Apartments, Chaitanyapuri, Hyderabad - 500060", st_clinic_sub),
-           Paragraph("Ph: 040-66718100 | 9949094449", st_clinic_sub)]]],
+           Paragraph("Ph: 9908894449| 9949094449", st_clinic_sub)]]],
         colWidths=[26 * mm, W - 26 * mm],
     )
     hdr.setStyle(TableStyle([

@@ -10,6 +10,7 @@ from models import (
     WomanHistory,
     AllergyRecord,
     Habit,
+    Medication,
     FamilyDoctor,
     Consent,
     Consultation,
@@ -24,12 +25,15 @@ from models import (
 
 doctor_bp = Blueprint("doctor", __name__)
 
+from auth_utils import require_role, require_login
+
 
 # ─────────────────────────────────────────────
 # GET OPEN VISITS
 # GET /api/doctor/visits
 # ─────────────────────────────────────────────
 @doctor_bp.route("/doctor/visits", methods=["GET"])
+@require_login
 def get_doctor_visits():
 
     visits = (
@@ -79,6 +83,8 @@ def get_doctor_visits():
 
             "chief_complaint": visit.chief_complaint,
 
+            "followup_treatment": visit.followup_treatment,
+
             "status": visit.status,
 
             "assigned_doctor": visit.assigned_doctor,
@@ -103,6 +109,7 @@ def get_doctor_visits():
 # ══════════════════════════════════════════════
 
 @doctor_bp.route("/doctor/visit/<int:visit_id>/start", methods=["POST"])
+@require_role("doctor")
 def start_visit(visit_id):
 
     visit = Visit.query.get_or_404(visit_id)
@@ -156,6 +163,7 @@ def start_visit(visit_id):
 # GET /api/doctor/visit/<visit_id>
 # ─────────────────────────────────────────────
 @doctor_bp.route("/doctor/visit/<int:visit_id>", methods=["GET"])
+@require_login
 def open_visit(visit_id):
     visit   = Visit.query.get_or_404(visit_id)
     patient = Patient.query.get_or_404(visit.patient_id)
@@ -166,8 +174,17 @@ def open_visit(visit_id):
     habits = Habit.query.filter_by(patient_id=patient.id).first()
     family_doctor = FamilyDoctor.query.filter_by(patient_id=patient.id).first()
     consent = Consent.query.filter_by(patient_id=patient.id).first()
-    # one-to-many — return list
-    allergy = AllergyRecord.query.filter_by(patient_id=patient.id).first()
+    # AllergyRecord and Medication are both patient_id-indexed multi-row
+    # models (one row per allergy / per medication) — must use .all(),
+    # not .first(), or all but one row silently disappears.
+    allergies = (AllergyRecord.query
+                 .filter_by(patient_id=patient.id)
+                 .order_by(AllergyRecord.id.asc())
+                 .all())
+    medications = (Medication.query
+                   .filter_by(patient_id=patient.id)
+                   .order_by(Medication.medicine_name)
+                   .all())
 
     return jsonify({
     "patient": {
@@ -184,15 +201,11 @@ def open_visit(visit_id):
 
     "women": woman.to_dict() if woman else {},
 
-    "allergy": allergy.to_dict() if allergy else {
-        "drug_allergy": False,
-        "food_allergy": False,
-        "latex_allergy": False,
-        "iodine_allergy": False,
-        "anesthesia_allergy": False,
-        "other_allergy": "",
-        "no_known_allergies": False,
+    "allergy": {
+        "rows": [a.to_dict() for a in allergies]
     },
+
+    "medications": [m.to_dict() for m in medications],
 
     "habits": habits.to_dict() if habits else {},
 

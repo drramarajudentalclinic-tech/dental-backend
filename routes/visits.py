@@ -7,6 +7,7 @@ from models import (
     MedicalHistory,
     AllergyRecord,
     Habit,
+    Medication,
     WomanHistory,
     FamilyDoctor,
     Consent,
@@ -73,10 +74,23 @@ def create_visit():
             "message":        "Patient already has an active visit.",
         }), 200
 
+    # `data.get("chief_complaint") or patient.chief_complaint` used to treat an
+    # intentionally-empty chief complaint (e.g. a follow-up visit, where
+    # `followup_treatment` carries the reason instead) the same as the field
+    # being omitted entirely — an empty string is falsy in Python, so `or`
+    # silently substituted the patient's original on-file complaint. Checking
+    # for the key's presence keeps that fallback only for callers who don't
+    # send the field at all, while a deliberate "" (as Reception's follow-up
+    # flow sends) stays blank.
+    if "chief_complaint" in data:
+        chief_complaint = data.get("chief_complaint") or ""
+    else:
+        chief_complaint = patient.chief_complaint
+
     visit = Visit(
         patient_id=patient.id,
         visit_date=datetime.utcnow(),
-        chief_complaint=data.get("chief_complaint") or patient.chief_complaint,
+        chief_complaint=chief_complaint,
         followup_treatment=data.get("followup_treatment"),
         status="CREATED",
         created_by=data.get("created_by", "Reception"),
@@ -105,7 +119,21 @@ def get_visit(visit_id):
         patient = Patient.query.get_or_404(visit.patient_id)
 
         medical = MedicalHistory.query.filter_by(patient_id=patient.id).first()
-        allergy = AllergyRecord.query.filter_by(patient_id=patient.id).first()
+        # AllergyRecord is patient_id-indexed multi-row (one row per
+        # allergy), same as the dedicated GET /allergies/<patient_id>
+        # route — unlike Habit/MedicalHistory/Women/FamilyDoctor/Consent
+        # below, which really are one-row-per-patient. Must use .all()
+        # here or every allergy but the first silently disappears.
+        allergies = (AllergyRecord.query
+                     .filter_by(patient_id=patient.id)
+                     .order_by(AllergyRecord.id.asc())
+                     .all())
+        # Medication is likewise patient_id-indexed multi-row (one row per
+        # medication) — same reasoning as allergies above.
+        medications = (Medication.query
+                       .filter_by(patient_id=patient.id)
+                       .order_by(Medication.medicine_name)
+                       .all())
         # NOTE: Habit is a one-row-per-patient model (see habits.py, which
         # always does .first()). This used to be .all() + list-wrapped,
         # which mismatched every sibling relation here (medical/allergy/
@@ -117,11 +145,13 @@ def get_visit(visit_id):
         family_doc = FamilyDoctor.query.filter_by(patient_id=patient.id).first()
         consent = Consent.query.filter_by(patient_id=patient.id).first()
 
-        chief_complaint = (
-            visit.chief_complaint
-            if visit.chief_complaint and visit.chief_complaint.strip()
-            else (patient.chief_complaint or "")
-        )
+        # NOTE: this used to fall back to patient.chief_complaint whenever
+        # visit.chief_complaint was blank — but a blank chief_complaint on a
+        # visit can be intentional (e.g. a follow-up visit, where
+        # followup_treatment is the actual reason for the visit). Falling
+        # back here would keep masking that even after create_visit() stores
+        # the intentional blank correctly. Show the visit's own value as-is.
+        chief_complaint = visit.chief_complaint or ""
 
         status = (visit.status or "open").lower()
 
@@ -162,11 +192,11 @@ def get_visit(visit_id):
 
             "medical": row_to_dict(medical, ["id", "patient_id", "updated_at"]),
 
-            "allergy": allergy.to_dict() if allergy else {
-                "drug_allergy": False, "food_allergy": False, "latex_allergy": False,
-                "iodine_allergy": False, "anesthesia_allergy": False,
-                "other_allergy": "", "no_known_allergies": False,
+            "allergy": {
+                "rows": [a.to_dict() for a in allergies]
             },
+
+            "medications": [m.to_dict() for m in medications],
 
             "habits": {
                 "smoking": bool(habits.smoking) if habits else False,

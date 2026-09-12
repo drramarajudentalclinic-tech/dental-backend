@@ -11,7 +11,7 @@ Features:
   • GET    /billing/closed-visits        — visits ready for billing
 
 Excel columns (updated):
-    date, receipt_no, name, case_no, mobile, advice, treatment_plan,
+    date, receipt_no, name, case_no, mobile, treatment_plan,
     treatment_description, all_treatment_costs, discount, amount_paid,
     payment_method, balance
 
@@ -25,8 +25,129 @@ import os, io, json
 
 from database import db
 from models import Payment, Visit, Patient
+try:
+    # billing_ledger.py lives inside the routes package.
+    from routes.billing_ledger import (
+        PatientAccount, BillingCharge, PaymentAllocation,
+        get_or_create_account, charge_outstanding,
+        ensure_billing_ledger, migrate_legacy_payments,
+    )
+except ImportError:
+    # Fallback for environments that import this module with routes/ on sys.path.
+    from billing_ledger import (
+        PatientAccount, BillingCharge, PaymentAllocation,
+        get_or_create_account, charge_outstanding,
+        ensure_billing_ledger, migrate_legacy_payments,
+    )
 
 payments_bp = Blueprint("payments", __name__)
+
+_FINAL_LEDGER_READY = False
+
+def _ensure_final_ledger():
+    global _FINAL_LEDGER_READY
+    if _FINAL_LEDGER_READY:
+        return
+    try:
+        ensure_billing_ledger(current_app)
+        migrate_legacy_payments()
+        _FINAL_LEDGER_READY = True
+    except Exception as exc:
+        db.session.rollback()
+        print(f"[billing ledger] initialization skipped: {exc}")
+
+def _patient_for_payment_final(payment):
+    if getattr(payment, "visit_id", None):
+        visit = Visit.query.get(payment.visit_id)
+        if visit and getattr(visit, "patient_id", None):
+            return Patient.query.get(visit.patient_id)
+    if payment.case_number:
+        p = Patient.query.filter_by(case_number=payment.case_number).first()
+        if p: return p
+    if payment.mobile:
+        p = Patient.query.filter_by(mobile=payment.mobile).first()
+        if p: return p
+    return None
+
+def _ledger_summary(case_number=None, mobile=None, exclude_payment_id=None):
+    _ensure_final_ledger()
+    patient = Patient.query.filter_by(case_number=str(case_number)).first() if case_number else None
+    if not patient and mobile:
+        patient = Patient.query.filter_by(mobile=str(mobile)).first()
+    if not patient:
+        return None, [], 0.0
+    account = PatientAccount.query.filter_by(patient_id=patient.id).first()
+    if not account:
+        return None, [], 0.0
+    charges = BillingCharge.query.filter_by(account_id=account.id).order_by(BillingCharge.created_at.asc(), BillingCharge.id.asc()).all()
+    rows=[]; total=0.0
+    for c in charges:
+        q=db.session.query(db.func.coalesce(db.func.sum(PaymentAllocation.amount),0.0)).filter(PaymentAllocation.charge_id==c.id)
+        if exclude_payment_id:
+            q=q.filter(PaymentAllocation.payment_id!=int(exclude_payment_id))
+        paid=float(q.scalar() or 0)
+        due=max(float(c.net_amount or 0)-paid,0.0)
+        if due<=0.009: continue
+        rows.append({"visit_id":c.visit_id,"date":c.created_at.date().isoformat() if c.created_at else None,"patient_name":patient.name,"case_number":patient.case_number,"mobile":patient.mobile,"charges":float(c.net_amount or 0),"allocated":paid,"balance":round(due,2),"treatments":[c.description],"legacy":c.status=="LEGACY","charge_id":c.id})
+        total+=due
+    return account, rows, round(total,2)
+
+def _finalize_v2_ledger(payment, meta, data):
+    _ensure_final_ledger()
+    patient=_patient_for_payment_final(payment)
+    if not patient:
+        return
+    account=get_or_create_account(patient)
+    for a in PaymentAllocation.query.filter_by(payment_id=payment.id).all():
+        db.session.delete(a)
+    for c in BillingCharge.query.filter_by(origin_payment_id=payment.id).all():
+        db.session.delete(c)
+    db.session.flush()
+    new_charges=[]
+    raw_treatments=[t for t in meta.get("treatments",[]) if float(t.get("amount",0) or 0)>0]
+    raw_total=sum(float(t.get("amount",0) or 0) for t in raw_treatments)
+    discount_left=min(float(meta.get("discount",0) or 0),raw_total)
+    for idx,t in enumerate(raw_treatments):
+        desc=(t.get("description") or "").strip()
+        amount=float(t.get("amount",0) or 0)
+        notes=""
+        if "\n" in desc:
+            desc,notes=desc.split("\n",1)
+        if idx == len(raw_treatments)-1:
+            row_discount=discount_left
+        else:
+            row_discount=round(discount_left*(amount/raw_total),2) if raw_total else 0.0
+            row_discount=min(row_discount,discount_left)
+        discount_left=round(discount_left-row_discount,2)
+        net=max(amount-row_discount,0.0)
+        charge=BillingCharge(account_id=account.id,patient_id=patient.id,visit_id=payment.visit_id,description=desc,notes=notes,amount=amount,discount=row_discount,net_amount=net,status="OPEN",origin_payment_id=payment.id)
+        db.session.add(charge); db.session.flush(); new_charges.append(charge)
+    remaining=float(payment.paid_amount or 0)
+    for a in meta.get("allocations",[]):
+        if a.get("source")=="new_treatment" or float(a.get("amount",0) or 0)<=0: continue
+        visit_id=a.get("visit_id")
+        requested_charge_id=a.get("charge_id")
+        amount=min(float(a.get("amount",0) or 0),remaining)
+        if requested_charge_id:
+            charges=BillingCharge.query.filter_by(id=int(requested_charge_id),account_id=account.id).all()
+        else:
+            charges=BillingCharge.query.filter_by(account_id=account.id,visit_id=visit_id).order_by(BillingCharge.created_at.asc(),BillingCharge.id.asc()).all()
+        for c in charges:
+            if amount<=0 or remaining<=0: break
+            due=charge_outstanding(c.id); take=min(amount,due,remaining)
+            if take>0:
+                db.session.add(PaymentAllocation(payment_id=payment.id,charge_id=c.id,amount=round(take,2),allocation_type="OLD_BALANCE"))
+                amount-=take; remaining-=take
+    for c in new_charges:
+        if remaining<=0: break
+        take=min(remaining,charge_outstanding(c.id))
+        if take>0:
+            db.session.add(PaymentAllocation(payment_id=payment.id,charge_id=c.id,amount=round(take,2),allocation_type="NEW_TREATMENT"))
+            remaining-=take
+    if remaining>0.009:
+        raise ValueError("Payment is greater than the current account due. Please record the excess as an advance/credit instead of losing it.")
+    db.session.commit()
+
 
 # ── Embedded images (base64) — no external file dependency ──
 import base64 as _b64, tempfile as _tmp
@@ -48,12 +169,19 @@ def _img_from_b64(b64_str, width, height):
 #  EXCEL HELPERS
 # ══════════════════════════════════════════════════════════════════
 EXCEL_HEADERS = [
-    "date", "receipt_no", "name", "case_no", "mobile",
-    "advice", "treatment_plan", "treatment_description",
-    "all_treatment_costs", "discount", "amount_paid",
-    "payment_method", "balance",
+    "date",
+    "receipt_no",
+    "name",
+    "case_no",
+    "mobile",
+    "treatment_plan",
+    "treatment_description",
+    "all_treatment_costs",
+    "discount",
+    "amount_paid",
+    "payment_method",
+    "balance",
 ]
-
 
 def _excel_folder(dt: date):
     """
@@ -110,7 +238,7 @@ def _load_or_create_wb(path: str):
                 right=Side(style="thin", color="FFFFFF"),
             )
         ws.row_dimensions[1].height = 22
-        widths = [12, 10, 22, 12, 14, 28, 28, 38, 20, 10, 12, 16, 12]
+        widths = [12, 10, 22, 12, 14, 28, 38, 20, 10, 12, 16, 12]
         for i, w in enumerate(widths, 1):
             ws.column_dimensions[get_column_letter(i)].width = w
     return wb, ws
@@ -135,7 +263,6 @@ def _build_excel_row(payment, visit_data: dict, treatments: list):
         payment.patient_name,
         payment.case_number,
         payment.mobile,
-        visit_data.get("advice", ""),
         visit_data.get("treatment_plan", ""),
         _flat_treatment_names(treatments),
         _treatment_costs_str(treatments),
@@ -147,10 +274,23 @@ def _build_excel_row(payment, visit_data: dict, treatments: list):
 
 
 def _flat_treatment_names(treatments: list) -> str:
-    return ", ".join(
-        (t.get("description") or "").split("\n")[0].strip()
-        for t in treatments if t.get("description")
-    )
+    """Treatment name plus any extra line(s) (e.g. tooth number typed as
+    'irt 22') for the Excel treatment_description column. The first line
+    is the treatment name; any further lines — usually the tooth number —
+    are appended in parentheses so they're not silently dropped."""
+    parts = []
+    for t in treatments:
+        desc = (t.get("description") or "").strip()
+        if not desc:
+            continue
+        lines = [l.strip() for l in desc.split("\n") if l.strip()]
+        if not lines:
+            continue
+        if len(lines) > 1:
+            parts.append(f"{lines[0]} ({' '.join(lines[1:])})")
+        else:
+            parts.append(lines[0])
+    return ", ".join(parts)
 
 
 def _append_excel_row(payment, visit_data: dict, treatments: list):
@@ -256,6 +396,7 @@ def _generate_receipt_pdf(payment, treatments: list, visit_data: dict = None) ->
     from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 
     visit_data = visit_data or {}
+    meta = _billing_meta(payment)
     W, H = A4
     LM = RM = 20 * mm
     CW = W - LM - RM
@@ -299,7 +440,7 @@ def _generate_receipt_pdf(payment, treatments: list, visit_data: dict = None) ->
             Spacer(1, 1.5*mm),
             Paragraph('<b>Address:</b> G-15, Rajnigandha Apartments, Chaitanyapuri, Hyderabad - 500060',
                       sty(9.5, color=gray)),
-            Paragraph('<b>Ph:</b> 040-66718100 &nbsp;|&nbsp; 9949094449',
+            Paragraph('<b>Ph:</b> 9908894449 &nbsp;|&nbsp; 9949094449',
                       sty(9.5, color=gray)),
         ]
     ]]
@@ -350,28 +491,15 @@ def _generate_receipt_pdf(payment, treatments: list, visit_data: dict = None) ->
     ])))
     story.append(Spacer(1, 4*mm))
 
-    # ── Advice / Treatment Plan — skip "visit once in 6 months" boilerplate ──
-    advice = visit_data.get("advice", "") or ""
-    tplan  = visit_data.get("treatment_plan", "") or ""
+    # ── Treatment Plan (Advice is intentionally not printed on the receipt) ──
+    tplan = visit_data.get("treatment_plan", "") or ""
+    filtered_tplan = tplan.strip()
 
-    def _is_footer_text(t):
-        return "visit once in 6 months" in (t or "").strip().lower() or not (t or "").strip()
-
-    filtered_advice = "" if _is_footer_text(advice) else advice
-    filtered_tplan  = tplan.strip()
-
-    if filtered_advice or filtered_tplan:
-        advice_rows = []
-        if filtered_advice:
-            advice_rows.append([
-                Paragraph("<b>Advice</b>",         sty(10, color=gray)),
-                Paragraph(filtered_advice,           sty(10)),
-            ])
-        if filtered_tplan:
-            advice_rows.append([
-                Paragraph("<b>Treatment Plan</b>", sty(10, color=gray)),
-                Paragraph(filtered_tplan,            sty(10)),
-            ])
+    if filtered_tplan:
+        advice_rows = [[
+            Paragraph("<b>Treatment Plan</b>", sty(10, color=gray)),
+            Paragraph(filtered_tplan,            sty(10)),
+        ]]
         story.append(Table(advice_rows, colWidths=[32*mm, CW - 32*mm],
             style=TableStyle([
                 ("TOPPADDING",    (0, 0), (-1, -1), 4),
@@ -393,7 +521,12 @@ def _generate_receipt_pdf(payment, treatments: list, visit_data: dict = None) ->
             fontName="Helvetica-Bold", textColor=colors.white,
             alignment=TA_RIGHT, leading=14)),
     ]]
-    for i, t in enumerate(treatments, 1):
+    receipt_treatments = list(treatments or [])
+    if not receipt_treatments and meta:
+        old_paid_for_receipt = float(meta.get("old_balance_allocated", 0) or 0)
+        if old_paid_for_receipt > 0:
+            receipt_treatments = [{"description": "Previous treatment balance collected", "amount": old_paid_for_receipt}]
+    for i, t in enumerate(receipt_treatments, 1):
         desc = str(t.get("description", "")).replace("\n", "<br/>")
         amt  = float(t.get("amount", 0) or 0)
         rows.append([
@@ -424,27 +557,26 @@ def _generate_receipt_pdf(payment, treatments: list, visit_data: dict = None) ->
     disc     = float(payment.discount or 0)
     fee      = float(payment.fee or total + disc)
     balance  = float(payment.balance or 0)
-
     totals_data = []
-    if disc > 0:
-        totals_data.append([
-            Paragraph("Total Fee:", sty(10, color=gray, align=TA_RIGHT)),
-            Paragraph(f"&#8377; {fee:,.2f}",      sty(10, align=TA_RIGHT)),
-        ])
-        totals_data.append([
-            Paragraph("Discount:", sty(10, color=gray, align=TA_RIGHT)),
-            Paragraph(f"- &#8377; {disc:,.2f}",   sty(10, align=TA_RIGHT)),
-        ])
-    totals_data.append([
-        Paragraph("<b>Total:</b>", sty(12, bold=True, color=navy, align=TA_RIGHT)),
-        Paragraph(f"<b>&#8377; {total:,.2f}</b>",  sty(12, bold=True, color=navy, align=TA_RIGHT)),
-    ])
-    if balance > 0:
-        totals_data.append([
-            Paragraph("Balance Due:", sty(10, color=colors.HexColor("#DC2626"), align=TA_RIGHT)),
-            Paragraph(f"&#8377; {balance:,.2f}",
-                      sty(10, color=colors.HexColor("#DC2626"), align=TA_RIGHT)),
-        ])
+    if meta:
+        old_paid = float(meta.get("old_balance_allocated", 0) or 0)
+        new_paid = float(meta.get("new_treatment_allocated", 0) or 0)
+        new_net  = max(float(meta.get("new_charges", 0) or 0) - disc, 0)
+        totals_data.append([Paragraph("Today's New Treatment:", sty(10, color=gray, align=TA_RIGHT)), Paragraph(f"&#8377; {new_net:,.2f}", sty(10, align=TA_RIGHT))])
+        if disc > 0:
+            totals_data.append([Paragraph("Discount:", sty(10, color=gray, align=TA_RIGHT)), Paragraph(f"- &#8377; {disc:,.2f}", sty(10, align=TA_RIGHT))])
+        if old_paid > 0:
+            totals_data.append([Paragraph("Previous Balance Collected:", sty(10, color=gray, align=TA_RIGHT)), Paragraph(f"&#8377; {old_paid:,.2f}", sty(10, align=TA_RIGHT))])
+        totals_data.append([Paragraph("<b>Amount Received Today:</b>", sty(12, bold=True, color=navy, align=TA_RIGHT)), Paragraph(f"<b>&#8377; {total:,.2f}</b>", sty(12, bold=True, color=navy, align=TA_RIGHT))])
+        if balance > 0:
+            totals_data.append([Paragraph("Account Balance After Payment:", sty(10, color=colors.HexColor("#DC2626"), align=TA_RIGHT)), Paragraph(f"&#8377; {balance:,.2f}", sty(10, color=colors.HexColor("#DC2626"), align=TA_RIGHT))])
+    else:
+        if disc > 0:
+            totals_data.append([Paragraph("Total Fee:", sty(10, color=gray, align=TA_RIGHT)), Paragraph(f"&#8377; {fee:,.2f}", sty(10, align=TA_RIGHT))])
+            totals_data.append([Paragraph("Discount:", sty(10, color=gray, align=TA_RIGHT)), Paragraph(f"- &#8377; {disc:,.2f}", sty(10, align=TA_RIGHT))])
+        totals_data.append([Paragraph("<b>Amount Received:</b>", sty(12, bold=True, color=navy, align=TA_RIGHT)), Paragraph(f"<b>&#8377; {total:,.2f}</b>", sty(12, bold=True, color=navy, align=TA_RIGHT))])
+        if balance > 0:
+            totals_data.append([Paragraph("Balance Due:", sty(10, color=colors.HexColor("#DC2626"), align=TA_RIGHT)), Paragraph(f"&#8377; {balance:,.2f}", sty(10, color=colors.HexColor("#DC2626"), align=TA_RIGHT))])
 
     story.append(Table(totals_data,
         colWidths=[CW - 42*mm, 42*mm],
@@ -457,6 +589,11 @@ def _generate_receipt_pdf(payment, treatments: list, visit_data: dict = None) ->
 
     story.append(HRFlowable(width="100%", thickness=0.6, color=rulecol))
     story.append(Spacer(1, 2.5*mm))
+    if meta:
+        story.append(Paragraph(
+            f"Payment allocation: Previous balance &#8377; {float(meta.get('old_balance_allocated',0) or 0):,.2f} &nbsp;|&nbsp; Today's treatment &#8377; {float(meta.get('new_treatment_allocated',0) or 0):,.2f}",
+            sty(9.5, color=gray)))
+        story.append(Spacer(1, 2*mm))
     story.append(Paragraph(
         f"<b>Amount in Words: Rupees {_num_to_words(total)} Only</b>",
         sty(10, color=gray)))
@@ -537,39 +674,168 @@ def _visit_data(visit_id) -> dict:
     }
 
 
+def _parse_billing_payload(payment):
+    """Return structured billing-v2 metadata, or None for legacy receipts."""
+    raw = payment.treatment_description or ""
+    try:
+        data = json.loads(raw)
+        if isinstance(data, dict) and data.get("schema") == "billing_v2":
+            return data
+    except Exception:
+        pass
+    return None
+
+
 def _parse_treatments(payment) -> list:
-    """Parse treatment_description JSON or fall back to plain string."""
+    """Parse treatment rows from both legacy and billing-v2 receipts."""
+    structured = _parse_billing_payload(payment)
+    if structured:
+        return structured.get("treatments") or []
     try:
         arr = json.loads(payment.treatment_description or "[]")
         if isinstance(arr, list) and arr:
-            return arr
+            return [t for t in arr if isinstance(t, dict) and not t.get("_meta")]
     except Exception:
         pass
     return [{"description": payment.treatment_description or "", "amount": payment.paid_amount}]
 
+
+def _billing_meta(payment):
+    data = _parse_billing_payload(payment)
+    if not data:
+        return None
+    return {
+        "schema": "billing_v2",
+        "version": int(data.get("version", 2) or 2),
+        "allocation_mode": data.get("allocation_mode", "old_first"),
+        "old_balance_before": round(float(data.get("old_balance_before", 0) or 0), 2),
+        "new_charges": round(float(data.get("new_charges", 0) or 0), 2),
+        "discount": round(float(data.get("discount", 0) or 0), 2),
+        "old_balance_allocated": round(float(data.get("old_balance_allocated", 0) or 0), 2),
+        "new_treatment_allocated": round(float(data.get("new_treatment_allocated", 0) or 0), 2),
+        "allocations": data.get("allocations") or [],
+        "treatments": data.get("treatments") or [],
+        "account_balance_after": round(float(data.get("account_balance_after", 0) or 0), 2),
+    }
+
+
+def _normalize_allocation_rows(rows):
+    out=[]
+    for row in rows or []:
+        try: amount=round(float(row.get("amount",0) or 0),2)
+        except Exception: amount=0
+        if amount<=0: continue
+        out.append({
+            "visit_id": row.get("visit_id"),
+            "charge_id": row.get("charge_id"),
+            "amount": amount,
+            "description": (row.get("description") or "Previous treatment balance").strip(),
+            "source": row.get("source","old_balance"),
+        })
+    return out
+
+
+def _account_ledger(case_number=None, mobile=None, exclude_payment_id=None):
+    """Return the final charge/allocation ledger, with legacy fallback."""
+    try:
+        account, ledger_rows, ledger_total = _ledger_summary(case_number, mobile, exclude_payment_id)
+        if account is not None and BillingCharge.query.filter_by(account_id=account.id).count() > 0:
+            return ledger_rows, ledger_total
+    except Exception as exc:
+        db.session.rollback()
+        print(f"[billing ledger] summary fallback: {exc}")
+    query=Payment.query
+    if case_number:
+        query=query.filter(Payment.case_number==str(case_number))
+    elif mobile:
+        query=query.filter(Payment.mobile==str(mobile))
+    if exclude_payment_id:
+        query=query.filter(Payment.id!=int(exclude_payment_id))
+    payments=query.order_by(Payment.created_at.asc(), Payment.id.asc()).all()
+    visits={}; legacy_counts={}
+
+    def ensure(visit_id,p):
+        key=str(visit_id) if visit_id is not None else f"payment-{p.id}"
+        if key not in visits:
+            visits[key]={"visit_id":visit_id,"patient_name":p.patient_name or "","case_number":p.case_number or "","mobile":p.mobile or "","date":(_payment_date(p).isoformat() if _payment_date(p) else None),"charges":0.0,"discount":0.0,"allocated":0.0,"treatments":[],"legacy":False}
+        return visits[key]
+
+    for p in payments:
+        meta=_billing_meta(p)
+        v=ensure(p.visit_id,p)
+        if meta:
+            v["charges"] += max(meta["new_charges"]-meta["discount"],0)
+            v["discount"] += max(meta["discount"],0)
+            v["treatments"].extend(meta["treatments"])
+            for a in _normalize_allocation_rows(meta["allocations"]):
+                target=ensure(a.get("visit_id"),p)
+                target["allocated"] += a["amount"]
+        else:
+            key=str(p.visit_id) if p.visit_id is not None else f"payment-{p.id}"
+            legacy_counts[key]=legacy_counts.get(key,0)+1
+            v["legacy"]=True
+            if legacy_counts[key]==1:
+                v["charges"] += max(float(p.fee or 0)-float(p.discount or 0),0)
+                v["discount"] += max(float(p.discount or 0),0)
+                v["treatments"].extend(_parse_treatments(p))
+            v["allocated"] += float(p.paid_amount or 0)
+
+    rows=[]
+    for v in visits.values():
+        v["charges"]=round(v["charges"],2); v["discount"]=round(v["discount"],2); v["allocated"]=round(v["allocated"],2)
+        v["balance"]=round(max(v["charges"]-v["allocated"],0),2)
+        if v["charges"]>0 or v["balance"]>0: rows.append(v)
+    rows.sort(key=lambda x:(x.get("date") or "",x.get("visit_id") or 0))
+    return rows, round(sum(x["balance"] for x in rows),2)
+
+
+def _build_v2_payload(data):
+    treatments=[]
+    for t in (data.get("treatments") or data.get("new_treatments") or []):
+        desc=(t.get("description") or "").strip()
+        if not desc: continue
+        amount=round(float(t.get("amount",0) or 0),2)
+        if amount<=0: continue
+        notes=(t.get("notes") or "").strip()
+        treatments.append({"description":desc+(f"\n{notes}" if notes else ""),"amount":amount})
+    new_charges=round(sum(t["amount"] for t in treatments),2)
+    discount=round(float(data.get("discount",0) or 0),2)
+    if discount<0 or discount>new_charges: raise ValueError("Discount must be between ₹0 and the new treatment total.")
+    allocations=_normalize_allocation_rows(data.get("old_balance_allocations") or data.get("allocations") or [])
+    paid=round(float(data.get("paid_amount",0) or 0),2)
+    if paid<=0: raise ValueError("Enter an amount received today.")
+    old_alloc=round(sum(a["amount"] for a in allocations if a.get("source")!="new_treatment"),2)
+    new_alloc=round(sum(a["amount"] for a in allocations if a.get("source")=="new_treatment"),2)
+    remaining=round(paid-old_alloc,2)
+    new_due=round(new_charges-discount,2)
+    if new_alloc<=0 and remaining>0:
+        auto_new=min(max(remaining,0),new_due)
+        if auto_new>0:
+            allocations.append({"visit_id":data.get("visit_id"),"amount":auto_new,"description":"Today's new treatment","source":"new_treatment"})
+            new_alloc=round(new_alloc+auto_new,2)
+    allocated=round(old_alloc+new_alloc,2)
+    if abs(allocated-paid)>0.01: raise ValueError("Payment allocation does not equal the amount received.")
+    return {"schema":"billing_v2","version":2,"allocation_mode":data.get("allocation_mode","old_first"),"old_balance_before":round(float(data.get("old_balance_before",0) or 0),2),"new_charges":new_charges,"discount":discount,"old_balance_allocated":old_alloc,"new_treatment_allocated":new_alloc,"allocations":allocations,"treatments":treatments,"account_balance_after":0.0}
 
 
 # ══════════════════════════════════════════════════════════════════
 #  SERIALIZER
 # ══════════════════════════════════════════════════════════════════
 def _serialize(p):
-    dt = _payment_date(p)
+    dt=_payment_date(p)
+    meta=_billing_meta(p)
+    rows, account_balance=_account_ledger(case_number=p.case_number)
+    visit_balance=next((r["balance"] for r in rows if str(r.get("visit_id"))==str(p.visit_id)), float(p.balance or 0))
     return {
-        "id":                    p.id,
-        "visit_id":              p.visit_id,
-        "patient_name":          p.patient_name,
-        "case_number":           p.case_number,
-        "mobile":                p.mobile,
-        "treatment_description": p.treatment_description,
-        "fee":                   p.fee or 0,
-        "discount":              p.discount or 0,
-        "paid_amount":           p.paid_amount or 0,
-        "balance":               p.balance or 0,
-        "payment_method":        p.payment_method,
-        "receipt_number":        p.receipt_number,
-        "payment_date":          dt.strftime("%Y-%m-%d") if dt else None,
-        "created_at":            p.created_at.strftime("%d-%b-%Y %H:%M") if p.created_at else "",
-        "is_partial":            (p.balance or 0) > 0,
+        "id":p.id,"visit_id":p.visit_id,"patient_name":p.patient_name,"case_number":p.case_number,"mobile":p.mobile,
+        "treatment_description":p.treatment_description,"fee":p.fee or 0,"discount":p.discount or 0,"paid_amount":p.paid_amount or 0,
+        "payment_method":p.payment_method,"receipt_number":p.receipt_number,"payment_date":dt.strftime("%Y-%m-%d") if dt else None,
+        "created_at":p.created_at.strftime("%d-%b-%Y %H:%M") if p.created_at else "","balance":round(account_balance,2),
+        "visit_balance":round(visit_balance,2),"account_balance":round(account_balance,2),"is_partial":round(account_balance,2)>0,
+        "is_fully_paid":round(account_balance,2)<=0,"billing_v2":bool(meta),"billing_meta":meta,
+        "old_balance_allocated":meta["old_balance_allocated"] if meta else 0,
+        "new_treatment_allocated":meta["new_treatment_allocated"] if meta else 0,
+        "new_charges":meta["new_charges"] if meta else float(p.fee or 0),
     }
 
 
@@ -588,10 +854,30 @@ def closed_visits():
     from models import Visit, Patient, Consultation, Payment
     from sqlalchemy import func
 
-    visits = (Visit.query
-              .filter(Visit.status.in_(["closed", "CLOSED", "completed", "COMPLETED"]))
-              .order_by(Visit.closed_at.desc())
-              .all())
+    q = (request.args.get("q") or "").strip()
+
+    query = (Visit.query
+             .filter(Visit.status.in_(["closed", "CLOSED", "completed", "COMPLETED"])))
+
+    if q:
+        # Searching (by name / mobile / case number) is how a closed-out
+        # billing entry gets found again, so search looks across every
+        # closed visit regardless of billing_closed state.
+        query = query.join(Patient, Patient.id == Visit.patient_id).filter(
+            or_(
+                Patient.name.ilike(f"%{q}%"),
+                Patient.mobile.ilike(f"%{q}%"),
+                Patient.case_number.ilike(f"%{q}%"),
+            )
+        )
+    else:
+        # Default view: only the active billing queue — visits reception
+        # hasn't closed out yet (via the Close button).
+        query = query.filter(
+            or_(Visit.billing_closed.is_(False), Visit.billing_closed.is_(None))
+        )
+
+    visits = query.order_by(Visit.closed_at.desc()).all()
 
     # Aggregate total paid per visit
     paid_map = {}
@@ -627,6 +913,9 @@ def closed_visits():
         advice         = getattr(v, "advice",         None) or (c.advice               if c else "") or ""
         billing_note   = getattr(v, "billing_note",   None) or ""
 
+        total_paid  = paid_map.get(v.id, 0.0)
+        balance_due = balance_map.get(v.id, 0.0)
+
         result.append({
             "visit_id":       v.id,
             "name":           patient.name,
@@ -641,11 +930,43 @@ def closed_visits():
             "advice":         advice,
             "billing_note":   billing_note,
             "closed_at":      v.closed_at.strftime("%d-%b-%Y") if v.closed_at else "",
-            "total_paid":     paid_map.get(v.id, 0.0),
-            "balance_due":    balance_map.get(v.id, 0.0),
+            "total_paid":     total_paid,
+            "balance_due":    balance_due,
+            "is_fully_paid":  total_paid > 0 and balance_due <= 0,
+            "billing_closed": bool(getattr(v, "billing_closed", False)),
+            "billing_closed_at": (
+                v.billing_closed_at.strftime("%d-%b-%Y %H:%M")
+                if getattr(v, "billing_closed_at", None) else None
+            ),
             "next_appointment": v.next_appointment.isoformat() if getattr(v, "next_appointment", None) else None,
         })
     return jsonify(result)
+
+
+@payments_bp.route("/billing/visits/<int:visit_id>/close", methods=["PUT"])
+def close_billing_visit(visit_id):
+    """Hide a visit from the active billing queue — used both when a
+    patient pays and the receipt has been printed, and when a patient
+    (e.g. a checkup-only visit) doesn't pay at all. Either way, reception
+    clicks Close and the entry disappears from the queue; it can still be
+    found again by searching name / mobile / case number."""
+    from models import Visit
+    visit = Visit.query.get_or_404(visit_id)
+    visit.billing_closed = True
+    visit.billing_closed_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({"status": "closed", "visit_id": visit_id})
+
+
+@payments_bp.route("/billing/visits/<int:visit_id>/reopen", methods=["PUT"])
+def reopen_billing_visit(visit_id):
+    """Bring a closed-out visit back into the active billing queue."""
+    from models import Visit
+    visit = Visit.query.get_or_404(visit_id)
+    visit.billing_closed = False
+    visit.billing_closed_at = None
+    db.session.commit()
+    return jsonify({"status": "reopened", "visit_id": visit_id})
 
 
 @payments_bp.route("/payments/receipts", methods=["GET"])
@@ -797,28 +1118,46 @@ def export_receipts_excel():
 
 @payments_bp.route("/payments/visit/<int:visit_id>", methods=["GET"])
 def list_visit_payments(visit_id):
-    pays = Payment.query.filter_by(visit_id=visit_id).order_by(Payment.created_at.asc()).all()
-    if not pays:
-        return jsonify([])
+    pays=Payment.query.filter_by(visit_id=visit_id).order_by(Payment.created_at.asc(),Payment.id.asc()).all()
+    if not pays: return jsonify([])
+    return jsonify([_serialize(p) for p in pays])
 
-    # Use the fee/discount from the FIRST payment as the canonical net fee for this visit
-    first = pays[0]
-    net_fee = (first.fee or 0) - (first.discount or 0)
 
-    # Recalculate each receipt's balance dynamically:
-    # balance_i = max(net_fee - sum(paid_0..paid_i), 0)
-    # This corrects stale stored balances when later receipts pay off the remainder.
-    cumulative_paid = 0.0
-    result = []
-    for p in pays:
-        cumulative_paid += float(p.paid_amount or 0)
-        computed_balance = max(net_fee - cumulative_paid, 0)
-        serialized = _serialize(p)
-        serialized["balance"]    = round(computed_balance, 2)
-        serialized["is_partial"] = computed_balance > 0
-        result.append(serialized)
+@payments_bp.route("/billing/ledger/migrate", methods=["POST"])
+def migrate_billing_ledger_route():
+    try:
+        _ensure_final_ledger()
+        return jsonify({"status":"ready","message":"Final billing ledger is ready."})
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({"error":str(exc)}),500
 
-    return jsonify(result)
+
+@payments_bp.route("/payments/account-summary", methods=["GET"])
+def account_summary():
+    case_number=(request.args.get("case_number") or "").strip()
+    mobile=(request.args.get("mobile") or "").strip()
+    exclude=request.args.get("exclude_payment_id")
+    if not case_number and not mobile:
+        return jsonify({"error":"case_number or mobile is required"}),400
+    rows,total=_account_ledger(case_number=case_number or None,mobile=mobile or None,exclude_payment_id=exclude or None)
+    grouped={}
+    for r in rows:
+        if r["balance"]<=0: continue
+        key=str(r.get("visit_id")) if r.get("visit_id") is not None else f"row-{len(grouped)}"
+        g=grouped.setdefault(key,{"visit_id":r.get("visit_id"),"date":r.get("date"),"patient_name":r.get("patient_name"),"case_number":r.get("case_number"),"treatments":[],"balance":0.0,"legacy":True})
+        g["balance"]+=float(r.get("balance",0) or 0)
+        g["legacy"]=g["legacy"] and bool(r.get("legacy"))
+        for t in r.get("treatments",[]):
+            if isinstance(t,dict): d=(t.get("description") or "").split("\n")[0].strip()
+            else: d=str(t).split("\n")[0].strip()
+            if d and d not in g["treatments"]: g["treatments"].append(d)
+    outstanding=[]
+    for g in grouped.values():
+        g["balance"]=round(g["balance"],2)
+        outstanding.append(g)
+    outstanding.sort(key=lambda x:(x.get("date") or "",x.get("visit_id") or 0))
+    return jsonify({"case_number":case_number,"mobile":mobile,"total_outstanding":total,"items":outstanding})
 
 
 @payments_bp.route("/payments", methods=["GET"])
@@ -838,67 +1177,61 @@ def search_payments():
 
 @payments_bp.route("/payments", methods=["POST"])
 def create_payment():
-    data = request.get_json(force=True) or {}
-
-    payment_date = None
-    raw_date = data.get("payment_date", "")
-    if raw_date:
-        try:
-            payment_date = datetime.strptime(raw_date, "%Y-%m-%d").date()
-        except ValueError:
-            pass
-    if not payment_date:
-        payment_date = date.today()
-
-    receipt_no = _next_receipt_number()
-
-    payment = Payment(
-        visit_id              = data.get("visit_id"),
-        patient_name          = data.get("patient_name", ""),
-        case_number           = data.get("case_number", ""),
-        mobile                = data.get("mobile", ""),
-        treatment_description = data.get("treatment_description", ""),
-        fee                   = float(data.get("fee", 0) or 0),
-        discount              = float(data.get("discount", 0) or 0),
-        paid_amount           = float(data.get("paid_amount", 0)),
-        payment_method        = data.get("payment_method", "Cash"),
-        receipt_number        = receipt_no,
-        payment_date          = payment_date,
-    )
-    db.session.add(payment)
-    db.session.flush()
-
-    prior      = Payment.query.filter_by(visit_id=payment.visit_id).filter(Payment.id != payment.id).all()
-    prior_paid = sum(p.paid_amount for p in prior)
-    net_fee    = (payment.fee or 0) - (payment.discount or 0)
-    payment.balance = max(net_fee - prior_paid - payment.paid_amount, 0)
-    db.session.commit()
-
-    treatments = data.get("treatments") or _parse_treatments(payment)
-    vdata      = _visit_data(payment.visit_id)
-
-    # Reception may adjust the receipt-facing "Advice" / "Treatment Plan"
-    # wording without touching the doctor's actual clinical record
-    # (Visit/Consultation stay untouched — this only affects what gets
-    # printed on this specific receipt).
-    if data.get("advice"):
-        vdata["advice"] = data["advice"]
-    if data.get("treatment_plan"):
-        vdata["treatment_plan"] = data["treatment_plan"]
-
+    data=request.get_json(force=True) or {}
     try:
-        pdf_path           = _save_receipt_pdf(payment, treatments, vdata)
-        payment.receipt_path = pdf_path
+        payment_date=datetime.strptime(data.get("payment_date"),"%Y-%m-%d").date() if data.get("payment_date") else date.today()
+        receipt_no=_next_receipt_number()
+        is_v2=bool(data.get("billing_v2"))
+        meta=_build_v2_payload(data) if is_v2 else None
+        if is_v2:
+            # Validate old-balance allocations against the account snapshot.
+            rows,total=_account_ledger(case_number=data.get("case_number"))
+            due_by_visit={str(r["visit_id"]):r["balance"] for r in rows}
+            for a in _normalize_allocation_rows(meta["allocations"]):
+                if a.get("source")=="new_treatment": continue
+                if a.get("visit_id") is not None and a["amount"] > due_by_visit.get(str(a["visit_id"]),0)+0.01:
+                    return jsonify({"error":f"Old balance allocation exceeds the outstanding balance for visit {a.get('visit_id')}."}),400
+            treatment_description=json.dumps(meta,ensure_ascii=False)
+            fee=meta["new_charges"]; discount=meta["discount"]
+        else:
+            treatment_description=data.get("treatment_description","")
+            fee=float(data.get("fee",0) or 0); discount=float(data.get("discount",0) or 0)
+
+        payment=Payment(visit_id=data.get("visit_id"),patient_name=data.get("patient_name",""),case_number=data.get("case_number",""),mobile=data.get("mobile",""),treatment_description=treatment_description,fee=fee,discount=discount,paid_amount=float(data.get("paid_amount",0) or 0),payment_method=data.get("payment_method","Cash"),receipt_number=receipt_no,payment_date=payment_date)
+        db.session.add(payment); db.session.flush()
+        if meta:
+            payment.balance=0
+        else:
+            prior=Payment.query.filter_by(visit_id=payment.visit_id).filter(Payment.id!=payment.id).all()
+            prior_paid=sum(float(x.paid_amount or 0) for x in prior)
+            payment.balance=max((payment.fee or 0)-(payment.discount or 0)-prior_paid-payment.paid_amount,0)
         db.session.commit()
-    except Exception as e:
-        print(f"[payments] PDF generation error: {e}")
+        if meta:
+            _finalize_v2_ledger(payment, meta, data)
 
-    try:
-        _append_excel_row(payment, vdata, treatments)
-    except Exception as e:
-        print(f"[payments] Excel write error: {e}")
+        treatments=data.get("treatments") or _parse_treatments(payment)
+        vdata=_visit_data(payment.visit_id)
+        if data.get("advice"): vdata["advice"]=data["advice"]
+        if data.get("treatment_plan"): vdata["treatment_plan"]=data["treatment_plan"]
 
-    return jsonify(_serialize(payment)), 201
+        if meta:
+            # Store the exact post-payment account balance inside the receipt metadata.
+            rows2,total2=_account_ledger(case_number=payment.case_number)
+            meta["account_balance_after"]=round(total2,2)
+            payment.treatment_description=json.dumps(meta,ensure_ascii=False)
+            payment.balance=next((r["balance"] for r in rows2 if str(r["visit_id"])==str(payment.visit_id)),0)
+            db.session.commit()
+
+        try:
+            payment.receipt_path=_save_receipt_pdf(payment,treatments,vdata); db.session.commit()
+        except Exception as e: print(f"[payments] PDF generation error: {e}")
+        try: _append_excel_row(payment,vdata,treatments)
+        except Exception as e: print(f"[payments] Excel write error: {e}")
+        return jsonify(_serialize(payment)),201
+    except ValueError as e:
+        db.session.rollback(); return jsonify({"error":str(e)}),400
+    except Exception as e:
+        db.session.rollback(); print(f"[payments] create error: {e}"); return jsonify({"error":"Could not save payment."}),500
 
 
 @payments_bp.route("/payments/<int:pay_id>/receipt", methods=["GET"])
@@ -923,55 +1256,54 @@ def get_receipt(pay_id):
 
 @payments_bp.route("/payments/<int:pay_id>", methods=["PUT"])
 def edit_payment(pay_id):
-    payment = Payment.query.get_or_404(pay_id)
-    data    = request.get_json(force=True) or {}
-
-    if "treatment_description" in data:
-        payment.treatment_description = data["treatment_description"]
-    if "fee" in data:
-        payment.fee       = float(data["fee"] or 0)
-    if "discount" in data:
-        payment.discount  = float(data["discount"] or 0)
-    if "paid_amount" in data:
-        payment.paid_amount = float(data["paid_amount"])
-    if "payment_method" in data:
-        payment.payment_method = data["payment_method"]
-    if data.get("payment_date"):
-        try:
-            payment.payment_date = datetime.strptime(data["payment_date"], "%Y-%m-%d").date()
-        except ValueError:
-            pass
-
-    prior      = Payment.query.filter_by(visit_id=payment.visit_id).filter(Payment.id != payment.id).all()
-    prior_paid = sum(p.paid_amount for p in prior)
-    net_fee    = (payment.fee or 0) - (payment.discount or 0)
-    payment.balance = max(net_fee - prior_paid - payment.paid_amount, 0)
-    db.session.commit()
-
-    treatments = data.get("treatments") or _parse_treatments(payment)
-    vdata      = _visit_data(payment.visit_id)
-
-    # Same override as create_payment — receipt-copy text only, doctor's
-    # clinical record is untouched.
-    if data.get("advice"):
-        vdata["advice"] = data["advice"]
-    if data.get("treatment_plan"):
-        vdata["treatment_plan"] = data["treatment_plan"]
-
+    payment=Payment.query.get_or_404(pay_id); data=request.get_json(force=True) or {}
     try:
-        if payment.receipt_path and os.path.exists(payment.receipt_path):
-            os.remove(payment.receipt_path)
-        payment.receipt_path = _save_receipt_pdf(payment, treatments, vdata)
+        is_v2=bool(data.get("billing_v2"))
+        if is_v2:
+            meta=_build_v2_payload(data)
+            rows,total=_account_ledger(case_number=payment.case_number,exclude_payment_id=payment.id)
+            due_by_visit={str(r["visit_id"]):r["balance"] for r in rows}
+            for a in _normalize_allocation_rows(meta["allocations"]):
+                if a.get("source")=="new_treatment": continue
+                if a.get("visit_id") is not None and a["amount"]>due_by_visit.get(str(a["visit_id"]),0)+0.01:
+                    return jsonify({"error":"Old balance allocation exceeds the current outstanding balance."}),400
+            payment.treatment_description=json.dumps(meta,ensure_ascii=False)
+            payment.fee=meta["new_charges"]; payment.discount=meta["discount"]
+        elif "treatment_description" in data:
+            payment.treatment_description=data["treatment_description"]
+            payment.fee=float(data.get("fee",payment.fee or 0) or 0)
+            payment.discount=float(data.get("discount",payment.discount or 0) or 0)
+        if "paid_amount" in data: payment.paid_amount=float(data["paid_amount"] or 0)
+        if "payment_method" in data: payment.payment_method=data["payment_method"]
+        if data.get("payment_date"):
+            payment.payment_date=datetime.strptime(data["payment_date"],"%Y-%m-%d").date()
+
+        prior=Payment.query.filter_by(visit_id=payment.visit_id).filter(Payment.id!=payment.id).all()
+        prior_paid=sum(float(x.paid_amount or 0) for x in prior)
+        if not is_v2:
+            payment.balance=max((payment.fee or 0)-(payment.discount or 0)-prior_paid-payment.paid_amount,0)
         db.session.commit()
-    except Exception as e:
-        print(f"[payments] PDF regen error: {e}")
+        if is_v2:
+            _finalize_v2_ledger(payment, meta, data)
 
-    try:
-        _update_excel_row(payment, vdata, treatments)
+        treatments=data.get("treatments") or _parse_treatments(payment); vdata=_visit_data(payment.visit_id)
+        if data.get("advice"): vdata["advice"]=data["advice"]
+        if data.get("treatment_plan"): vdata["treatment_plan"]=data["treatment_plan"]
+        if is_v2:
+            meta=_billing_meta(payment); rows2,total2=_account_ledger(case_number=payment.case_number)
+            meta["account_balance_after"]=round(total2,2); payment.treatment_description=json.dumps(meta,ensure_ascii=False)
+            payment.balance=round(total2,2); db.session.commit()
+        try:
+            if payment.receipt_path and os.path.exists(payment.receipt_path): os.remove(payment.receipt_path)
+            payment.receipt_path=_save_receipt_pdf(payment,treatments,vdata); db.session.commit()
+        except Exception as e: print(f"[payments] PDF regen error: {e}")
+        try: _update_excel_row(payment,vdata,treatments)
+        except Exception as e: print(f"[payments] Excel update error: {e}")
+        return jsonify(_serialize(payment))
+    except ValueError as e:
+        db.session.rollback(); return jsonify({"error":str(e)}),400
     except Exception as e:
-        print(f"[payments] Excel update error: {e}")
-
-    return jsonify(_serialize(payment))
+        db.session.rollback(); print(f"[payments] edit error: {e}"); return jsonify({"error":"Could not update payment."}),500
 
 
 @payments_bp.route("/payments/<int:pay_id>", methods=["DELETE"])
@@ -1026,11 +1358,16 @@ def run_visit_migrations(app):
             insp = inspect(db.engine)
             cols = {c["name"] for c in insp.get_columns("visits")}
             migrations = [
-                ("billing_note",   "ALTER TABLE visits ADD COLUMN billing_note TEXT"),
-                ("treatment_done", "ALTER TABLE visits ADD COLUMN treatment_done TEXT"),
-                ("advice",         "ALTER TABLE visits ADD COLUMN advice TEXT"),
-                ("treatment_plan", "ALTER TABLE visits ADD COLUMN treatment_plan TEXT"),
-                ("diagnosis",      "ALTER TABLE visits ADD COLUMN diagnosis TEXT"),
+                ("billing_note",      "ALTER TABLE visits ADD COLUMN billing_note TEXT"),
+                ("treatment_done",    "ALTER TABLE visits ADD COLUMN treatment_done TEXT"),
+                ("advice",            "ALTER TABLE visits ADD COLUMN advice TEXT"),
+                ("treatment_plan",    "ALTER TABLE visits ADD COLUMN treatment_plan TEXT"),
+                ("diagnosis",         "ALTER TABLE visits ADD COLUMN diagnosis TEXT"),
+                # Lets reception "Close" a visit out of the active billing
+                # queue (whether or not it was ever paid) while still being
+                # able to find it again via search by name/mobile/case no.
+                ("billing_closed",    "ALTER TABLE visits ADD COLUMN billing_closed BOOLEAN DEFAULT FALSE"),
+                ("billing_closed_at", "ALTER TABLE visits ADD COLUMN billing_closed_at TIMESTAMP"),
             ]
             for col_name, sql in migrations:
                 if col_name not in cols:

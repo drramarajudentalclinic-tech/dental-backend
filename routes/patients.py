@@ -24,6 +24,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_, func
 from datetime import datetime, date
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from auth_utils import require_role, require_login, get_current_role
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 
 patients_bp = Blueprint(
     "patients",
@@ -172,10 +174,23 @@ def serialize_patient(p):
 #  GET  /api/patients?search=...
 # ══════════════════════════════════════════════
 @patients_bp.route("", methods=["GET", "POST"])
+@require_login
 def patients():
 
     # ── CREATE ──────────────────────────────────────────────────
+    # Registering a new patient is a Reception (front-desk) workflow —
+    # Doctor can view/search patients via this same route (GET below)
+    # but should not be creating patient records.
     if request.method == "POST":
+        role = get_current_role()
+        print("🔍 DEBUG role received:", repr(role))
+        print("🔍 DEBUG full claims:", get_jwt())
+        if role not in ("reception", "admin"):
+            return jsonify({
+                "error": "Forbidden",
+                "detail": "Only Reception can register new patients."
+            }), 403
+
         data = request.json or {}
 
         print("📥 Patient POST keys:", list(data.keys()))
@@ -281,10 +296,16 @@ def patients():
 #  GET /api/patients/<patient_id>
 # ══════════════════════════════════════════════
 @patients_bp.route("/<int:patient_id>", methods=["GET"])
+@require_login
 def get_patient(patient_id):
     patient    = Patient.query.get_or_404(patient_id)
     medical    = MedicalHistory.query.filter_by(patient_id=patient_id).first()
-    allergy    = AllergyRecord.query.filter_by(patient_id=patient_id).first()
+    # AllergyRecord is patient_id-indexed multi-row (one row per allergy) —
+    # must use .all(), not .first(), or every allergy but one disappears.
+    allergies  = (AllergyRecord.query
+                  .filter_by(patient_id=patient_id)
+                  .order_by(AllergyRecord.id.asc())
+                  .all())
     habit      = Habit.query.filter_by(patient_id=patient_id).first()
     medications = Medication.query.filter_by(
     patient_id=patient_id
@@ -313,11 +334,7 @@ def get_patient(patient_id):
     return jsonify({
         "patient":       serialize_patient(patient),
         "medical":       medical.to_dict() if medical else {},
-        "allergy":       allergy.to_dict() if allergy else {
-            "drug_allergy": False, "food_allergy": False, "latex_allergy": False,
-            "iodine_allergy": False, "anesthesia_allergy": False,
-            "other_allergy": "", "no_known_allergies": False,
-        },
+        "allergy":       {"rows": [a.to_dict() for a in allergies]},
         "habits": {
     "smoking": bool(habit.smoking) if habit else False,
     "smoking_detail": habit.smoking or "" if habit else "",
@@ -352,6 +369,7 @@ def get_patient(patient_id):
 ##########################################################################
 
 @patients_bp.route("/<int:patient_id>/complete-history", methods=["GET"])
+@require_login
 def complete_history(patient_id):
 
     patient = Patient.query.get_or_404(patient_id)
@@ -363,7 +381,10 @@ def complete_history(patient_id):
     consent     = Consent.query.filter_by(patient_id=patient.id).first()
 
     # ── One-to-many records ──
-    allergy     = AllergyRecord.query.filter_by(patient_id=patient.id).first()
+    allergies   = (AllergyRecord.query
+                   .filter_by(patient_id=patient.id)
+                   .order_by(AllergyRecord.id.asc())
+                   .all())
     habits      = Habit.query.filter_by(patient_id=patient.id).all()
     medications = Medication.query.filter_by(patient_id=patient.id, active=True).all()
 
@@ -490,11 +511,7 @@ def complete_history(patient_id):
         "medical_history": medical.to_dict() if medical else None,
         "woman_history":   women.to_dict()   if women   else None,
 
-        "allergies": allergy.to_dict() if allergy else {
-            "drug_allergy": False, "food_allergy": False, "latex_allergy": False,
-            "iodine_allergy": False, "anesthesia_allergy": False,
-            "other_allergy": "", "no_known_allergies": False,
-        },
+        "allergies": {"rows": [a.to_dict() for a in allergies]},
         "habits":    [model_to_dict(h, ["patient_id"]) for h in habits],
 
         "medications": [m.to_dict() for m in medications],
@@ -512,6 +529,7 @@ def complete_history(patient_id):
 #  PUT /api/patients/<patient_id>
 # ══════════════════════════════════════════════
 @patients_bp.route("/<int:patient_id>", methods=["PUT"])
+@require_role("reception")
 def update_patient(patient_id):
     patient = Patient.query.get_or_404(patient_id)
     data    = request.json or {}
@@ -573,6 +591,7 @@ def update_patient(patient_id):
 # ══════════════════════════════════════════════
 
 @patients_bp.route("/<int:patient_id>/create-visit", methods=["POST"])
+@require_login
 def create_visit(patient_id):
 
     patient = Patient.query.get_or_404(patient_id)
@@ -622,6 +641,7 @@ def create_visit(patient_id):
 #  POST/PUT /api/patients/<patient_id>/medical
 # ══════════════════════════════════════════════
 @patients_bp.route("/<int:patient_id>/medical", methods=["POST", "PUT"])
+@require_login
 def save_medical(patient_id):
     Patient.query.get_or_404(patient_id)
     data = request.json or {}
@@ -735,6 +755,7 @@ def save_medical(patient_id):
 # ─────────────────────────────────────────────
 
 @patients_bp.route("/<int:patient_id>/medications", methods=["GET"])
+@require_login
 def get_medications(patient_id):
 
     Patient.query.get_or_404(patient_id)
@@ -755,6 +776,7 @@ def get_medications(patient_id):
 # POST /api/patients/<patient_id>/medications
 # ══════════════════════════════════════════════
 @patients_bp.route("/<int:patient_id>/medications", methods=["POST"])
+@require_role("doctor", "reception")
 def add_medication(patient_id):
 
     # Ensure patient exists
@@ -840,6 +862,7 @@ def add_medication(patient_id):
     }), 201
     
 @patients_bp.route("/<int:patient_id>/medications/<int:medication_id>", methods=["PUT"])
+@require_role("doctor", "reception")
 def update_medication(patient_id, medication_id):
 
     medication = Medication.query.filter_by(
@@ -896,6 +919,7 @@ def update_medication(patient_id, medication_id):
     })
     
 @patients_bp.route("/<int:patient_id>/medications/<int:medication_id>", methods=["DELETE"])
+@require_role("doctor")
 def delete_medication(patient_id, medication_id):
 
     medication = Medication.query.filter_by(
@@ -928,6 +952,7 @@ def delete_medication(patient_id, medication_id):
 #  POST/PUT /api/patients/<patient_id>/family-doctor
 # ══════════════════════════════════════════════
 @patients_bp.route("/<int:patient_id>/family-doctor", methods=["POST", "PUT"])
+@require_role("reception")
 def save_family_doctor(patient_id):
     Patient.query.get_or_404(patient_id)
     data = request.json or {}
@@ -950,6 +975,7 @@ def save_family_doctor(patient_id):
 #  POST/PUT /api/patients/<patient_id>/consent
 # ══════════════════════════════════════════════
 @patients_bp.route("/<int:patient_id>/consent", methods=["POST", "PUT"])
+@require_role("reception")
 def save_consent(patient_id):
     Patient.query.get_or_404(patient_id)
     data = request.json or {}
@@ -973,6 +999,7 @@ def save_consent(patient_id):
 # ══════════════════════════════════════════════
 
 @patients_bp.route("/search", methods=["GET"])
+@require_login
 def search_patients():
 
     q = request.args.get("q", "").strip()

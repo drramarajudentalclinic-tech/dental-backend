@@ -10,6 +10,14 @@ presc_bp = Blueprint("prescription", __name__)
 # so we never hit TypeError on unknown fields
 # ─────────────────────────────────────────────────────────────
 def _safe_data(data: dict, exclude=("id", "visit_id")) -> dict:
+    # The frontend (Reception + Doctor) sends "treatment_done", but the
+    # actual column on the Prescription table is "treatment_done_today".
+    # Without this alias, _safe_data silently drops "treatment_done" on
+    # every create/update since it isn't a recognized column name, so
+    # reception's edits never reach the database.
+    if "treatment_done" in data and "treatment_done_today" not in data:
+        data = {**data, "treatment_done_today": data["treatment_done"]}
+
     valid = {c.key for c in Prescription.__table__.columns} - set(exclude)
     return {k: v for k, v in data.items() if k in valid}
 

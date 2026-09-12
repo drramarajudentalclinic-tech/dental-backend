@@ -1,5 +1,6 @@
 from datetime import datetime
 from database import db
+from sqlalchemy import Numeric
 from werkzeug.security import generate_password_hash, check_password_hash
 
 
@@ -54,20 +55,56 @@ class Patient(db.Model):
     created_at     = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at     = db.Column(db.DateTime, onupdate=datetime.utcnow)
 
-    # Relationships
-    visits         = db.relationship("Visit",         backref="patient", lazy=True)
-    medical        = db.relationship("MedicalHistory",backref="patient", uselist=False)
-    allergies      = db.relationship("AllergyRecord", backref="patient", lazy=True)
-    habits         = db.relationship("Habit",         backref="patient", lazy=True)
-    medications    = db.relationship(
-    "Medication",
-    backref="patient",
-    lazy=True,
-    cascade="all, delete-orphan"
-)
-    women_history  = db.relationship("WomanHistory",  backref="patient", uselist=False)
-    family_doctor  = db.relationship("FamilyDoctor",  backref="patient", uselist=False)
-    consent        = db.relationship("Consent",       backref="patient", uselist=False)
+        # Relationships
+    visits = db.relationship(
+        "Visit",
+        backref="patient",
+        lazy=True
+    )
+
+    medical = db.relationship(
+        "MedicalHistory",
+        backref="patient",
+        uselist=False
+    )
+
+    allergies = db.relationship(
+        "AllergyRecord",
+        back_populates="patient",
+        lazy=True,
+        cascade="all, delete-orphan"
+    )
+
+    habits = db.relationship(
+        "Habit",
+        backref="patient",
+        lazy=True
+    )
+
+    medications = db.relationship(
+        "Medication",
+        backref="patient",
+        lazy=True,
+        cascade="all, delete-orphan"
+    )
+
+    women_history = db.relationship(
+        "WomanHistory",
+        backref="patient",
+        uselist=False
+    )
+
+    family_doctor = db.relationship(
+        "FamilyDoctor",
+        backref="patient",
+        uselist=False
+    )
+
+    consent = db.relationship(
+        "Consent",
+        backref="patient",
+        uselist=False
+    )
 is_active = db.Column(
     db.Boolean,
     default=True
@@ -244,6 +281,11 @@ class MedicalHistory(db.Model):
 #  written to by any route — save_allergy(), get_patient(), and
 #  PatientAllergy.jsx all consistently expect this flag-based shape.
 # ═══════════════════════════════════════════════════════════════
+from datetime import datetime
+# ═══════════════════════════════════════════════════════
+# ALLERGY RECORDS (Multiple rows per patient)
+# ═══════════════════════════════════════════════════════
+
 class AllergyRecord(db.Model):
     __tablename__ = "allergy_records"
 
@@ -252,24 +294,33 @@ class AllergyRecord(db.Model):
     patient_id = db.Column(
         db.Integer,
         db.ForeignKey("patients.id"),
-        unique=True,
-        nullable=False
+        nullable=False,
+        index=True
     )
 
-    drug_allergy = db.Column(db.Boolean, default=False)
-    food_allergy = db.Column(db.Boolean, default=False)
-    latex_allergy = db.Column(db.Boolean, default=False)
-    iodine_allergy = db.Column(db.Boolean, default=False)
-    anesthesia_allergy = db.Column(db.Boolean, default=False)
+    allergy_type = db.Column(
+        db.String(50),
+        nullable=False
+    )
+    # Food
+    # Drug
+    # Latex
+    # Iodine
+    # Anesthesia
+    # Other
 
-    other_allergy = db.Column(db.Text)
-    no_known_allergies = db.Column(db.Boolean, default=False)
+    allergen = db.Column(db.String(255), nullable=False)
 
-    # ⭐ ADD THESE COLUMNS
-    allergen = db.Column(db.String(255))
     reaction = db.Column(db.String(255))
+
     severity = db.Column(db.String(50))
+
     notes = db.Column(db.Text)
+
+    created_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow
+    )
 
     updated_at = db.Column(
         db.DateTime,
@@ -277,22 +328,25 @@ class AllergyRecord(db.Model):
         onupdate=datetime.utcnow
     )
 
-    # ⭐ REPLACE YOUR EXISTING to_dict() WITH THIS
+    patient = db.relationship(
+        "Patient",
+        backref=db.backref(
+            "allergy_records",
+            lazy=True,
+            cascade="all, delete-orphan"
+        )
+    )
+
     def to_dict(self):
         return {
-            "drug_allergy": bool(self.drug_allergy),
-            "food_allergy": bool(self.food_allergy),
-            "latex_allergy": bool(self.latex_allergy),
-            "iodine_allergy": bool(self.iodine_allergy),
-            "anesthesia_allergy": bool(self.anesthesia_allergy),
-            "other_allergy": self.other_allergy or "",
-            "no_known_allergies": bool(self.no_known_allergies),
-
-            # NEW FIELDS
-            "allergen": self.allergen or "",
-            "reaction": self.reaction or "",
-            "severity": self.severity or "",
-            "notes": self.notes or "",
+            "id": self.id,
+            "patient_id": self.patient_id,
+            "type": self.allergy_type,
+            "allergen": self.allergen,
+            "reaction": self.reaction,
+            "severity": self.severity,
+            "notes": self.notes,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }
 # ═══════════════════════════════════════════════════════════════
 # ═══════════════════════════════════════════════════════════════
@@ -559,6 +613,24 @@ class Visit(db.Model):
     )
 
     # -----------------------------
+    # Billing Queue Visibility
+    # Lets reception hide a visit from the active billing queue — whether
+    # or not it was ever paid — while still being able to find it again
+    # by searching name / mobile / case number. Column added via the
+    # migration in payments.py (run_visit_migrations).
+    # -----------------------------
+    billing_closed = db.Column(
+        db.Boolean,
+        default=False,
+        nullable=True
+    )
+
+    billing_closed_at = db.Column(
+        db.DateTime,
+        nullable=True
+    )
+
+    # -----------------------------
     # Relationships
     # -----------------------------
     cbct_files = db.relationship(
@@ -796,6 +868,11 @@ class Prescription(db.Model):
             "diagnosis":            self.diagnosis,
             "advice":               self.advice,
             "treatment_done_today": self.treatment_done_today,
+            # Alias to match the key name used everywhere on the frontend
+            # (Reception edit modal, print template, visit-enrichment
+            # fallback). Without this the saved value is invisible to the
+            # UI even after the _safe_data() write-side fix.
+            "treatment_done":       self.treatment_done_today,
             "medicines":            self.medicines or "[]",
             "follow_up_date":       self.follow_up_date,
             "follow_up_time":       self.follow_up_time,
@@ -813,7 +890,11 @@ class Image(db.Model):
 
     id          = db.Column(db.Integer, primary_key=True)
     visit_id    = db.Column(db.Integer, db.ForeignKey("visits.id"), nullable=False)
-    image_path  = db.Column(db.String(255), nullable=False)
+    # Widened 255 -> 500: disk-storage paths are now
+    # "uploads/images/<visit_id>/<uuid32>_<original-filename>.<ext>",
+    # which can exceed 255 chars with a long original filename.
+    # Matches CBCTFile.file_path / Payment.receipt_path elsewhere in this file.
+    image_path  = db.Column(db.String(500), nullable=False)
     image_type  = db.Column(db.String(30), nullable=False)
     description = db.Column(db.Text)
     uploaded_by = db.Column(db.String(100))
@@ -919,6 +1000,68 @@ class CBCTAnnotation(db.Model):
         return f"<CBCTAnnotation id={self.id} type={self.ann_type} view={self.ann_view}>"
 
 
+
+# ═══════════════════════════════════════════════════════════════
+#  FINAL BILLING LEDGER
+#  Charges are separate from payments. PaymentAllocation explains
+#  exactly which charge a payment settled.
+# ═══════════════════════════════════════════════════════════════
+class PatientAccount(db.Model):
+    __tablename__ = "patient_accounts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"), unique=True, nullable=False, index=True)
+    status = db.Column(db.String(20), nullable=False, default="ACTIVE")
+    credit_balance = db.Column(Numeric(12, 2), nullable=False, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    patient = db.relationship("Patient", backref=db.backref("billing_account", uselist=False))
+    charges = db.relationship("BillingCharge", back_populates="account", lazy=True)
+
+
+class BillingCharge(db.Model):
+    __tablename__ = "billing_charges"
+
+    id = db.Column(db.Integer, primary_key=True)
+    account_id = db.Column(db.Integer, db.ForeignKey("patient_accounts.id"), nullable=False, index=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"), nullable=False, index=True)
+    visit_id = db.Column(db.Integer, db.ForeignKey("visits.id"), nullable=True, index=True)
+    description = db.Column(db.Text, nullable=False)
+    treatment_code = db.Column(db.String(80), nullable=True)
+    gross_amount = db.Column(Numeric(12, 2), nullable=False, default=0)
+    discount = db.Column(Numeric(12, 2), nullable=False, default=0)
+    net_amount = db.Column(Numeric(12, 2), nullable=False, default=0)
+    status = db.Column(db.String(20), nullable=False, default="ACTIVE")
+    charge_date = db.Column(db.Date, nullable=False, default=datetime.utcnow)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    account = db.relationship("PatientAccount", back_populates="charges")
+    patient = db.relationship("Patient", backref=db.backref("billing_charges", lazy=True))
+    visit = db.relationship("Visit", backref=db.backref("billing_charges", lazy=True))
+    allocations = db.relationship(
+        "PaymentAllocation",
+        back_populates="charge",
+        lazy=True,
+        cascade="all, delete-orphan",
+    )
+
+
+class PaymentAllocation(db.Model):
+    __tablename__ = "payment_allocations"
+
+    id = db.Column(db.Integer, primary_key=True)
+    payment_id = db.Column(db.Integer, db.ForeignKey("payments.id"), nullable=False, index=True)
+    charge_id = db.Column(db.Integer, db.ForeignKey("billing_charges.id"), nullable=True, index=True)
+    allocation_type = db.Column(db.String(20), nullable=False, default="CHARGE")  # CHARGE / CREDIT
+    amount = db.Column(Numeric(12, 2), nullable=False, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    payment = db.relationship("Payment", back_populates="ledger_allocations")
+    charge = db.relationship("BillingCharge", back_populates="allocations")
+
 # ═══════════════════════════════════════════════════════════════
 #  PAYMENT
 # ═══════════════════════════════════════════════════════════════
@@ -927,6 +1070,8 @@ class Payment(db.Model):
 
     id                     = db.Column(db.Integer, primary_key=True)
     visit_id               = db.Column(db.Integer, db.ForeignKey("visits.id"), nullable=True)
+    account_id             = db.Column(db.Integer, db.ForeignKey("patient_accounts.id"), nullable=True, index=True)
+    ledger_status          = db.Column(db.String(20), nullable=False, default="ACTIVE")
     patient_name           = db.Column(db.String(150), nullable=False)
     case_number            = db.Column(db.String(50),  nullable=False)
     mobile                 = db.Column(db.String(20))
@@ -942,6 +1087,7 @@ class Payment(db.Model):
     created_at             = db.Column(db.DateTime, default=datetime.utcnow)
 
     receipts               = db.relationship("Receipt", backref="payment", lazy=True)
+    ledger_allocations     = db.relationship("PaymentAllocation", back_populates="payment", lazy=True, cascade="all, delete-orphan")
 
 
 # ═══════════════════════════════════════════════════════════════

@@ -1,10 +1,12 @@
 from dotenv import load_dotenv
 import models
 load_dotenv()
+import time
 from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, verify_jwt_in_request
 from sqlalchemy import inspect
+from sqlalchemy.exc import OperationalError
 import os
 
 from config import Config
@@ -33,6 +35,7 @@ from routes.appointments   import appointments_bp
 from routes.other_expenses import other_expenses_bp, run_other_expense_migrations
 from routes.auth           import auth_bp
 from routes.cbct_backend import cbct_bp, run_cbct_migrations
+from routes.billing_ledger import billing_ledger_bp, run_billing_ledger_migrations, backfill_legacy_visit_charges
 
 # ---------------------------
 # Single source of truth for allowed origins
@@ -147,26 +150,74 @@ def add_cors_headers(response):
 
 
 # ---------------------------
+# DB STARTUP HELPERS
+# ---------------------------
+def wait_for_db(app, max_retries=10, delay_seconds=3):
+    """
+    Block until the database accepts connections, or give up after
+    max_retries. Prevents gunicorn worker boot from crashing on a
+    cold-starting Postgres instance (common on Render after a restart
+    or scale-from-zero).
+    """
+    with app.app_context():
+        for attempt in range(1, max_retries + 1):
+            try:
+                with db.engine.connect() as conn:
+                    conn.execute(db.text("SELECT 1"))
+                print(f"Database reachable after {attempt} attempt(s) ✅")
+                return True
+            except OperationalError as e:
+                print(f"[wait_for_db] attempt {attempt}/{max_retries} failed: {e}")
+                if attempt == max_retries:
+                    print("[wait_for_db] giving up — DB never became reachable")
+                    return False
+                time.sleep(delay_seconds)
+
+
+def safe_migrate(name, fn, *args, **kwargs):
+    """
+    Run a migration function without letting its failure crash the
+    whole app import/boot. Logs success/failure either way.
+    """
+    try:
+        fn(*args, **kwargs)
+        print(f"✅ {name} migration completed")
+    except Exception as e:
+        print(f"⚠️ {name} migration failed (continuing): {e}")
+
+
+# ---------------------------
 # INIT DB
 # ---------------------------
 print("DATABASE_URL =", os.getenv("DATABASE_URL"))
 
 db.init_app(app)
-with app.app_context():
 
+if not wait_for_db(app):
+    # DB never became reachable after retries. We continue booting rather
+    # than crashing the whole process — DB-dependent routes will error
+    # until connectivity is restored, but the app (and /health) stays up
+    # instead of gunicorn endlessly restarting.
+    print("WARNING: starting without confirmed DB connectivity")
+
+with app.app_context():
     print("Database connected ✅")
 
     # Create all tables
     db.create_all()
 
-    print("Running migrations...")
+print("Running migrations...")
 
-    # Existing migrations
-    run_payment_migrations(app)
-    run_image_migrations(app)
-    run_visit_migrations(app)
-    run_other_expense_migrations(app)
-    run_cbct_migrations(app)
+with app.app_context():
+    safe_migrate("billing_ledger", run_billing_ledger_migrations)
+    safe_migrate("backfill_legacy_visit_charges", backfill_legacy_visit_charges)
+    safe_migrate("payments", run_payment_migrations, app)
+    safe_migrate("visits", run_visit_migrations)
+    safe_migrate("images", run_image_migrations)
+    safe_migrate("cbct", run_cbct_migrations)
+    safe_migrate("other_expenses", run_other_expense_migrations)
+
+with app.app_context():
 
     # --------------------------------------------------
     # Allergy table migration
@@ -175,18 +226,18 @@ with app.app_context():
         with db.engine.connect() as conn:
 
             inspector = inspect(db.engine)
+
             existing_columns = [
                 c["name"] for c in inspector.get_columns("allergy_records")
             ]
 
             columns = [
-                ("drug_allergy", "BOOLEAN DEFAULT FALSE"),
-                ("food_allergy", "BOOLEAN DEFAULT FALSE"),
-                ("latex_allergy", "BOOLEAN DEFAULT FALSE"),
-                ("iodine_allergy", "BOOLEAN DEFAULT FALSE"),
-                ("anesthesia_allergy", "BOOLEAN DEFAULT FALSE"),
-                ("other_allergy", "TEXT"),
-                ("no_known_allergies", "BOOLEAN DEFAULT FALSE"),
+                ("allergy_type", "VARCHAR(50)"),
+                ("allergen", "VARCHAR(255)"),
+                ("reaction", "VARCHAR(255)"),
+                ("severity", "VARCHAR(50)"),
+                ("notes", "TEXT"),
+                ("created_at", "TIMESTAMP"),
                 ("updated_at", "TIMESTAMP"),
             ]
 
@@ -199,11 +250,11 @@ with app.app_context():
                     )
 
             conn.commit()
-            print("✅ Allergy migration completed")
+
+        print("✅ Allergy migration completed")
 
     except Exception as e:
         print(f"Allergy migration skipped: {e}")
-
     # --------------------------------------------------
     # Habits table migration
     # --------------------------------------------------
@@ -263,6 +314,7 @@ other_blueprints = [
     appointments_bp,
     cbct_bp,
     other_expenses_bp,
+    billing_ledger_bp,
 ]
 
 for bp in other_blueprints:
@@ -290,4 +342,3 @@ def health():
 # ---------------------------
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
-    
