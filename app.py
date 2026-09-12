@@ -212,10 +212,10 @@ with app.app_context():
     safe_migrate("billing_ledger", run_billing_ledger_migrations)
     safe_migrate("backfill_legacy_visit_charges", backfill_legacy_visit_charges)
     safe_migrate("payments", run_payment_migrations, app)
-    safe_migrate("visits", run_visit_migrations)
-    safe_migrate("images", run_image_migrations)
-    safe_migrate("cbct", run_cbct_migrations)
-    safe_migrate("other_expenses", run_other_expense_migrations)
+    safe_migrate("visits", run_visit_migrations, app)
+    safe_migrate("images", run_image_migrations, app)
+    safe_migrate("cbct", run_cbct_migrations, app)
+    safe_migrate("other_expenses", run_other_expense_migrations, app)
 
 with app.app_context():
 
