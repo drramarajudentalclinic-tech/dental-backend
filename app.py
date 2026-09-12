@@ -289,6 +289,55 @@ with app.app_context():
 
     except Exception as e:
         print(f"Habits migration failed: {e}")
+
+    # --------------------------------------------------
+    # Prescriptions table migration
+    # --------------------------------------------------
+    try:
+        with db.engine.connect() as conn:
+
+            inspector = inspect(db.engine)
+            existing_columns = [
+                c["name"] for c in inspector.get_columns("prescriptions")
+            ]
+
+            columns = [
+                ("patient_name",         "VARCHAR(150)"),
+                ("patient_age",          "VARCHAR(20)"),
+                ("patient_gender",       "VARCHAR(10)"),
+                ("case_number",          "VARCHAR(50)"),
+                ("date",                 "VARCHAR(20)"),
+                ("diagnosis",            "TEXT"),
+                ("advice",               "TEXT"),
+                ("treatment_done_today", "TEXT"),
+                ("medicines",            "TEXT"),
+                ("follow_up_date",       "VARCHAR(30)"),
+                ("follow_up_time",       "VARCHAR(20)"),
+                ("status",               "VARCHAR(20) DEFAULT 'confirmed'"),
+                ("drug_name",            "VARCHAR(150)"),
+                ("dosage",               "VARCHAR(50)"),
+                ("frequency",            "VARCHAR(50)"),
+                ("duration",             "VARCHAR(50)"),
+                ("instructions",         "TEXT"),
+                ("doctor",               "VARCHAR(100)"),
+                ("created_at",           "TIMESTAMP"),
+            ]
+
+            for col, col_type in columns:
+                if col not in existing_columns:
+                    conn.execute(
+                        db.text(
+                            f"ALTER TABLE prescriptions ADD COLUMN {col} {col_type}"
+                        )
+                    )
+                    print(f"[prescriptions migration] Added {col} ✓")
+
+            conn.commit()
+
+        print("✅ Prescriptions migration completed")
+
+    except Exception as e:
+        print(f"Prescriptions migration failed: {e}")
 # ---------------------------
 # REGISTER BLUEPRINTS
 # ---------------------------
