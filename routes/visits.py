@@ -13,7 +13,8 @@ from models import (
     Consent,
     Consultation,
 )
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+from sqlalchemy import func, or_
 
 visits_bp = Blueprint("visits", __name__)
 
@@ -215,12 +216,15 @@ def get_visit(visit_id):
                 "spicy_foods_detail": (habits.spicy_foods or "") if habits else "",
 
                 "no_habits": bool(habits.no_habits) if habits else False,
+
+                "recorded_date": (habits.recorded_date.isoformat() if habits and habits.recorded_date else None),
             },
 
             "women": {
                 "pregnant": women.pregnant if women else False,
                 "due_date": women.due_date.isoformat() if women and women.due_date else None,
                 "nursing_child": women.nursing_child if women else False,
+                "recorded_date": (women.recorded_date.isoformat() if women and women.recorded_date else None),
             },
 
             "family_doctor": row_to_dict(family_doc, ["id", "patient_id"]),
@@ -247,6 +251,28 @@ def get_visit(visit_id):
 #
 #   GET /api/patients/<patient_id>/complete-history   (patients.py)
 # ─────────────────────────────────────────────
+
+
+# ─────────────────────────────────────────────
+# UPDATE CHIEF COMPLAINT
+# PUT /api/visits/<visit_id>/chief-complaint
+# Lets the doctor correct/add the chief complaint on an existing visit.
+# Reception sets it at intake (create_visit / patients.py), but a patient
+# may clarify or change their complaint once they're actually with the
+# doctor — nothing previously wrote to this field after visit creation.
+# ─────────────────────────────────────────────
+@visits_bp.route("/visits/<int:visit_id>/chief-complaint", methods=["PUT"])
+def update_chief_complaint(visit_id):
+    visit = Visit.query.get_or_404(visit_id)
+    data = request.get_json(force=True, silent=True) or {}
+
+    visit.chief_complaint = (data.get("chief_complaint") or "").strip()
+    db.session.commit()
+
+    return jsonify({
+        "visit_id": visit.id,
+        "chief_complaint": visit.chief_complaint,
+    }), 200
 
 
 # ─────────────────────────────────────────────
@@ -349,3 +375,175 @@ def close_visit(visit_id):
         "treatment_plan": visit.treatment_plan or "",
         "advice":         visit.advice         or "",
     }), 200
+
+# ═════════════════════════════════════════════
+# CLOSED VISITS FOR RECEPTION  ("Doctor's Instructions")
+#
+# The clinic bills in its own separate billing software. This system no
+# longer has a Billing section; it only hands over what Reception needs:
+# which visits the doctor has closed, what was done, and the doctor's
+# billing instructions. Reception ticks a visit off once it has been
+# billed in the billing software.
+#
+# These two addresses are also the connection point for that billing
+# software: it can read the same list and mark a visit as done.
+#
+#   GET /api/visits/closed
+#         ?status=pending | done | all      (default: pending)
+#         &date_from=YYYY-MM-DD  &date_to=YYYY-MM-DD   (day the visit was closed, Indian time)
+#         &q=<name, case number or mobile>
+#         &visit_id=<one particular visit>   (the billing software uses this
+#                                             when it opens a receipt for a visit)
+#         &limit=<max rows, default 300>
+#
+#   PUT /api/visits/<visit_id>/billing-done      { "done": true | false }
+#
+# "Done" is kept in the existing visits.billing_closed column.
+# ═════════════════════════════════════════════
+_IST = timedelta(hours=5, minutes=30)
+
+
+def _to_ist(dt):
+    return dt + _IST if dt else None
+
+
+def _parse_day(value):
+    try:
+        return datetime.strptime(str(value).strip()[:10], "%Y-%m-%d") if value else None
+    except ValueError:
+        return None
+
+
+def _handover_item(visit, patient):
+    closed_ist = _to_ist(visit.closed_at)
+    done_ist   = _to_ist(getattr(visit, "billing_closed_at", None))
+    return {
+        "visit_id":        visit.id,
+        "patient_id":      visit.patient_id,
+        "name":            (patient.name if patient else "") or "",
+        "case_number":     (patient.case_number if patient else "") or "",
+        "mobile":          (patient.mobile if patient else "") or "",
+        "age":             resolve_age(getattr(patient, "date_of_birth", None), getattr(patient, "age", None)) if patient else None,
+        "gender":          (getattr(patient, "gender", "") if patient else "") or "",
+        "visit_date":      _to_ist(visit.visit_date).strftime("%Y-%m-%d") if visit.visit_date else None,
+        "closed_at":       closed_ist.strftime("%Y-%m-%dT%H:%M:%S") if closed_ist else None,
+        "closed_date":     closed_ist.strftime("%Y-%m-%d") if closed_ist else None,
+        "closed_display":  closed_ist.strftime("%d-%m-%Y %I:%M %p") if closed_ist else "",
+        "closed_by":       visit.closed_by or "",
+        "billing_note":    (visit.billing_note or "").strip(),
+        "diagnosis":       (visit.diagnosis or "").strip(),
+        "treatment_done":  (visit.treatment_done or "").strip(),
+        "treatment_plan":  (visit.treatment_plan or "").strip(),
+        "advice":          (visit.advice or "").strip(),
+        "next_appointment": visit.next_appointment.isoformat() if visit.next_appointment else None,
+        "done":            bool(getattr(visit, "billing_closed", False)),
+        "done_at":         done_ist.strftime("%Y-%m-%dT%H:%M:%S") if done_ist else None,
+        "done_display":    done_ist.strftime("%d-%m-%Y %I:%M %p") if done_ist else "",
+    }
+
+
+def _is_closed(visit):
+    return (visit.status or "").strip().lower() in ("closed", "completed")
+
+
+@visits_bp.route("/visits/closed", methods=["GET"])
+def list_closed_visits():
+    status = (request.args.get("status") or "pending").strip().lower()
+    if status not in ("pending", "done", "all"):
+        status = "pending"
+
+    query = (db.session.query(Visit, Patient)
+             .outerjoin(Patient, Patient.id == Visit.patient_id)
+             .filter(func.lower(Visit.status).in_(["closed", "completed"])))
+
+    if status == "pending":
+        query = query.filter(or_(Visit.billing_closed.is_(None), Visit.billing_closed.is_(False)))
+    elif status == "done":
+        query = query.filter(Visit.billing_closed.is_(True))
+
+    # Dates are the day the visit was closed in Indian time; closed_at is stored in UTC.
+    day_from = _parse_day(request.args.get("date_from"))
+    day_to   = _parse_day(request.args.get("date_to"))
+    if day_from:
+        query = query.filter(Visit.closed_at >= day_from - _IST)
+    if day_to:
+        query = query.filter(Visit.closed_at < day_to + timedelta(days=1) - _IST)
+
+    # One particular visit — asked for by the billing software when Reception
+    # opens a receipt for it.
+    only_id = request.args.get("visit_id", type=int)
+    if only_id:
+        query = query.filter(Visit.id == only_id)
+
+    q = (request.args.get("q") or "").strip()
+    if q:
+        like = f"%{q.lower()}%"
+        query = query.filter(or_(
+            func.lower(func.coalesce(Patient.name, "")).like(like),
+            func.lower(func.coalesce(Patient.case_number, "")).like(like),
+            func.coalesce(Patient.mobile, "").like(f"%{q}%"),
+        ))
+
+    try:
+        limit = max(1, min(int(request.args.get("limit", 300)), 1000))
+    except (TypeError, ValueError):
+        limit = 300
+
+    rows = (query.order_by(Visit.closed_at.desc().nullslast(), Visit.id.desc())
+            .limit(limit).all())
+    return jsonify([_handover_item(v, p) for v, p in rows]), 200
+
+
+@visits_bp.route("/visits/<int:visit_id>/billing-done", methods=["PUT"])
+def set_billing_done(visit_id):
+    visit = Visit.query.get_or_404(visit_id)
+    if not _is_closed(visit):
+        return jsonify({"error": "This visit is still open. It can be marked only after the doctor closes it."}), 400
+
+    data = request.get_json(force=True, silent=True) or {}
+    raw = data.get("done", True) if isinstance(data, dict) else True
+    done = str(raw).strip().lower() not in ("false", "0", "no", "") if not isinstance(raw, bool) else raw
+
+    try:
+        visit.billing_closed    = done
+        visit.billing_closed_at = datetime.utcnow() if done else None
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "The server could not save this. Nothing was changed - please try again."}), 500
+
+    patient = db.session.get(Patient, visit.patient_id)
+    return jsonify(_handover_item(visit, patient)), 200
+
+# ═════════════════════════════════════════════
+# BILLING (receipts)
+#
+# The clinic's billing — the old stand-alone billing software rebuilt
+# inside this system — lives in billing_receipts.py, in this same routes
+# folder. Its addresses (/clinic-billing/receipts, /clinic-billing/excel, …) are added
+# to this file's group of addresses here, so app.py does not need to be
+# changed. If billing_receipts.py is not in the folder, everything else
+# in this file works exactly as before and the Billing screen says the
+# file is missing.
+# ═════════════════════════════════════════════
+def _load_billing():
+    try:
+        from routes.billing_receipts import register_billing_routes
+        return register_billing_routes
+    except ImportError as first:
+        if first.name not in ("routes", "routes.billing_receipts"):
+            raise          # billing_receipts.py is there but something it needs is missing
+    try:
+        from billing_receipts import register_billing_routes
+        return register_billing_routes
+    except ImportError as second:
+        if second.name != "billing_receipts":
+            raise
+    return None
+
+
+_register_billing = _load_billing()
+if _register_billing is not None:
+    _register_billing(visits_bp)
+else:
+    print("[visits] billing_receipts.py was not found in the routes folder - the Billing screen is switched off")

@@ -1,7 +1,116 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from database import db
 from sqlalchemy import Numeric
 from werkzeug.security import generate_password_hash, check_password_hash
+
+
+# ═══════════════════════════════════════════════════════════════
+#  CLINIC TIME (Asia/Kolkata) + RECORD STAMPS
+#  Timestamps are stored in UTC, like every other table in this file,
+#  and converted to clinic time when they are sent to the screen.
+#  India has no daylight saving, so a fixed +05:30 offset is exact and
+#  needs no timezone database on the server.
+# ═══════════════════════════════════════════════════════════════
+IST = timezone(timedelta(hours=5, minutes=30), "Asia/Kolkata")
+
+
+def ist_now():
+    return datetime.now(IST)
+
+
+def ist_today():
+    """Today's date at the clinic (not the server's date)."""
+    return ist_now().date()
+
+
+def to_ist(dt):
+    """Stored (naive UTC) datetime -> timezone-aware clinic time."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(IST)
+
+
+def ist_iso(dt):
+    """e.g. 2026-10-07T12:15:00+05:30"""
+    local = to_ist(dt)
+    return local.isoformat(timespec="seconds") if local else None
+
+
+def ist_display(dt):
+    """e.g. 07-10-2026 12:15 PM"""
+    local = to_ist(dt)
+    return local.strftime("%d-%m-%Y %I:%M %p") if local else None
+
+
+ROLE_LABELS = {
+    "doctor": "Doctor",
+    "reception": "Receptionist",
+    "admin": "Admin",
+    "legacy": "Earlier patient form",
+}
+
+
+def actor_label(name, role):
+    """"Receptionist – Ramesh", "Doctor – Rama Raju", or None."""
+    role_label = ROLE_LABELS.get((role or "").lower())
+    if role == "legacy":
+        return role_label
+    if name and role_label:
+        return f"{role_label} – {name}"
+    return name or role_label
+
+
+class ActorStampMixin:
+    """Who created / last changed a record, plus a change counter.
+
+    `version` goes up by one on every update. The screen sends back the
+    version it loaded, so two people editing the same record at the same
+    time cannot silently overwrite each other."""
+
+    created_by      = db.Column(db.String(100))
+    created_by_role = db.Column(db.String(30))
+    updated_by      = db.Column(db.String(100))
+    updated_by_role = db.Column(db.String(30))
+    version         = db.Column(db.Integer, default=1)
+
+    def was_updated(self):
+        created = getattr(self, "created_at", None)
+        updated = getattr(self, "updated_at", None)
+        if self.updated_by:
+            return True
+        if not updated:
+            return False
+        if not created:
+            return False
+        # Older tables fill updated_at at insert time; ignore that.
+        return (updated - created) > timedelta(seconds=2)
+
+    def stamp_dict(self):
+        created = getattr(self, "created_at", None)
+        updated = getattr(self, "updated_at", None) if self.was_updated() else None
+        return {
+            "version":            self.version or 1,
+            "created_at":         ist_iso(created),
+            "created_at_display": ist_display(created),
+            "created_by":         self.created_by,
+            "created_by_role":    self.created_by_role,
+            "created_by_label":   actor_label(self.created_by, self.created_by_role),
+            "updated_at":         ist_iso(updated),
+            "updated_at_display": ist_display(updated),
+            "updated_by":         self.updated_by if updated else None,
+            "updated_by_role":    self.updated_by_role if updated else None,
+            "updated_by_label":   actor_label(self.updated_by, self.updated_by_role) if updated else None,
+        }
+
+
+class RecordStampMixin(ActorStampMixin):
+    """Full stamp set for the new medical-history tables.
+    updated_at stays empty until the record is really edited."""
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, nullable=True)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -240,6 +349,7 @@ class MedicalHistory(db.Model):
     venereal_disease        = db.Column(db.Boolean, default=False)
     other                   = db.Column(db.Text)
     no_known_conditions     = db.Column(db.Boolean, default=False, nullable=False)
+    recorded_date           = db.Column(db.Date, nullable=True)
     updated_at              = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def to_dict(self):
@@ -270,23 +380,17 @@ class MedicalHistory(db.Model):
             "venereal_disease":         self.venereal_disease,
             "other":                    self.other,
             "no_known_conditions":      self.no_known_conditions,
+            "recorded_date":            self.recorded_date.isoformat() if self.recorded_date else None,
         }
 
 
 # ═══════════════════════════════════════════════════════════════
-#  ALLERGY RECORDS
-#  Flat Yes/No checklist — one row per patient (matches MedicalHistory,
-#  Habit, WomanHistory). This replaces an earlier free-form
-#  type/allergen/reaction/severity/notes design that was never actually
-#  written to by any route — save_allergy(), get_patient(), and
-#  PatientAllergy.jsx all consistently expect this flag-based shape.
+#  ALLERGY RECORDS — one row per allergy, many rows per patient.
+#  Shared by Doctor and Reception; every row is added / edited /
+#  deleted on its own through medical_history.py.
 # ═══════════════════════════════════════════════════════════════
-from datetime import datetime
-# ═══════════════════════════════════════════════════════
-# ALLERGY RECORDS (Multiple rows per patient)
-# ═══════════════════════════════════════════════════════
 
-class AllergyRecord(db.Model):
+class AllergyRecord(ActorStampMixin, db.Model):
     __tablename__ = "allergy_records"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -302,12 +406,8 @@ class AllergyRecord(db.Model):
         db.String(50),
         nullable=False
     )
-    # Food
-    # Drug
-    # Latex
-    # Iodine
-    # Anesthesia
-    # Other
+    # Drug / Food / Environmental / Anesthesia / Latex / Iodine /
+    # Insect / Skin / Other
 
     allergen = db.Column(db.String(255), nullable=False)
 
@@ -315,7 +415,13 @@ class AllergyRecord(db.Model):
 
     severity = db.Column(db.String(50))
 
+    # Active / Resolved  (empty on rows created before this column existed
+    # — those are treated as Active)
+    status = db.Column(db.String(20))
+
     notes = db.Column(db.Text)
+
+    recorded_date = db.Column(db.Date, nullable=True)
 
     created_at = db.Column(
         db.DateTime,
@@ -345,8 +451,10 @@ class AllergyRecord(db.Model):
             "allergen": self.allergen,
             "reaction": self.reaction,
             "severity": self.severity,
+            "status": self.status or "Active",
             "notes": self.notes,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None
+            "recorded_date": self.recorded_date.isoformat() if self.recorded_date else None,
+            **self.stamp_dict(),
         }
 # ═══════════════════════════════════════════════════════════════
 # ═══════════════════════════════════════════════════════════════
@@ -374,6 +482,8 @@ class Habit(db.Model):
     # If checked, all other habits should be empty
     no_habits = db.Column(db.Boolean, default=False)
 
+    recorded_date = db.Column(db.Date, nullable=True)
+
     updated_at = db.Column(
         db.DateTime,
         default=datetime.utcnow,
@@ -399,6 +509,8 @@ class Habit(db.Model):
 
             "no_habits": bool(self.no_habits),
 
+            "recorded_date": self.recorded_date.isoformat() if self.recorded_date else None,
+
             "updated_at": (
                 self.updated_at.isoformat()
                 if self.updated_at else None
@@ -408,7 +520,7 @@ class Habit(db.Model):
 # MEDICATIONS
 # ═══════════════════════════════════════════════════════════════
 
-class Medication(db.Model):
+class Medication(ActorStampMixin, db.Model):
     __tablename__ = "medications"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -425,15 +537,25 @@ class Medication(db.Model):
 
     frequency = db.Column(db.String(100))
 
+    route = db.Column(db.String(50))
+
     duration = db.Column(db.String(100))
 
+    # Reason / indication
     purpose = db.Column(db.String(200))
 
     prescribed_by = db.Column(db.String(200))
 
+    start_date = db.Column(db.Date, nullable=True)
+
+    end_date = db.Column(db.Date, nullable=True)
+
     notes = db.Column(db.Text)
 
+    # Status: True = currently taking, False = stopped
     active = db.Column(db.Boolean, default=True)
+
+    recorded_date = db.Column(db.Date, nullable=True)
 
     created_at = db.Column(
         db.DateTime,
@@ -449,14 +571,21 @@ class Medication(db.Model):
     def to_dict(self):
         return {
             "id": self.id,
+            "patient_id": self.patient_id,
             "medicine_name": self.medicine_name,
             "dosage": self.dosage,
             "frequency": self.frequency,
+            "route": self.route,
             "duration": self.duration,
             "purpose": self.purpose,
             "prescribed_by": self.prescribed_by,
+            "start_date": self.start_date.isoformat() if self.start_date else None,
+            "end_date": self.end_date.isoformat() if self.end_date else None,
             "notes": self.notes,
-            "active": self.active
+            "active": self.active is not False,
+            "status": "Stopped" if self.active is False else "Active",
+            "recorded_date": self.recorded_date.isoformat() if self.recorded_date else None,
+            **self.stamp_dict(),
         }
     
 class WomanHistory(db.Model):
@@ -467,6 +596,7 @@ class WomanHistory(db.Model):
     pregnant      = db.Column(db.Boolean, default=False)
     due_date      = db.Column(db.Date, nullable=True)
     nursing_child = db.Column(db.Boolean, default=False)
+    recorded_date = db.Column(db.Date, nullable=True)
     updated_at    = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def to_dict(self):
@@ -474,6 +604,163 @@ class WomanHistory(db.Model):
             "pregnant":      self.pregnant,
             "due_date":      self.due_date.isoformat() if self.due_date else None,
             "nursing_child": self.nursing_child,
+            "recorded_date": self.recorded_date.isoformat() if self.recorded_date else None,
+        }
+
+
+# ═══════════════════════════════════════════════════════════════
+#  MEDICAL HISTORY — RECORD-LEVEL TABLES
+#
+#  One row per medical condition / habit / women's-health entry, so a
+#  patient can have any number of each and every row can be added,
+#  edited and deleted on its own by Doctor or Reception.
+#
+#  These three tables are the source of truth. MedicalHistory, Habit
+#  and WomanHistory above (one row per patient) are kept as an
+#  automatically maintained summary so existing screens, alerts and
+#  print-outs that read them keep working — see medical_history.py.
+#
+#  legacy_ref is set only on rows that were carried over from those
+#  older one-row-per-patient tables; the unique constraint guarantees
+#  that carrying the same old value over twice can never create a
+#  duplicate. Rows people add through the screen leave it empty.
+# ═══════════════════════════════════════════════════════════════
+class MedicalConditionRecord(RecordStampMixin, db.Model):
+    __tablename__ = "medical_condition_records"
+    __table_args__ = (
+        db.UniqueConstraint("patient_id", "legacy_ref", name="uq_condition_legacy_ref"),
+    )
+
+    id            = db.Column(db.Integer, primary_key=True)
+    patient_id    = db.Column(db.Integer, db.ForeignKey("patients.id"), nullable=False, index=True)
+    # One of the MedicalHistory column names (diabetes, bp_high, …) or "other"
+    condition_key  = db.Column(db.String(50), nullable=False)
+    condition_name = db.Column(db.String(255), nullable=False)
+    details       = db.Column(db.Text)
+    status        = db.Column(db.String(20), default="Current")   # Current / Controlled / Resolved
+    since         = db.Column(db.String(100))
+    notes         = db.Column(db.Text)
+    recorded_date = db.Column(db.Date, nullable=True)
+    legacy_ref    = db.Column(db.String(60), nullable=True)
+
+    def to_dict(self):
+        return {
+            "id":             self.id,
+            "patient_id":     self.patient_id,
+            "condition_key":  self.condition_key,
+            "condition_name": self.condition_name,
+            "details":        self.details,
+            "status":         self.status or "Current",
+            "since":          self.since,
+            "notes":          self.notes,
+            "recorded_date":  self.recorded_date.isoformat() if self.recorded_date else None,
+            **self.stamp_dict(),
+        }
+
+
+class HabitRecord(RecordStampMixin, db.Model):
+    __tablename__ = "habit_records"
+    __table_args__ = (
+        db.UniqueConstraint("patient_id", "legacy_ref", name="uq_habit_legacy_ref"),
+    )
+
+    id            = db.Column(db.Integer, primary_key=True)
+    patient_id    = db.Column(db.Integer, db.ForeignKey("patients.id"), nullable=False, index=True)
+    # One of the Habit column names (smoking, alcohol, …) or "other"
+    habit_key     = db.Column(db.String(50), nullable=False)
+    habit_name    = db.Column(db.String(150), nullable=False)
+    details       = db.Column(db.Text)
+    frequency     = db.Column(db.String(100))
+    duration      = db.Column(db.String(100))
+    status        = db.Column(db.String(20), default="Current")   # Current / Occasional / Former
+    notes         = db.Column(db.Text)
+    recorded_date = db.Column(db.Date, nullable=True)
+    legacy_ref    = db.Column(db.String(60), nullable=True)
+
+    def to_dict(self):
+        return {
+            "id":            self.id,
+            "patient_id":    self.patient_id,
+            "habit_key":     self.habit_key,
+            "habit_name":    self.habit_name,
+            "details":       self.details,
+            "frequency":     self.frequency,
+            "duration":      self.duration,
+            "status":        self.status or "Current",
+            "notes":         self.notes,
+            "recorded_date": self.recorded_date.isoformat() if self.recorded_date else None,
+            **self.stamp_dict(),
+        }
+
+
+class WomenHealthRecord(RecordStampMixin, db.Model):
+    __tablename__ = "women_health_records"
+    __table_args__ = (
+        db.UniqueConstraint("patient_id", "legacy_ref", name="uq_women_legacy_ref"),
+    )
+
+    id            = db.Column(db.Integer, primary_key=True)
+    patient_id    = db.Column(db.Integer, db.ForeignKey("patients.id"), nullable=False, index=True)
+    # Pregnancy / Nursing / Menstrual history / Menopause / Gynecological / Other
+    record_type   = db.Column(db.String(50), nullable=False)
+    details       = db.Column(db.Text)
+    lmp_date      = db.Column(db.Date, nullable=True)
+    due_date      = db.Column(db.Date, nullable=True)
+    status        = db.Column(db.String(20), default="Current")   # Current / Past
+    notes         = db.Column(db.Text)
+    recorded_date = db.Column(db.Date, nullable=True)
+    legacy_ref    = db.Column(db.String(60), nullable=True)
+
+    def to_dict(self):
+        return {
+            "id":            self.id,
+            "patient_id":    self.patient_id,
+            "record_type":   self.record_type,
+            "details":       self.details,
+            "lmp_date":      self.lmp_date.isoformat() if self.lmp_date else None,
+            "due_date":      self.due_date.isoformat() if self.due_date else None,
+            "status":        self.status or "Current",
+            "notes":         self.notes,
+            "recorded_date": self.recorded_date.isoformat() if self.recorded_date else None,
+            **self.stamp_dict(),
+        }
+
+
+# ═══════════════════════════════════════════════════════════════
+#  MEDICAL HISTORY CHANGE LOG
+#  One row for every add / update / delete of a medical-history record
+#  (same idea as VisitAudit). A deleted record's last values stay
+#  readable here, so nothing disappears without a trace.
+# ═══════════════════════════════════════════════════════════════
+class MedicalHistoryAudit(db.Model):
+    __tablename__ = "medical_history_audit"
+
+    id                = db.Column(db.Integer, primary_key=True)
+    patient_id        = db.Column(db.Integer, db.ForeignKey("patients.id"), nullable=False, index=True)
+    section           = db.Column(db.String(30), nullable=False)
+    record_id         = db.Column(db.Integer, nullable=True)
+    # CREATE / UPDATE / DELETE / IMPORT / NONE_KNOWN
+    action            = db.Column(db.String(20), nullable=False)
+    summary           = db.Column(db.String(300))
+    before_json       = db.Column(db.Text)
+    after_json        = db.Column(db.Text)
+    performed_by      = db.Column(db.String(100))
+    performed_by_role = db.Column(db.String(30))
+    created_at        = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    def to_dict(self):
+        return {
+            "id":                 self.id,
+            "patient_id":         self.patient_id,
+            "section":            self.section,
+            "record_id":          self.record_id,
+            "action":             self.action,
+            "summary":            self.summary,
+            "performed_by":       self.performed_by,
+            "performed_by_role":  self.performed_by_role,
+            "performed_by_label": actor_label(self.performed_by, self.performed_by_role),
+            "at":                 ist_iso(self.created_at),
+            "at_display":         ist_display(self.created_at),
         }
 
 
@@ -1101,3 +1388,104 @@ class Receipt(db.Model):
     payment_id     = db.Column(db.Integer, db.ForeignKey("payments.id"), nullable=False)
     status         = db.Column(db.String(20), default="ACTIVE")   # ACTIVE / CANCELLED
     created_at     = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+# ═══════════════════════════════════════════════════════════════
+#  MEDICAL HISTORY — DATABASE UPGRADE
+#
+#  This file declares new columns on allergy_records / medications and
+#  four new tables. They must exist in the database before ANY query
+#  touches those models (visits.py, doctor.py, patients.py … all read
+#  them), so the upgrade is tied to this file rather than to one route
+#  file: the first time a database session is opened after start-up,
+#  the missing columns and tables are added. That makes it impossible
+#  to run the new models against an un-upgraded database.
+#
+#  The upgrade only ADDS things (ALTER TABLE … ADD COLUMN, CREATE TABLE).
+#  It never drops, renames or rewrites anything, and it is safe to run
+#  any number of times.
+# ═══════════════════════════════════════════════════════════════
+import threading
+import traceback
+
+from sqlalchemy import event, inspect as sa_inspect, text
+from sqlalchemy.orm import Session as _OrmSession
+
+_MH_NEW_TABLES = [MedicalConditionRecord, HabitRecord, WomenHealthRecord, MedicalHistoryAudit]
+_MH_NEW_COLUMNS = {
+    AllergyRecord: ["status", "created_by", "created_by_role", "updated_by", "updated_by_role", "version"],
+    Medication: ["route", "start_date", "end_date",
+                 "created_by", "created_by_role", "updated_by", "updated_by_role", "version"],
+}
+
+_mh_schema_ready = False
+_mh_schema_lock = threading.Lock()
+
+
+def ensure_medical_history_schema(engine=None):
+    """Create the new tables and add the new columns if they are missing.
+    Returns the list of things it added (empty when already up to date)."""
+    global _mh_schema_ready
+    if _mh_schema_ready:
+        return []
+
+    with _mh_schema_lock:
+        if _mh_schema_ready:
+            return []
+
+        engine = engine or db.engine
+        added = []
+
+        def run(ddl):
+            with engine.begin() as conn:
+                if engine.dialect.name == "postgresql":
+                    # Never hang a request behind another connection's lock.
+                    conn.execute(text("SET LOCAL lock_timeout = '10s'"))
+                conn.execute(text(ddl))
+
+        for model in _MH_NEW_TABLES:
+            table = model.__table__
+            if not sa_inspect(engine).has_table(table.name):
+                table.create(bind=engine, checkfirst=True)
+                added.append(f"table {table.name}")
+
+        for model, names in _MH_NEW_COLUMNS.items():
+            table = model.__table__
+            inspector = sa_inspect(engine)
+            if not inspector.has_table(table.name):
+                table.create(bind=engine, checkfirst=True)
+                added.append(f"table {table.name}")
+                continue
+            existing = {c["name"] for c in inspector.get_columns(table.name)}
+            for name in names:
+                if name in existing:
+                    continue
+                column_type = table.columns[name].type.compile(dialect=engine.dialect)
+                try:
+                    run(f"ALTER TABLE {table.name} ADD COLUMN {name} {column_type}")
+                    added.append(f"column {table.name}.{name}")
+                except Exception:
+                    # Another worker may have added it a moment ago.
+                    now = {c["name"] for c in sa_inspect(engine).get_columns(table.name)}
+                    if name not in now:
+                        raise
+
+        for item in added:
+            print(f"[medical-history] database upgrade: added {item}")
+        if added:
+            print("[medical-history] database upgrade completed")
+        _mh_schema_ready = True
+        return added
+
+
+@event.listens_for(_OrmSession, "after_begin")
+def _mh_schema_guard(session, transaction, connection):
+    """Runs the upgrade once, before the first query of the first session."""
+    if _mh_schema_ready:
+        return
+    try:
+        ensure_medical_history_schema(connection.engine)
+    except Exception:
+        # Report loudly, keep the application running, try again next time.
+        print("[medical-history] DATABASE UPGRADE FAILED - medical history will not work until this is fixed:")
+        traceback.print_exc()

@@ -203,8 +203,16 @@ if not wait_for_db(app):
 with app.app_context():
     print("Database connected ✅")
 
-    # Create all tables
-    db.create_all()
+    # Create all tables.
+    # NOTE: this used to be a bare `db.create_all()` call with no error
+    # handling. Every other DB-touching step at startup (migrations below)
+    # is wrapped in safe_migrate() specifically so a DB problem logs and
+    # continues instead of crashing the process — but create_all() wasn't,
+    # so an unreachable/misconfigured DB here took the whole server down
+    # during import, before Flask ever bound the port. Wrapping it in
+    # safe_migrate() keeps startup behavior consistent with the rest of
+    # this file.
+    safe_migrate("create_all", db.create_all)
 
 print("Running migrations...")
 
@@ -237,6 +245,7 @@ with app.app_context():
                 ("reaction", "VARCHAR(255)"),
                 ("severity", "VARCHAR(50)"),
                 ("notes", "TEXT"),
+                ("recorded_date", "DATE"),
                 ("created_at", "TIMESTAMP"),
                 ("updated_at", "TIMESTAMP"),
             ]
@@ -273,6 +282,7 @@ with app.app_context():
                 ("pan_chewing", "TEXT"),
                 ("spicy_foods", "TEXT"),
                 ("no_habits", "BOOLEAN DEFAULT FALSE"),
+                ("recorded_date", "DATE"),
                 ("updated_at", "TIMESTAMP"),
             ]
 
@@ -289,6 +299,73 @@ with app.app_context():
 
     except Exception as e:
         print(f"Habits migration failed: {e}")
+
+    # --------------------------------------------------
+    # Medical history table migration (adds recorded_date, the date the
+    # doctor recorded/entered a patient's medical history)
+    # --------------------------------------------------
+    try:
+        with db.engine.connect() as conn:
+
+            inspector = inspect(db.engine)
+            existing_columns = [
+                c["name"] for c in inspector.get_columns("medical_history")
+            ]
+
+            if "recorded_date" not in existing_columns:
+                conn.execute(
+                    db.text("ALTER TABLE medical_history ADD COLUMN recorded_date DATE")
+                )
+
+            conn.commit()
+            print("✅ Medical history migration completed")
+
+    except Exception as e:
+        print(f"Medical history migration failed: {e}")
+
+    # --------------------------------------------------
+    # Woman history table migration (adds recorded_date)
+    # --------------------------------------------------
+    try:
+        with db.engine.connect() as conn:
+
+            inspector = inspect(db.engine)
+            existing_columns = [
+                c["name"] for c in inspector.get_columns("woman_history")
+            ]
+
+            if "recorded_date" not in existing_columns:
+                conn.execute(
+                    db.text("ALTER TABLE woman_history ADD COLUMN recorded_date DATE")
+                )
+
+            conn.commit()
+            print("✅ Woman history migration completed")
+
+    except Exception as e:
+        print(f"Woman history migration failed: {e}")
+
+    # --------------------------------------------------
+    # Medications table migration (adds recorded_date)
+    # --------------------------------------------------
+    try:
+        with db.engine.connect() as conn:
+
+            inspector = inspect(db.engine)
+            existing_columns = [
+                c["name"] for c in inspector.get_columns("medications")
+            ]
+
+            if "recorded_date" not in existing_columns:
+                conn.execute(
+                    db.text("ALTER TABLE medications ADD COLUMN recorded_date DATE")
+                )
+
+            conn.commit()
+            print("✅ Medications migration completed")
+
+    except Exception as e:
+        print(f"Medications migration failed: {e}")
 
     # --------------------------------------------------
     # Prescriptions table migration

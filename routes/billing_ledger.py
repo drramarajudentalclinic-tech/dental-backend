@@ -7,6 +7,10 @@ Design:
 This module does NOT replace the legacy /api/payments endpoints. It adds the
 new account/charge/allocation layer so existing receipts and payment history
 remain available while the frontend moves to the new workflow.
+
+NOTE: billing is currently SWITCHED OFF (see BILLING_SWITCHED_OFF below).
+Every address in this file answers "Billing has been removed" until that
+switch is set back to False. No data is deleted.
 """
 
 import json
@@ -20,6 +24,34 @@ from database import db
 from models import Patient, Visit, Payment, PatientAccount, BillingCharge, PaymentAllocation
 
 billing_ledger_bp = Blueprint("billing_ledger", __name__)
+
+
+# ══════════════════════════════════════════════════════════════════
+#  BILLING IS SWITCHED OFF IN THIS APPLICATION
+#
+#  The clinic does its billing in its own separate billing software.
+#  While the switch below is True, every address in this file answers
+#  "Billing has been removed" instead of working. Nothing is deleted —
+#  accounts, charges and payments stay in the database.
+#
+#  This file must stay in the routes folder (payments.py and app.py
+#  load it). To bring billing back, change True to False here AND in
+#  payments.py, then restart the backend.
+# ══════════════════════════════════════════════════════════════════
+BILLING_SWITCHED_OFF = True
+
+BILLING_OFF_MESSAGE = (
+    "Billing has been removed from this system. "
+    "Billing is done in the clinic's billing software."
+)
+
+
+@billing_ledger_bp.before_request
+def _billing_switched_off():
+    # OPTIONS is the browser's permission check before a request — let it
+    # through so the browser shows the message above, not a network error.
+    if BILLING_SWITCHED_OFF and request.method != "OPTIONS":
+        return jsonify({"error": BILLING_OFF_MESSAGE, "billing_removed": True}), 410
 
 MONEY = Decimal("0.01")
 

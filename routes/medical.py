@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from database import db
 from models import MedicalHistory
+from datetime import datetime, date
 
 medical_bp = Blueprint("medical", __name__)
 
@@ -67,6 +68,20 @@ def to_bool(val):
     return False
 
 
+def parse_recorded_date(val):
+    """
+    Parse a "YYYY-MM-DD" string (what <input type="date"> sends) into a
+    date. Defaults to today when missing/blank/unparseable, so the field
+    is always populated even if the frontend didn't send one.
+    """
+    if val:
+        try:
+            return datetime.strptime(str(val).strip(), "%Y-%m-%d").date()
+        except ValueError:
+            pass
+    return date.today()
+
+
 def _resolve_key(raw_key):
     """Return the DB column name for any incoming key, or None if not allowed."""
     db_key = ALIASES.get(raw_key, raw_key)
@@ -121,8 +136,9 @@ def save_medical(patient_id):
                 setattr(record, f, False)
             record.other               = None
             record.no_known_conditions = True
+            record.recorded_date       = parse_recorded_date(data.get("recorded_date"))
             db.session.commit()
-            return jsonify({"status": "medical history saved", "patient_id": patient_id}), 200
+            return jsonify({"status": "medical history saved", "patient_id": patient_id, "recorded_date": record.recorded_date.isoformat()}), 200
 
         # Apply each incoming field to the record
         for raw_key, val in data.items():
@@ -135,9 +151,10 @@ def save_medical(patient_id):
                 setattr(record, db_key, to_bool(val))
 
         record.no_known_conditions = False  # at least one condition was set
+        record.recorded_date       = parse_recorded_date(data.get("recorded_date"))
 
         db.session.commit()
-        return jsonify({"status": "medical history saved", "patient_id": patient_id}), 200
+        return jsonify({"status": "medical history saved", "patient_id": patient_id, "recorded_date": record.recorded_date.isoformat()}), 200
 
     except Exception as e:
         db.session.rollback()
@@ -156,6 +173,7 @@ def get_medical(patient_id):
             **{field: False for field in CONDITION_FIELDS},
             "other": None,
             "no_known_conditions": False,
+            "recorded_date": None,
         }), 200
 
     return jsonify(record.to_dict()), 200

@@ -1,9 +1,19 @@
 from flask import Blueprint, request, jsonify
 from database import db
 from models import Habit, Patient
-from datetime import datetime
+from datetime import datetime, date
 
 habits_bp = Blueprint("habits", __name__)
+
+
+def parse_recorded_date(val):
+    """Parse a "YYYY-MM-DD" string; defaults to today when missing/invalid."""
+    if val:
+        try:
+            return datetime.strptime(str(val).strip(), "%Y-%m-%d").date()
+        except ValueError:
+            pass
+    return date.today()
 
 
 @habits_bp.route("/habits/<int:patient_id>", methods=["GET"])
@@ -31,6 +41,8 @@ def get_habits(patient_id):
         "spicy_foods_detail": record.spicy_foods or "",
 
         "no_habits": bool(record.no_habits),
+
+        "recorded_date": record.recorded_date.isoformat() if record.recorded_date else None,
     })
 
 
@@ -112,9 +124,11 @@ def save_habits(patient_id):
         )
 
     record.updated_at = datetime.utcnow()
+    record.recorded_date = parse_recorded_date(data.get("recorded_date"))
 
     db.session.commit()
 
     return jsonify({
-        "message": "Habits saved successfully"
+        "message": "Habits saved successfully",
+        "recorded_date": record.recorded_date.isoformat(),
     }), 200

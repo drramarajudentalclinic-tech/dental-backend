@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from datetime import datetime
+from datetime import datetime, date
 from database import db
 from models import WomanHistory, Patient
 import traceback
@@ -32,6 +32,7 @@ def save_women_history(patient_id):
                 "pregnant":      record.pregnant,
                 "due_date":      record.due_date.isoformat() if record.due_date else "",
                 "nursing_child": record.nursing_child,
+                "recorded_date": record.recorded_date.isoformat() if record.recorded_date else None,
             }), 200
 
         # Women's health history only applies to female patients.
@@ -62,9 +63,10 @@ def save_women_history(patient_id):
         record.pregnant      = bool(data.get("pregnant"))
         record.nursing_child = bool(data.get("nursing_child"))
         record.due_date       = parse_flexible_date(data.get("due_date")) if record.pregnant else None
+        record.recorded_date  = parse_flexible_date(data.get("recorded_date")) or date.today()
 
         db.session.commit()
-        return jsonify({"status": "women history saved"}), 200
+        return jsonify({"status": "women history saved", "recorded_date": record.recorded_date.isoformat()}), 200
 
     except Exception as e:
         traceback.print_exc()

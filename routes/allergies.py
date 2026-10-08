@@ -1,8 +1,19 @@
 from flask import Blueprint, request, jsonify
 from database import db
 from models import AllergyRecord, Patient
+from datetime import datetime, date
 
 allergy_bp = Blueprint("allergy", __name__)
+
+
+def parse_recorded_date(val):
+    """Parse a "YYYY-MM-DD" string; defaults to today when missing/invalid."""
+    if val:
+        try:
+            return datetime.strptime(str(val).strip(), "%Y-%m-%d").date()
+        except ValueError:
+            pass
+    return date.today()
 
 
 # ============================================================
@@ -52,7 +63,8 @@ def save_allergies(patient_id):
             allergen=allergen,
             reaction=row.get("reaction", ""),
             severity=row.get("severity", ""),
-            notes=row.get("notes", "")
+            notes=row.get("notes", ""),
+            recorded_date=parse_recorded_date(row.get("recorded_date")),
         )
 
         db.session.add(allergy)
@@ -85,7 +97,8 @@ def add_allergy(patient_id):
         allergen=data.get("allergen", ""),
         reaction=data.get("reaction", ""),
         severity=data.get("severity", ""),
-        notes=data.get("notes", "")
+        notes=data.get("notes", ""),
+        recorded_date=parse_recorded_date(data.get("recorded_date")),
     )
 
     db.session.add(allergy)
@@ -109,6 +122,8 @@ def update_allergy(allergy_id):
     allergy.reaction = data.get("reaction", allergy.reaction)
     allergy.severity = data.get("severity", allergy.severity)
     allergy.notes = data.get("notes", allergy.notes)
+    if "recorded_date" in data:
+        allergy.recorded_date = parse_recorded_date(data.get("recorded_date"))
 
     db.session.commit()
 

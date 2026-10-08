@@ -16,6 +16,10 @@ Excel columns (updated):
     payment_method, balance
 
 PDF receipt: clinic logo + improved typography + clean signature.
+
+NOTE: billing is currently SWITCHED OFF (see BILLING_SWITCHED_OFF below).
+All the addresses above answer "Billing has been removed" until that
+switch is set back to False. No data is deleted.
 """
 
 from flask import Blueprint, request, jsonify, send_file, current_app
@@ -41,6 +45,41 @@ except ImportError:
     )
 
 payments_bp = Blueprint("payments", __name__)
+
+
+# ══════════════════════════════════════════════════════════════════
+#  BILLING IS SWITCHED OFF IN THIS APPLICATION
+#
+#  The clinic does its billing in its own separate billing software, so
+#  the Billing screen was removed from the Reception dashboard. While
+#  the switch below is True, every billing / payment / receipt address
+#  in this file answers "Billing has been removed" instead of working,
+#  so nobody can read, add, change or delete a payment through it.
+#
+#  Nothing is deleted: the payment records stay in the database and the
+#  PDF receipts / Excel sheets stay in the "receipts" folder.
+#
+#  This file must stay in the routes folder — app.py loads it, and
+#  run_visit_migrations() at the bottom prepares the visit columns the
+#  doctor's "close visit" step and Reception's "Doctor's Instructions"
+#  list depend on.
+#
+#  To bring billing back, change True to False and restart the backend.
+# ══════════════════════════════════════════════════════════════════
+BILLING_SWITCHED_OFF = True
+
+BILLING_OFF_MESSAGE = (
+    "Billing has been removed from this system. "
+    "Billing is done in the clinic's billing software."
+)
+
+
+@payments_bp.before_request
+def _billing_switched_off():
+    # OPTIONS is the browser's permission check before a request — let it
+    # through so the browser shows the message above, not a network error.
+    if BILLING_SWITCHED_OFF and request.method != "OPTIONS":
+        return jsonify({"error": BILLING_OFF_MESSAGE, "billing_removed": True}), 410
 
 _FINAL_LEDGER_READY = False
 

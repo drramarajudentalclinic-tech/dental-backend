@@ -26,6 +26,30 @@ from datetime import datetime, date
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from auth_utils import require_role, require_login, get_current_role
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
+# medical_history.py may sit in the same folder as this file (for example
+# routes/) or next to models.py — both locations work.
+try:
+    from medical_history import (
+        register_medical_history_routes,
+        create_initial_history,
+        current_actor,
+        HistoryError,
+    )
+except ModuleNotFoundError as _mh_err:
+    if _mh_err.name != "medical_history":
+        raise
+    try:
+        from .medical_history import (
+            register_medical_history_routes,
+            create_initial_history,
+            current_actor,
+            HistoryError,
+        )
+    except ImportError:
+        raise ModuleNotFoundError(
+            "medical_history.py was not found. Copy it into the same folder "
+            "as patients.py and start the server again."
+        ) from None
 
 patients_bp = Blueprint(
     "patients",
@@ -101,52 +125,6 @@ def model_to_dict(obj, exclude=None):
             val = val.isoformat()
         result[column.name] = val
     return result
-
-# ==========================================
-# Medication Dropdown Constants
-# ==========================================
-
-VALID_FREQUENCIES = [
-    "OD",
-    "BD",
-    "TDS",
-    "QID",
-    "HS",
-    "SOS",
-    "STAT",
-    "Weekly",
-    "Monthly",
-    "Custom"
-]
-
-VALID_DURATIONS = [
-    "3 Days",
-    "5 Days",
-    "7 Days",
-    "10 Days",
-    "14 Days",
-    "21 Days",
-    "1 Month",
-    "2 Months",
-    "3 Months",
-    "6 Months",
-    "Ongoing",
-    "Custom"
-]
-
-VALID_PURPOSES = [
-    "Diabetes",
-    "Hypertension",
-    "Cardiac",
-    "Thyroid",
-    "Asthma",
-    "Pain Relief",
-    "Antibiotic",
-    "Vitamin Supplement",
-    "Gastric Protection",
-    "Blood Thinner",
-    "Other"
-]
 
 def serialize_patient(p):
     return {
@@ -240,6 +218,12 @@ def patients():
             db.session.add(patient)
             db.session.flush() 
 
+            # Medical history typed on the registration form is saved in
+            # the SAME transaction as the patient: either the patient and
+            # every history record are stored, or nothing is.
+            if data.get("medical_history"):
+                create_initial_history(patient, data["medical_history"], current_actor())
+
             visit = Visit(
     patient_id=patient.id,
     visit_date=datetime.utcnow(),
@@ -250,6 +234,10 @@ def patients():
 )
             db.session.add(visit)
             db.session.commit()
+
+        except HistoryError as e:
+            db.session.rollback()
+            return jsonify({"error": f"Medical history — {e.message}"}), e.status
 
         except IntegrityError as e:
             db.session.rollback()
@@ -754,174 +742,29 @@ def save_medical(patient_id):
 # Habit row.
 # ─────────────────────────────────────────────
 
-@patients_bp.route("/<int:patient_id>/medications", methods=["GET"])
-@require_login
-def get_medications(patient_id):
+# ══════════════════════════════════════════════════════════════
+#  MEDICAL HISTORY  (allergies, current medications, personal habits,
+#  women's health, medical conditions)
+#
+#  All record-level Add / Edit / Update / Delete for these five sections
+#  now lives in medical_history.py and is attached to this blueprint at
+#  the bottom of this file:
+#
+#      GET    /api/patients/<id>/medical-history
+#      POST   /api/patients/<id>/medical-history/<section>
+#      PUT    /api/patients/<id>/medical-history/<section>/<record_id>
+#      DELETE /api/patients/<id>/medical-history/<section>/<record_id>
+#
+#  The routes that used to be here were removed for these reasons:
+#    * /medications  — POST refused a second record with the same name
+#                      (409) and DELETE was doctor-only.
+#    * /medical/conditions, /habits/item, /women/item — stored one
+#      yes/no flag per patient, so a second record of the same kind
+#      could not exist and "add" could silently overwrite.
+#  /medications and /allergies keep working at the same URLs — they are
+#  re-registered by medical_history.py on top of the shared code.
+# ══════════════════════════════════════════════════════════════
 
-    Patient.query.get_or_404(patient_id)
-
-    medications = Medication.query.filter_by(
-        patient_id=patient_id
-    ).order_by(
-        Medication.medicine_name
-    ).all()
-
-    return jsonify([
-        m.to_dict()
-        for m in medications
-    ])
-    
-# ══════════════════════════════════════════════
-# ADD MEDICATION
-# POST /api/patients/<patient_id>/medications
-# ══════════════════════════════════════════════
-@patients_bp.route("/<int:patient_id>/medications", methods=["POST"])
-@require_role("doctor", "reception")
-def add_medication(patient_id):
-
-    # Ensure patient exists
-    Patient.query.get_or_404(patient_id)
-
-    data = request.get_json() or {}
-
-    # -----------------------------
-    # Mandatory Validation
-    # -----------------------------
-    if not data.get("medicine_name", "").strip():
-        return jsonify({
-            "error": "Medicine Name is required."
-        }), 400
-
-    # Frequency, Duration and Purpose are optional — only validated against
-    # the allowed dropdown values when the reception staff actually picks one.
-# -----------------------------
-# Dropdown Validation (only when a value is provided)
-# -----------------------------
-    if data.get("frequency") and data.get("frequency") not in VALID_FREQUENCIES:
-        return jsonify({
-            "error": "Invalid frequency"
-        }), 400
-
-    if data.get("duration") and data.get("duration") not in VALID_DURATIONS:
-        return jsonify({
-            "error": "Invalid duration"
-        }), 400
-
-    if data.get("purpose") and data.get("purpose") not in VALID_PURPOSES:
-        return jsonify({
-            "error": "Invalid purpose"
-        }), 400
-    # -----------------------------
-    # Prevent Duplicate Medication
-    # -----------------------------
-    existing = Medication.query.filter(
-        Medication.patient_id == patient_id,
-        func.lower(Medication.medicine_name) ==
-        data.get("medicine_name", "").strip().lower(),
-        Medication.active == True
-    ).first()
-
-    if existing:
-        return jsonify({
-            "error": "This medication is already active for the patient."
-        }), 409
-
-    # -----------------------------
-    # Create Medication
-    # -----------------------------
-    medication = Medication(
-        patient_id=patient_id,
-        medicine_name=data.get("medicine_name").strip(),
-        dosage=data.get("dosage"),
-        frequency=data.get("frequency"),
-        duration=data.get("duration"),
-        purpose=data.get("purpose"),
-        prescribed_by=data.get("prescribed_by"),
-        notes=data.get("notes"),
-        active=bool(data.get("active", True))
-    )
-
-    db.session.add(medication)
-    db.session.commit()
-
-    return jsonify({
-        "status": "Medication added successfully",
-        "medication_id": medication.id
-    }), 201
-    
-@patients_bp.route("/<int:patient_id>/medications/<int:medication_id>", methods=["PUT"])
-@require_role("doctor", "reception")
-def update_medication(patient_id, medication_id):
-
-    medication = Medication.query.filter_by(
-        patient_id=patient_id,
-        id=medication_id
-    ).first_or_404()
-
-    data = request.json or {}
-
-    medication.medicine_name = data.get(
-        "medicine_name",
-        medication.medicine_name
-    )
-
-    medication.dosage = data.get(
-        "dosage",
-        medication.dosage
-    )
-
-    medication.frequency = data.get(
-        "frequency",
-        medication.frequency
-    )
-
-    medication.duration = data.get(
-        "duration",
-        medication.duration
-    )
-
-    medication.purpose = data.get(
-        "purpose",
-        medication.purpose
-    )
-
-    medication.prescribed_by = data.get(
-        "prescribed_by",
-        medication.prescribed_by
-    )
-
-    medication.notes = data.get(
-        "notes",
-        medication.notes
-    )
-
-    medication.active = data.get(
-        "active",
-        medication.active
-    )
-
-    db.session.commit()
-
-    return jsonify({
-        "status": "Medication updated"
-    })
-    
-@patients_bp.route("/<int:patient_id>/medications/<int:medication_id>", methods=["DELETE"])
-@require_role("doctor")
-def delete_medication(patient_id, medication_id):
-
-    medication = Medication.query.filter_by(
-        patient_id=patient_id,
-        id=medication_id
-    ).first_or_404()
-
-    db.session.delete(medication)
-
-    db.session.commit()
-
-    return jsonify({
-        "status": "Medication deleted"
-    })
 
 # ─────────────────────────────────────────────
 # NOTE: women's history is now saved/read exclusively via women.py's
@@ -1074,3 +917,10 @@ def search_patients():
         })
 
     return jsonify(results), 200
+
+
+# ══════════════════════════════════════════════
+#  MEDICAL HISTORY ROUTES (see medical_history.py)
+#  Must stay at the bottom of this file.
+# ══════════════════════════════════════════════
+register_medical_history_routes(patients_bp)
