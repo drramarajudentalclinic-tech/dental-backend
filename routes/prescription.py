@@ -4,8 +4,19 @@ import json
 
 from werkzeug.exceptions import HTTPException
 
+from datetime import datetime
+
 from database import db
 from models import Prescription
+
+try:
+    from auth_utils import require_login
+except ImportError:                      # the app keeps it in routes/
+    try:
+        from routes.auth_utils import require_login
+    except ImportError:                  # pragma: no cover
+        def require_login(fn):
+            return fn
 
 try:                                    # used to find every prescription of the same patient
     from models import Visit
@@ -32,6 +43,16 @@ presc_bp = Blueprint("prescription", __name__)
 #    * If the database refuses a save, the change is rolled back cleanly
 #      and a readable message is returned.
 #    * The doctor's name is recorded from the login, when available.
+#    * MY MEDICINES — the clinic's own medicine list (table
+#      prescription_medicines): medicines that are not in the built-in list,
+#      saved once with their usual frequency / when / days / instructions,
+#      and offered on every prescription after that.
+#        GET    /api/prescription-medicines         the saved medicines + how often
+#                                                   each medicine has been prescribed
+#        POST   /api/prescription-medicines         add   {name, category, times, when, days, note}
+#        PUT    /api/prescription-medicines/<id>    change
+#        DELETE /api/prescription-medicines/<id>    remove from the list (prescriptions
+#                                                   already written keep the medicine)
 # ─────────────────────────────────────────────────────────────
 
 
@@ -249,3 +270,138 @@ def delete_prescription(id):
     db.session.delete(p)
     db.session.commit()
     return jsonify({"status": "deleted"}), 200
+
+
+
+# ─────────────────────────────────────────────────────────────
+# MY MEDICINES — the clinic's own medicine list
+# ─────────────────────────────────────────────────────────────
+class CustomMedicine(db.Model):
+    __tablename__ = "prescription_medicines"
+
+    id         = db.Column(db.Integer, primary_key=True)
+    name       = db.Column(db.String(200), nullable=False)
+    category   = db.Column(db.String(60))
+    times      = db.Column(db.String(60))
+    when       = db.Column("when_to_take", db.String(60))
+    days       = db.Column(db.Integer)
+    note       = db.Column(db.String(300))
+    created_by = db.Column(db.String(100))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime)
+
+    def to_dict(self):
+        return {"id": self.id, "name": self.name, "category": self.category or "My medicines",
+                "times": self.times or "", "when": self.when or "", "days": self.days if self.days is not None else "",
+                "note": self.note or "", "created_by": self.created_by or ""}
+
+
+_medicine_table_ready = False
+
+
+def _medicine_table():
+    global _medicine_table_ready
+    if not _medicine_table_ready:
+        CustomMedicine.__table__.create(bind=db.engine, checkfirst=True)
+        _medicine_table_ready = True
+
+
+def _medicine_fields(data, current=None):
+    if not isinstance(data, dict):
+        raise PrescriptionError("The medicine could not be read. Please try again.")
+    pick = lambda key: data.get(key) if key in data else (getattr(current, key) if current is not None else None)
+    name = " ".join(str(pick("name") or "").split())[:200]
+    if not name:
+        raise PrescriptionError("Please enter the medicine's name (with strength, e.g. Doxycycline 100mg).")
+    raw_days = pick("days")
+    if raw_days in (None, ""):
+        days = None
+    else:
+        try:
+            days = int(float(raw_days))
+        except (TypeError, ValueError):
+            raise PrescriptionError("Days must be a number.")
+        if days < 0 or days > 365:
+            raise PrescriptionError("Days must be between 1 and 365.")
+    clean = lambda key, n: (str(pick(key) or "").strip()[:n] or None)
+    return {"name": name, "category": clean("category", 60), "times": clean("times", 60),
+            "when": clean("when", 60), "days": days, "note": clean("note", 300)}
+
+
+def _same_name_exists(name, other_id=None):
+    q = CustomMedicine.query.filter(db.func.lower(CustomMedicine.name) == name.lower())
+    if other_id:
+        q = q.filter(CustomMedicine.id != other_id)
+    return q.first() is not None
+
+
+def _usage_counts(limit=1500):
+    """How often each medicine was prescribed (latest prescriptions), by lower-case name."""
+    counts = {}
+    for (raw,) in db.session.query(Prescription.medicines).order_by(Prescription.id.desc()).limit(limit).all():
+        try:
+            items = json.loads(raw or "[]")
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if isinstance(item, dict) and str(item.get("name") or "").strip():
+                key = str(item["name"]).strip().lower()
+                counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+@presc_bp.route("/prescription-medicines", methods=["GET"])
+@require_login
+@_guard
+def list_custom_medicines():
+    _medicine_table()
+    rows = CustomMedicine.query.order_by(db.func.lower(CustomMedicine.name)).all()
+    return jsonify({"medicines": [m.to_dict() for m in rows], "usage": _usage_counts()}), 200
+
+
+@presc_bp.route("/prescription-medicines", methods=["POST"])
+@require_login
+@_guard
+def add_custom_medicine():
+    _medicine_table()
+    fields = _medicine_fields(_json_body())
+    if _same_name_exists(fields["name"]):
+        raise PrescriptionError(f"“{fields['name']}” is already in My medicines.", 409)
+    m = CustomMedicine(created_by=(_doctor_name() or "")[:100] or None, **fields)
+    db.session.add(m)
+    db.session.commit()
+    return jsonify(m.to_dict()), 201
+
+
+@presc_bp.route("/prescription-medicines/<int:med_id>", methods=["PUT"])
+@require_login
+@_guard
+def edit_custom_medicine(med_id):
+    _medicine_table()
+    m = db.session.get(CustomMedicine, med_id)
+    if m is None:
+        raise PrescriptionError("This medicine is no longer in the list.", 404)
+    fields = _medicine_fields(_json_body(), current=m)
+    if _same_name_exists(fields["name"], other_id=m.id):
+        raise PrescriptionError(f"“{fields['name']}” is already in My medicines.", 409)
+    for k, v in fields.items():
+        setattr(m, k, v)
+    m.updated_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify(m.to_dict()), 200
+
+
+@presc_bp.route("/prescription-medicines/<int:med_id>", methods=["DELETE"])
+@require_login
+@_guard
+def delete_custom_medicine(med_id):
+    _medicine_table()
+    m = db.session.get(CustomMedicine, med_id)
+    if m is None:
+        raise PrescriptionError("This medicine is no longer in the list.", 404)
+    name = m.name
+    db.session.delete(m)
+    db.session.commit()
+    return jsonify({"status": "deleted", "name": name}), 200
