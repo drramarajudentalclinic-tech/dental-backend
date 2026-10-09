@@ -850,6 +850,47 @@ def on_visit_created(visit, body=None):
     return sb_insert(row)
 
 
+def book_first_visit_later(visit, day, body):
+    """Registration with a LATER date: the visit made by registration is taken back
+    (it was just created, nothing is in it) and an appointment is booked instead —
+    the visit is then created automatically on that day."""
+    patient = db.session.get(Patient, visit.patient_id)
+    if patient is None:
+        return None
+    tm = None
+    try:
+        tm = _time(body.get("visit_time"))
+    except ApptError:
+        tm = None
+    removed = False
+    if _untouched(visit):
+        try:
+            with db.session.begin_nested():
+                try:
+                    from models import VisitAudit
+                    VisitAudit.query.filter_by(visit_id=visit.id).delete()
+                except Exception:
+                    pass
+                db.session.delete(visit)
+            db.session.commit()
+            removed = True
+        except Exception as e:
+            db.session.rollback()
+            print("[appointments] registration visit could not be removed, cancelled instead:", type(e).__name__)
+        if not removed:
+            v = db.session.get(Visit, visit.id)
+            if v is not None:
+                v.status = "CANCELLED"
+                db.session.commit()
+    same = sb_select(patient_id=f"eq.{patient.id}", appointment_date=f"eq.{day}", status="eq.SCHEDULED")
+    if same:
+        return sb_update(same[0]["id"], {"appointment_time": tm} if tm else {"patient_id": patient.id})
+    row = {**_patient_fields(patient), "appointment_date": day, "appointment_time": tm or "11:00",
+           "treatment": _text(body.get("followup_treatment") or body.get("chief_complaint"), 200) or "First visit",
+           "notes": "Registered in the clinic app", "status": "SCHEDULED", "source": "clinic"}
+    return sb_insert(row)
+
+
 @appointments_bp.route("/appointments/sync-today", methods=["POST"])
 @require_login
 @_guard
@@ -884,8 +925,12 @@ def _sync_after(response):
             data = response.get_json(silent=True) or {}
             vid = data.get("visit_id") or data.get("id") if kind == "new-visit" else data.get("visit_id")
             v = db.session.get(Visit, int(vid)) if str(vid or "").isdigit() else None
-            if v is not None:
-                on_visit_created(v, request.get_json(silent=True) or {})
+            body = request.get_json(silent=True) or {}
+            later = _date(body.get("visit_date"), required=False) if kind == "new-patient" else None
+            if v is not None and later and later > today_ist().isoformat():
+                book_first_visit_later(v, later, body)
+            elif v is not None:
+                on_visit_created(v, body)
         except ApptError as e:
             print("[appointments] visit → appointment skipped:", e.message)
         except Exception as e:
