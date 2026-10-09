@@ -667,6 +667,8 @@ _WATCH = [
     ("PUT",  re.compile(r"/prescriptions/(\d+)/?$"), "prescription-edit"),
     ("PUT",  re.compile(r"/visits/(\d+)/next-appointment/?$"), "visit"),
     ("PUT",  re.compile(r"/visits/(\d+)/close/?$"), "close"),
+    ("POST", re.compile(r"/visits/?$"), "new-visit"),          # Reception creates a visit
+    ("POST", re.compile(r"/patients/?$"), "new-patient"),      # registration (creates the first visit)
 ]
 
 
@@ -675,7 +677,7 @@ def _which():
         if request.method == method:
             m = rx.search(request.path)
             if m:
-                return kind, int(m.group(1))
+                return kind, (int(m.group(1)) if m.groups() else None)
     return None, None
 
 
@@ -698,11 +700,177 @@ def _record(kind, rid):
     return (rid if kind in ("consultation", "prescription", "close") else None), None
 
 
+# ═════════════════════════════════════════════════════════════════════
+#  Appointment ⇄ visit, kept in step
+#   • appointment day: every linked appointment of today gets its visit
+#     (created automatically, at the booked time) → Doctor + Reception see it
+#   • a visit created here (Reception, registration) → today's appointment is
+#     linked to it, or a new appointment is made for it → the Appointments
+#     app shows the walk-in too
+#   • an appointment of today cancelled / moved to another day → the visit
+#     made for it is withdrawn, as long as nothing was written in it yet
+# ═════════════════════════════════════════════════════════════════════
+AUTO_BY = "Appointments app"
+_sync_state = {"at": None}
+SYNC_EVERY = timedelta(seconds=int(os.environ.get("APPOINTMENT_SYNC_SECONDS", "60") or 60))
+
+
+def _utc_naive(day_iso, hhmm):
+    """IST date + time → the naive-UTC value visits.visit_date uses."""
+    d = datetime.strptime(day_iso, "%Y-%m-%d")
+    h, m = (int(x) for x in (hhmm or "00:00").split(":")[:2])
+    return datetime(d.year, d.month, d.day, h, m) - timedelta(hours=5, minutes=30)
+
+
+def _ist_midnight_utc():
+    return datetime.combine(today_ist(), datetime.min.time()) - timedelta(hours=5, minutes=30)
+
+
+def _untouched(v):
+    """An automatic visit nobody has worked on yet (safe to withdraw)."""
+    if (v.status or "").upper() != "CREATED":
+        return False
+    for f in ("diagnosis", "treatment_done", "treatment_plan", "advice", "billing_note"):
+        if str(getattr(v, f, "") or "").strip():
+            return False
+    try:
+        from models import Consultation, Prescription
+        if Consultation.query.filter_by(visit_id=v.id).first() or Prescription.query.filter_by(visit_id=v.id).first():
+            return False
+    except Exception:
+        pass
+    return True
+
+
+def sync_today(force=False):
+    """Make sure every linked appointment of today has its visit; withdraw the
+    untouched automatic visits of appointments that were cancelled / moved.
+    Returns a small report."""
+    now = datetime.utcnow()
+    if not force and SYNC_EVERY.total_seconds() <= 0:     # 0 = only when asked (POST /appointments/sync-today)
+        return None
+    if not force and _sync_state["at"] and now - _sync_state["at"] < SYNC_EVERY:
+        return None
+    _sync_state["at"] = now
+    if not configured():
+        return None
+    report = {"created": 0, "linked": 0, "withdrawn": 0}
+    day = today_ist().isoformat()
+    rows = sb_select(appointment_date=f"eq.{day}")
+    _with_links(rows)                                    # links bookings from the Appointments app
+    start = _ist_midnight_utc()
+    for r in rows:
+        if (r.get("status") or "").upper() != "SCHEDULED" or not r.get("patient_id"):
+            continue
+        if r.get("visit_id"):
+            v = db.session.get(Visit, int(r["visit_id"]))
+            if v is not None:
+                continue
+        pid = int(r["patient_id"])
+        if db.session.get(Patient, pid) is None:
+            continue
+        active = (Visit.query.filter(Visit.patient_id == pid, Visit.status.in_(list(ACTIVE_VISIT)))
+                  .order_by(Visit.id.desc()).first())
+        if active is not None:
+            sb_update(r["id"], {"visit_id": active.id})
+            report["linked"] += 1
+            continue
+        t = str(r.get("appointment_time") or "")[:5] or "11:00"
+        v = Visit(patient_id=pid, visit_date=_utc_naive(day, t), chief_complaint="",
+                  followup_treatment=_text(r.get("treatment"), 500) or "Appointment",
+                  status="CREATED", created_by=AUTO_BY,
+                  assigned_doctor=_text(r.get("doctor_name"), 100))
+        db.session.add(v)
+        db.session.commit()
+        # claim the appointment only if nobody else did meanwhile (several server workers)
+        claimed = _call("PATCH", _q(id=f"eq.{r['id']}", visit_id="is.null"), {"visit_id": v.id},
+                        prefer="return=representation")
+        if not claimed:
+            v.status = "CANCELLED"
+            db.session.commit()
+            continue
+        report["created"] += 1
+    # automatic visits of today whose appointment was cancelled or moved away
+    autos = (Visit.query.filter(Visit.created_by == AUTO_BY, Visit.status == "CREATED")
+             .filter(Visit.visit_date >= start - timedelta(hours=12)).all())
+    if autos:
+        by_visit = {}
+        for r in sb_select(visit_id=f"in.({','.join(str(v.id) for v in autos)})"):
+            by_visit[int(r["visit_id"])] = r
+        for v in autos:
+            r = by_visit.get(v.id)
+            gone = r is None or (r.get("status") or "").upper() == "CANCELLED" or str(r.get("appointment_date"))[:10] != day
+            if gone and _untouched(v):
+                v.status = "CANCELLED"
+                db.session.commit()
+                if r is not None and str(r.get("appointment_date"))[:10] != day:
+                    sb_update(r["id"], {"visit_id": None})          # it gets a new visit on its new day
+                report["withdrawn"] += 1
+    if any(report.values()):
+        print("[appointments] today's sync:", report)
+    return report
+
+
+def on_visit_created(visit, body=None):
+    """A visit was created in this app: link it to today's appointment, or book one for it."""
+    body = body or {}
+    patient = db.session.get(Patient, visit.patient_id)
+    if patient is None:
+        return None
+    day = today_ist().isoformat()
+    tm = None
+    try:
+        tm = _time(body.get("visit_time") or body.get("appointment_time"))
+    except ApptError:
+        tm = None
+    if tm and visit.visit_date and visit.created_by != AUTO_BY:
+        visit.visit_date = _utc_naive(day, tm)               # the time chosen by Reception
+        db.session.commit()
+    # today's booking that has no visit yet (or already this one) — an earlier, finished
+    # visit's appointment is left alone
+    free = lambda r: (r.get("status") or "").upper() == "SCHEDULED" and r.get("visit_id") in (None, visit.id)
+    rows = [r for r in sb_select(patient_id=f"eq.{patient.id}", appointment_date=f"eq.{day}") if free(r)]
+    if not rows:                                          # booked in the Appointments app, not linked yet
+        cand = sb_select(appointment_date=f"eq.{day}", patient_id="is.null", status="eq.SCHEDULED")
+        found = _match_patients(cand)
+        rows = [r for r in cand if found.get(r["id"]) is not None and found[r["id"]].id == patient.id and free(r)]
+    if rows:
+        r = sorted(rows, key=lambda x: (x.get("visit_id") != visit.id, str(x.get("appointment_time"))))[0]
+        if r.get("visit_id") == visit.id and r.get("patient_id"):
+            return r
+        return sb_update(r["id"], {**_patient_fields(patient), "visit_id": visit.id})
+    now_ist = datetime.now(IST)
+    row = {**_patient_fields(patient), "appointment_date": day,
+           "appointment_time": tm or f"{now_ist.hour:02d}:{now_ist.minute:02d}",
+           "treatment": _text(body.get("followup_treatment") or visit.followup_treatment, 200)
+                        or _text(body.get("chief_complaint") or visit.chief_complaint, 200) or "Visit",
+           "notes": _text(f"Complaint: {visit.chief_complaint}" if visit.chief_complaint else None, 500),
+           "status": "SCHEDULED", "visit_id": visit.id, "source": "clinic-visit",
+           "doctor_name": _text(visit.assigned_doctor, 120)}
+    return sb_insert(row)
+
+
+@appointments_bp.route("/appointments/sync-today", methods=["POST"])
+@require_login
+@_guard
+def sync_today_now():
+    return jsonify(sync_today(force=True) or {}), 200
+
+
 @appointments_bp.before_app_request
 def _remember_before():
     kind, rid = _which()
     if kind and configured():
-        g._appt_watch = (kind, rid, _record(kind, rid))
+        g._appt_watch = (kind, rid, _record(kind, rid) if rid else (None, None))
+    # appointment day: create the visits of today's appointments (at most once a minute)
+    elif request.method == "GET" and configured() and "/api/" in request.path and not request.path.endswith("/connection"):
+        try:
+            sync_today()
+        except ApptError as e:
+            print("[appointments] today's sync skipped:", e.message)
+        except Exception as e:
+            db.session.rollback()
+            print("[appointments] today's sync failed:", type(e).__name__, str(e)[:300])
 
 
 @appointments_bp.after_app_request
@@ -711,6 +879,19 @@ def _sync_after(response):
     if not watch or response.status_code >= 300:
         return response
     kind, rid, (visit_id, old_date) = watch
+    if kind in ("new-visit", "new-patient"):
+        try:
+            data = response.get_json(silent=True) or {}
+            vid = data.get("visit_id") or data.get("id") if kind == "new-visit" else data.get("visit_id")
+            v = db.session.get(Visit, int(vid)) if str(vid or "").isdigit() else None
+            if v is not None:
+                on_visit_created(v, request.get_json(silent=True) or {})
+        except ApptError as e:
+            print("[appointments] visit → appointment skipped:", e.message)
+        except Exception as e:
+            db.session.rollback()
+            print("[appointments] visit → appointment failed:", type(e).__name__, str(e)[:300])
+        return response
     try:
         if kind in ("consultation-edit", "prescription-edit"):
             visit_id = visit_id or _record(kind, rid)[0]
