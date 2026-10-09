@@ -891,6 +891,73 @@ def book_first_visit_later(visit, day, body):
     return sb_insert(row)
 
 
+@appointments_bp.route("/appointments/doctors", methods=["GET"])
+@require_login
+@_guard
+def doctor_names():
+    """Doctor names already used in appointments (both apps) — offered when booking."""
+    since = (today_ist() - timedelta(days=365)).isoformat()
+    rows = _call("GET", _q(select="doctor_name", doctor_name="not.is.null", appointment_date=f"gte.{since}",
+                           order="appointment_date.desc", limit="2000")) or []
+    seen, out = set(), []
+    for r in rows:
+        n = " ".join(str(r.get("doctor_name") or "").split())
+        if n and n.lower() not in seen:
+            seen.add(n.lower())
+            out.append(n)
+    return jsonify(sorted(out, key=str.lower)), 200
+
+
+# ═════════════════════════════════════════════════════════════════════
+#  Reception: clinical records are READ-ONLY
+#  Reception can open and print everything (complete history, X-rays,
+#  prescriptions …) but cannot add, change or delete clinical / dental
+#  records — consultation, dental chart, findings, prescriptions, X-rays &
+#  photos, CBCT, closing a visit, the doctor's next appointment.
+#  (Registration, medical history, visits, appointments and billing stay
+#  with Reception as before.)
+# ═════════════════════════════════════════════════════════════════════
+_CLINICAL_WRITES = [re.compile(p) for p in (
+    r"/visits/\d+/consultations/?$", r"/consultations/\d+/?$",
+    r"/visits/\d+/dental-chart(/\d+)?/?$", r"/dental-chart/\d+/?$",
+    r"/visits/\d+/findings/?$", r"/findings/\d+/?$",
+    r"/visits/\d+/prescriptions/?$", r"/prescriptions/\d+/?$", r"/prescription-medicines(/\d+)?/?$",
+    r"/visits/\d+/images/?$", r"/images/\d+/?$",
+    r"/visits/\d+/cbct", r"/cbct/",
+    r"/visits/\d+/close/?$", r"/visits/\d+/next-appointment/?$",
+    r"/doctor/visit/\d+/",
+)]
+
+
+def _role():
+    try:
+        try:
+            from flask_jwt_extended import verify_jwt_in_request
+            verify_jwt_in_request(optional=True)
+        except Exception:
+            pass
+        try:
+            from auth_utils import get_current_role
+        except ImportError:
+            from routes.auth_utils import get_current_role
+        return str(get_current_role() or "").strip().lower()
+    except Exception:
+        return ""
+
+
+def _reception_read_only():
+    if request.method not in ("POST", "PUT", "PATCH", "DELETE"):
+        return None
+    path = request.path
+    if not any(rx.search(path) for rx in _CLINICAL_WRITES):
+        return None
+    role = _role()
+    if role in ("reception", "receptionist", "front_desk", "frontdesk"):
+        return jsonify({"error": "Reception can view clinical records but cannot change them. "
+                                 "Please ask the doctor to make this change."}), 403
+    return None
+
+
 @appointments_bp.route("/appointments/sync-today", methods=["POST"])
 @require_login
 @_guard
@@ -900,6 +967,9 @@ def sync_today_now():
 
 @appointments_bp.before_app_request
 def _remember_before():
+    blocked = _reception_read_only()
+    if blocked is not None:
+        return blocked
     kind, rid = _which()
     if kind and configured():
         g._appt_watch = (kind, rid, _record(kind, rid) if rid else (None, None))
