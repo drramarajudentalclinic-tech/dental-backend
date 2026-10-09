@@ -43,7 +43,7 @@ presc_bp = Blueprint("prescription", __name__)
 #    * If the database refuses a save, the change is rolled back cleanly
 #      and a readable message is returned.
 #    * The doctor's name is recorded from the login, when available.
-#    * MY MEDICINES — the clinic's own medicine list (table
+#    * CUSTOM MEDICINES — the clinic's own medicine list (table
 #      prescription_medicines): medicines that are not in the built-in list,
 #      saved once with their usual frequency / when / days / instructions,
 #      and offered on every prescription after that.
@@ -274,7 +274,7 @@ def delete_prescription(id):
 
 
 # ─────────────────────────────────────────────────────────────
-# MY MEDICINES — the clinic's own medicine list
+# CUSTOM MEDICINES — the clinic's own medicine list
 # ─────────────────────────────────────────────────────────────
 class CustomMedicine(db.Model):
     __tablename__ = "prescription_medicines"
@@ -291,7 +291,7 @@ class CustomMedicine(db.Model):
     updated_at = db.Column(db.DateTime)
 
     def to_dict(self):
-        return {"id": self.id, "name": self.name, "category": self.category or "My medicines",
+        return {"id": self.id, "name": self.name, "category": (self.category if self.category and self.category != "My medicines" else "Custom medicines"),
                 "times": self.times or "", "when": self.when or "", "days": self.days if self.days is not None else "",
                 "note": self.note or "", "created_by": self.created_by or ""}
 
@@ -368,7 +368,7 @@ def add_custom_medicine():
     _medicine_table()
     fields = _medicine_fields(_json_body())
     if _same_name_exists(fields["name"]):
-        raise PrescriptionError(f"“{fields['name']}” is already in My medicines.", 409)
+        raise PrescriptionError(f"“{fields['name']}” is already in Custom medicines.", 409)
     m = CustomMedicine(created_by=(_doctor_name() or "")[:100] or None, **fields)
     db.session.add(m)
     db.session.commit()
@@ -385,7 +385,7 @@ def edit_custom_medicine(med_id):
         raise PrescriptionError("This medicine is no longer in the list.", 404)
     fields = _medicine_fields(_json_body(), current=m)
     if _same_name_exists(fields["name"], other_id=m.id):
-        raise PrescriptionError(f"“{fields['name']}” is already in My medicines.", 409)
+        raise PrescriptionError(f"“{fields['name']}” is already in Custom medicines.", 409)
     for k, v in fields.items():
         setattr(m, k, v)
     m.updated_at = datetime.utcnow()
