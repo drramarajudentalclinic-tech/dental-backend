@@ -962,7 +962,9 @@ def _reception_read_only():
 @require_login
 @_guard
 def sync_today_now():
-    return jsonify(sync_today(force=True) or {}), 200
+    """Make today's visits now. Screens that call this often (the Doctor's dashboard
+    every 15 s) are served at most once a minute; ?force=1 always runs."""
+    return jsonify(sync_today(force=request.args.get("force") == "1") or {}), 200
 
 
 @appointments_bp.before_app_request
