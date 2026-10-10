@@ -43,6 +43,11 @@ presc_bp = Blueprint("prescription", __name__)
 #    * If the database refuses a save, the change is rolled back cleanly
 #      and a readable message is returned.
 #    * The doctor's name is recorded from the login, when available.
+#    * INVESTIGATIONS ADVISED — X-rays / scans (OPG, CBCT, TMJ …) and blood
+#      tests (CT/BT, HbA1c, FBS, PPBS, RBS, OGTT …), each with a note, saved
+#      with the prescription as  "investigations": [{group, code, name, note}]
+#      (column prescriptions.investigations, added automatically) and returned
+#      by every prescription address.
 #    * CUSTOM MEDICINES — the clinic's own medicine list (table
 #      prescription_medicines): medicines that are not in the built-in list,
 #      saved once with their usual frequency / when / days / instructions,
@@ -132,6 +137,115 @@ def _clean_medicines(value):
 
 
 # ─────────────────────────────────────────────────────────────
+# INVESTIGATIONS ADVISED — stored as JSON text in prescriptions.investigations
+# ─────────────────────────────────────────────────────────────
+_inv_column_ready = False
+
+
+def _inv_column():
+    """Adds prescriptions.investigations (TEXT) once, if it is not there yet."""
+    global _inv_column_ready
+    if _inv_column_ready:
+        return
+    from sqlalchemy import inspect, text
+    table = Prescription.__table__.name
+    cols = {c["name"] for c in inspect(db.engine).get_columns(table)}
+    if "investigations" not in cols:
+        with db.engine.begin() as conn:
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN investigations TEXT"))
+        print("[prescription] database upgrade: added column prescriptions.investigations")
+    _inv_column_ready = True
+
+
+@presc_bp.before_request
+def _inv_column_first():
+    """Make sure the column exists before this request touches the table
+    (ALTER TABLE must not wait behind this same request's own reads)."""
+    if _inv_column_ready:
+        return
+    try:
+        db.session.commit()              # nothing is pending yet; ends any open read
+        _inv_column()
+    except Exception as exc:
+        db.session.rollback()
+        print("[prescription] could not add prescriptions.investigations:", type(exc).__name__, str(exc)[:200])
+
+
+def _clean_investigations(value):
+    """List of {group, code, name, note} → JSON text (None when the list is empty)."""
+    if value in (None, ""):
+        return None
+    items = value
+    if isinstance(value, str):
+        try:
+            items = json.loads(value)
+        except ValueError:
+            raise PrescriptionError("The investigations could not be read. Please add them again.")
+    if not isinstance(items, list):
+        raise PrescriptionError("The investigations could not be read. Please add them again.")
+    out, seen = [], set()
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        name = " ".join(str(item.get("name") or "").split())[:120]
+        if not name:
+            continue
+        group = str(item.get("group") or "").strip()[:40] or "Other"
+        key = (group.lower(), name.lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append({"group": group, "code": str(item.get("code") or "").strip()[:40] or None,
+                    "name": name, "note": str(item.get("note") or "").strip()[:500]})
+    if len(out) > 40:
+        raise PrescriptionError("Too many investigations on one prescription (40 at most).")
+    return json.dumps(out) if out else None
+
+
+def _save_investigations(pid, raw):
+    from sqlalchemy import text
+    _inv_column()
+    db.session.execute(text(f"UPDATE {Prescription.__table__.name} SET investigations = :v WHERE id = :id"),
+                       {"v": _clean_investigations(raw), "id": pid})
+
+
+def _investigations_of(ids):
+    """{prescription id: [investigations]} — one query."""
+    ids = [int(i) for i in ids if i is not None]
+    if not ids:
+        return {}
+    from sqlalchemy import text
+    try:
+        _inv_column()
+        rows = db.session.execute(text(f"SELECT id, investigations FROM {Prescription.__table__.name} "
+                                       f"WHERE id IN ({','.join(str(i) for i in ids)})")).fetchall()
+    except Exception as exc:                    # never break a list because of this
+        print("[prescription] investigations could not be read:", type(exc).__name__)
+        return {}
+    out = {}
+    for pid, raw in rows:
+        try:
+            val = json.loads(raw) if raw else []
+        except ValueError:
+            val = []
+        out[pid] = val if isinstance(val, list) else []
+    return out
+
+
+def _out(rows):
+    """to_dict() of each prescription + its investigations."""
+    single = not isinstance(rows, (list, tuple))
+    rows = [rows] if single else rows
+    inv = _investigations_of([p.id for p in rows])
+    out = []
+    for p in rows:
+        d = p.to_dict()
+        d["investigations"] = inv.get(p.id, [])
+        out.append(d)
+    return out[0] if single else out
+
+
+# ─────────────────────────────────────────────────────────────
 # HELPER — strip keys that are not real columns on Prescription
 # so we never hit TypeError on unknown fields
 # ─────────────────────────────────────────────────────────────
@@ -182,7 +296,7 @@ def _json_body():
 @presc_bp.route("/prescriptions", methods=["GET"])
 def list_all_prescriptions():
     rows = Prescription.query.order_by(Prescription.id.desc()).all()
-    return jsonify([p.to_dict() for p in rows]), 200
+    return jsonify(_out(rows)), 200
 
 
 # ─────────────────────────────────────────────────────────────
@@ -204,10 +318,14 @@ def add_prescription(visit_id):
         if name:
             safe["doctor"] = name[:100]
 
+    inv = _clean_investigations(raw.get("investigations"))     # checked before anything is saved
     p    = Prescription(visit_id=visit_id, **safe)
     db.session.add(p)
+    db.session.flush()
+    if inv is not None:
+        _save_investigations(p.id, inv)
     db.session.commit()
-    return jsonify(p.to_dict()), 201
+    return jsonify(_out(p)), 201
 
 
 # ─────────────────────────────────────────────────────────────
@@ -218,7 +336,7 @@ def add_prescription(visit_id):
 def list_prescriptions(visit_id):
     rows = (Prescription.query.filter_by(visit_id=visit_id)
             .order_by(Prescription.id).all())
-    return jsonify([p.to_dict() for p in rows]), 200
+    return jsonify(_out(rows)), 200
 
 
 # ─────────────────────────────────────────────────────────────
@@ -230,7 +348,7 @@ def list_prescriptions(visit_id):
 def patient_prescription_history(visit_id):
     if Visit is None:
         rows = Prescription.query.filter_by(visit_id=visit_id).order_by(Prescription.id.desc()).all()
-        return jsonify([p.to_dict() for p in rows]), 200
+        return jsonify(_out(rows)), 200
 
     visit = db.session.get(Visit, visit_id)
     if visit is None:
@@ -241,7 +359,7 @@ def patient_prescription_history(visit_id):
             .filter(Visit.patient_id == visit.patient_id)
             .order_by(Prescription.id.desc())
             .all())
-    return jsonify([p.to_dict() for p in rows]), 200
+    return jsonify(_out(rows)), 200
 
 
 # ─────────────────────────────────────────────────────────────
@@ -252,11 +370,16 @@ def patient_prescription_history(visit_id):
 @_guard
 def edit_prescription(id):
     p    = Prescription.query.get_or_404(id)
-    safe = _safe_data(_json_body())
+    raw  = _json_body()
+    safe = _safe_data(raw)
+    inv  = _clean_investigations(raw.get("investigations")) if "investigations" in raw else None
     for k, v in safe.items():
         setattr(p, k, v)
+    db.session.flush()
+    if "investigations" in raw:
+        _save_investigations(p.id, inv)
     db.session.commit()
-    return jsonify(p.to_dict()), 200
+    return jsonify(_out(p)), 200
 
 
 # ─────────────────────────────────────────────────────────────
