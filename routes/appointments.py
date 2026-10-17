@@ -668,6 +668,7 @@ _WATCH = [
     ("PUT",  re.compile(r"/visits/(\d+)/next-appointment/?$"), "visit"),
     ("PUT",  re.compile(r"/visits/(\d+)/close/?$"), "close"),
     ("POST", re.compile(r"/visits/?$"), "new-visit"),          # Reception creates a visit
+    ("POST", re.compile(r"/patients/\d+/create-visit/?$"), "new-visit"),   # visit from a patient search (Doctor / Reception)
     ("POST", re.compile(r"/patients/?$"), "new-patient"),      # registration (creates the first visit)
 ]
 
