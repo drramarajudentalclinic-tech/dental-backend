@@ -11,6 +11,18 @@ Endpoints:
   GET    /cbct/<id>/annotations           – Load annotations
   DELETE /cbct/<id>                       – Delete volume + annotations
   GET    /cbct/<id>/export/png            – Export composite screenshot PNG
+  GET    /cbct/<id>/link                  – Private one-hour link to a cloud scan's slices
+  GET    /cbct/storage/status             – How many scans are in the cloud / in the database
+  POST   /cbct/storage/move-to-cloud      – (Doctor) move older scans' slices into the cloud
+
+Where a scan is kept
+  Cloud storage ON (IMAGE_STORAGE=s3, the same Cloudflare R2 settings as images.py):
+      patients/<case no.>/cbct/<date>_v<visit>_scan<id>/slices.json         all slice pictures
+      patients/<case no.>/cbct/<date>_v<visit>_scan<id>/original-dicom.zip  the uploaded ZIP
+      (CBCT_KEEP_ORIGINAL=0 in Render stops keeping the ZIP)
+      cbct_volumes.slice_data then holds only "s3://<bucket>/<…>/slices.json".
+  Cloud storage OFF: as before, all slices inside cbct_volumes.slice_data.
+  Both kinds open the same way, so older scans keep working.
 
 Registration in app factory:
     from cbct_backend import cbct_bp, run_cbct_migrations
@@ -218,6 +230,104 @@ def _store_slice_images(cbct_id, slice_store):
         db.session.rollback()
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+#  Cloud storage (Cloudflare R2) - shares the bucket and settings of images.py
+# ══════════════════════════════════════════════════════════════════════════════
+def _images_module():
+    """images.py (same routes folder) - it holds the cloud connection. None if it cannot be loaded."""
+    try:
+        try:
+            import images as mod
+        except ImportError:
+            from routes import images as mod          # type: ignore
+        return mod
+    except Exception as exc:
+        print("[CBCT] cloud storage helpers not available:", type(exc).__name__)
+        return None
+
+
+def _cloud_on():
+    mod = _images_module()
+    return mod if (mod is not None and mod.active_storage() is mod._S3) else None
+
+
+def _in_cloud(vol):
+    return str(getattr(vol, "slice_data", "") or "").startswith("s3://")
+
+
+def _scan_locator(mod, vol, name):
+    """s3://bucket/[prefix/]patients/<case>/cbct/<date>_v<visit>_scan<id>/<name>"""
+    day = vol.uploaded_at or datetime.utcnow()
+    return mod._S3.new_locator(vol.visit_id, f"scan{vol.id}/{name}", "CBCT", day)
+
+
+def _sibling(locator, name):
+    return locator.rsplit("/", 1)[0] + "/" + name
+
+
+_slice_cache = {}            # cbct id -> parsed slices (the last 2 opened), so single-slice views stay fast
+
+
+def _slices_bytes(vol):
+    """The slices JSON as bytes (from the cloud or the database), or None."""
+    if not vol.slice_data:
+        return None
+    if _in_cloud(vol):
+        mod = _images_module()
+        return mod._S3.read(vol.slice_data) if mod is not None else None
+    return vol.slice_data.encode("utf-8")
+
+
+def _slices(vol):
+    """Parsed slices {axial, coronal, sagittal} or {}."""
+    hit = _slice_cache.get(vol.id)
+    if hit is not None and hit[0] == vol.slice_data:
+        return hit[1]
+    raw = _slices_bytes(vol)
+    try:
+        data = json.loads(raw) if raw else {}
+    except Exception:
+        data = {}
+    if data and _in_cloud(vol):
+        if len(_slice_cache) >= 2:
+            _slice_cache.pop(next(iter(_slice_cache)))
+        _slice_cache[vol.id] = (vol.slice_data, data)
+    return data
+
+
+def _put_scan(mod, vol, slice_json_bytes, zip_path=None):
+    """Upload slices (+ the original ZIP) and check the slices byte for byte. Returns the slices locator."""
+    loc = _scan_locator(mod, vol, "slices.json")
+    mod._S3.save(loc, io.BytesIO(slice_json_bytes), "application/json")
+    if mod._S3.read(loc) != slice_json_bytes:
+        try:
+            mod._S3.delete(loc)
+        except Exception:
+            pass
+        raise RuntimeError("the slices in the cloud did not match")
+    keep = (os.environ.get("CBCT_KEEP_ORIGINAL") or "1").strip().lower() not in ("0", "false", "no", "off")
+    if zip_path and keep:
+        bucket, key = mod._S3._split(_sibling(loc, "original-dicom.zip"))
+        mod._S3.client().upload_file(zip_path, bucket, key, ExtraArgs={"ContentType": "application/zip"})
+    return loc
+
+
+def _delete_scan_objects(locator):
+    mod = _images_module()
+    if mod is None or not str(locator or "").startswith("s3://"):
+        return
+    for name in ("slices.json", "original-dicom.zip"):
+        try:
+            mod._S3.delete(_sibling(locator, name))
+        except Exception as exc:
+            print("[CBCT] could not remove", name, "from the cloud:", type(exc).__name__)
+
+
+def _role():
+    mod = _images_module()
+    return mod._current_role() if mod is not None else ""
+
+
 def _serialize_vol(v):
     """Serialise a CBCTVolume ORM object to a JSON-safe dict."""
     return {
@@ -314,9 +424,29 @@ def upload_cbct(visit_id):
         db.session.flush()   # get cbct.id before commit
 
         slice_store = _build_slice_store(volume_3d)
-        _store_slice_images(cbct.id, slice_store)
-
-        db.session.commit()
+        cloud = _cloud_on()
+        if cloud is not None:
+            # cloud: the slices (and the original ZIP) go to the patient's cbct folder
+            if cbct.uploaded_at is None:
+                cbct.uploaded_at = datetime.utcnow()
+            payload = json.dumps(slice_store).encode("utf-8")
+            del slice_store
+            try:
+                cbct.slice_data = _put_scan(cloud, cbct, payload, zip_path)
+            except Exception as exc:
+                db.session.rollback()
+                print("[CBCT] cloud upload failed:", type(exc).__name__, str(exc)[:200])
+                return jsonify({"error": "The scan could not be saved in cloud storage ("
+                                         + cloud._s3_problem(exc) + "). Nothing was saved - please try again."}), 502
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+                _delete_scan_objects(cbct.slice_data)
+                raise
+        else:
+            _store_slice_images(cbct.id, slice_store)
+            db.session.commit()
         return jsonify({"cbct": _serialize_vol(cbct), "num_slices": depth}), 201
 
     except Exception as e:
@@ -365,6 +495,19 @@ def get_slices(cbct_id):
     """
     vol = db.get_or_404(CBCTVolume, cbct_id)
 
+    if _in_cloud(vol):
+        try:
+            raw = _slices_bytes(vol)
+        except Exception as exc:
+            mod = _images_module()
+            reason = mod._s3_problem(exc) if mod is not None else type(exc).__name__
+            return jsonify({"error": "This scan is in cloud storage, which cannot be reached now (" + reason + ")."}), 502
+        if raw:
+            # sent as it is stored - no need to unpack tens of MB just to pack them again
+            return Response(b'{"slices":' + raw + b'}', mimetype="application/json",
+                            headers={"Cache-Control": "private, max-age=3600"})
+        return jsonify({"error": "The slices of this scan are missing in cloud storage."}), 404
+
     if vol.slice_data:
         try:
             data = json.loads(vol.slice_data)
@@ -388,7 +531,7 @@ def get_single_slice(cbct_id, view, n):
     vol = db.get_or_404(CBCTVolume, cbct_id)
 
     try:
-        data   = json.loads(vol.slice_data or "{}")
+        data   = _slices(vol)
         slices = data.get(view, [])
         if not slices or n >= len(slices):
             return jsonify({"error": "Slice index out of range"}), 404
@@ -439,11 +582,122 @@ def load_annotations(cbct_id):
 @cbct_bp.route("/cbct/<int:cbct_id>", methods=["DELETE"])
 def delete_cbct(cbct_id):
     vol = db.get_or_404(CBCTVolume, cbct_id)
+    locator = vol.slice_data if _in_cloud(vol) else None
     # CBCTAnnotation has cascade="all, delete-orphan" on the relationship,
     # so deleting the volume also removes annotations automatically.
     db.session.delete(vol)
     db.session.commit()
+    _slice_cache.pop(cbct_id, None)
+    _delete_scan_objects(locator)          # record first; a leftover file is harmless
     return jsonify({"status": "deleted", "id": cbct_id})
+
+
+# ── Direct link to a cloud scan's slices ───────────────────────────────────────
+# GET /cbct/<id>/link -> { url, expires_in }  (url: null when the scan is not in the cloud)
+# The viewer downloads the slices straight from the bucket with this private link
+# (valid one hour), so tens of MB do not pass through the server. The bucket needs
+# a CORS rule allowing the clinic website to read (see the setup notes).
+
+@cbct_bp.route("/cbct/<int:cbct_id>/link", methods=["GET"])
+def cbct_link(cbct_id):
+    if not _role():
+        return jsonify({"error": "Please sign in again."}), 401
+    vol = db.get_or_404(CBCTVolume, cbct_id)
+    if not _in_cloud(vol):
+        return jsonify({"url": None})
+    mod = _images_module()
+    if mod is None:
+        return jsonify({"url": None})
+    try:
+        return jsonify({"url": mod._S3.presign(vol.slice_data, "application/json", None, 3600), "expires_in": 3600})
+    except Exception as exc:                  # the viewer then loads through /slices
+        print(f"[CBCT] could not make a link for scan {cbct_id}:", type(exc).__name__, str(exc)[:200])
+        return jsonify({"url": None})
+
+
+# ── Cloud storage: status and moving older scans ───────────────────────────────
+
+_cbct_move = {"running": False, "total": 0, "done": 0, "moved": 0, "failed": 0, "last_problem": None}
+
+
+@cbct_bp.route("/cbct/storage/status", methods=["GET"])
+def cbct_storage_status():
+    total = db.session.query(CBCTVolume.id).count()
+    in_cloud = db.session.query(CBCTVolume.id).filter(CBCTVolume.slice_data.like("s3://%")).count()
+    in_db = (db.session.query(CBCTVolume.id)
+             .filter(CBCTVolume.slice_data.isnot(None), CBCTVolume.slice_data != "",
+                     ~CBCTVolume.slice_data.like("s3://%")).count())
+    return jsonify({"scans": total, "in_cloud": in_cloud, "in_database": in_db,
+                    "cloud_on": _cloud_on() is not None, "move": dict(_cbct_move)})
+
+
+def move_scans_to_cloud(mod):
+    ids = [r[0] for r in db.session.query(CBCTVolume.id)
+           .filter(CBCTVolume.slice_data.isnot(None), CBCTVolume.slice_data != "",
+                   ~CBCTVolume.slice_data.like("s3://%")).order_by(CBCTVolume.id).all()]
+    _cbct_move.update(total=len(ids), done=0, moved=0, failed=0, last_problem=None)
+    for cid in ids:
+        loc = None
+        try:
+            vol = db.session.get(CBCTVolume, cid)
+            if vol is None or _in_cloud(vol) or not vol.slice_data:
+                _cbct_move["done"] += 1
+                continue
+            json.loads(vol.slice_data)                      # only well-formed slices are moved
+            loc = _put_scan(mod, vol, vol.slice_data.encode("utf-8"))
+            n = (db.session.query(CBCTVolume)
+                 .filter(CBCTVolume.id == cid, ~CBCTVolume.slice_data.like("s3://%"))
+                 .update({"slice_data": loc}, synchronize_session=False))
+            db.session.commit()
+            if n:
+                _cbct_move["moved"] += 1
+            else:
+                _delete_scan_objects(loc)
+        except Exception as exc:
+            db.session.rollback()
+            if loc:
+                _delete_scan_objects(loc)
+            _cbct_move["failed"] += 1
+            _cbct_move["last_problem"] = f"scan {cid}: " + mod._s3_problem(exc)
+            print(f"[CBCT] could not move scan {cid}:", type(exc).__name__, str(exc)[:200])
+        _cbct_move["done"] += 1
+        db.session.expire_all()
+    print("[CBCT] move to cloud:", dict(_cbct_move))
+
+
+@cbct_bp.route("/cbct/storage/move-to-cloud", methods=["POST"])
+def cbct_move_to_cloud():
+    if _role() not in ("doctor", "admin"):
+        return jsonify({"error": "Only the doctor can move the scans."}), 403
+    mod = _cloud_on()
+    if mod is None:
+        return jsonify({"error": "Switch the cloud on first: set IMAGE_STORAGE=s3 in Render (Environment)."}), 400
+    check = mod.check_cloud()
+    if not check["ok"]:
+        return jsonify({"error": check["error"]}), 400
+    if _cbct_move["running"]:
+        return jsonify({"started": False, "message": "Already moving.", "move": dict(_cbct_move)}), 200
+    _cbct_move["running"] = True
+    from flask import current_app
+    import threading
+    app = current_app._get_current_object()
+
+    def work():
+        try:
+            with app.app_context():
+                move_scans_to_cloud(mod)
+        except Exception as exc:
+            _cbct_move["last_problem"] = str(exc)[:200]
+        finally:
+            try:
+                with app.app_context():
+                    db.session.remove()
+            except Exception:
+                pass
+            _cbct_move["running"] = False
+
+    threading.Thread(target=work, name="cbct-move-to-cloud", daemon=True).start()
+    return jsonify({"started": True, "move": dict(_cbct_move)}), 202
 
 
 # ── Export composite PNG ───────────────────────────────────────────────────────
@@ -466,9 +720,8 @@ def export_png(cbct_id):
 
     vol = db.get_or_404(CBCTVolume, cbct_id)
 
-    try:
-        data = json.loads(vol.slice_data or "{}")
-    except Exception:
+    data = _slices(vol)
+    if not data:
         return jsonify({"error": "No slice data available"}), 404
 
     ax_slices  = data.get("axial",    [])

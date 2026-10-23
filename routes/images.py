@@ -7,6 +7,7 @@ import threading
 import uuid
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
+from sqlalchemy import or_
 from werkzeug.exceptions import HTTPException
 
 from database import db
@@ -32,9 +33,26 @@ images_bp = Blueprint("images", __name__)
 #                         <backend>/uploads/images/<visit id>/<unique name>.jpg
 #                         The database stores "uploads/images/<visit id>/<name>".
 #
-#    Later (optional) ->  object storage (Amazon S3, Cloudflare R2, DigitalOcean
-#                         Spaces, Backblaze B2, MinIO ... anything S3-compatible).
-#                         The database then stores "s3://<bucket>/<key>".
+#    Cloud (IMAGE_STORAGE=s3) -> object storage: Cloudflare R2 (used by this
+#                         clinic), or Amazon S3, DigitalOcean Spaces, Backblaze B2,
+#                         MinIO ... anything S3-compatible.
+#                         The database then stores "s3://<bucket>/<key>", and each
+#                         patient has one folder in the bucket:
+#                           patients/<case no.>/xrays/<date>_v<visit>_<name>.jpg   (IOPA, OPG)
+#                           patients/<case no.>/photos/...                        (intra-oral)
+#                           patients/<case no.>/cbct/...                          (CBCT pictures)
+#                         so every file of a patient is in one place.
+#
+#  CLOUDFLARE R2 - settings in Render -> dental-backend -> Environment:
+#      IMAGE_STORAGE=s3
+#      S3_BUCKET=sssohc-clinic-files
+#      S3_ENDPOINT_URL=https://<account id>.r2.cloudflarestorage.com
+#      S3_REGION=auto
+#      S3_ACCESS_KEY_ID=...   S3_SECRET_ACCESS_KEY=...   (only in Render, never in code)
+#  and the line  boto3  in requirements.txt.
+#  Then Doctor dashboard -> Cloud storage -> "Check connection" and
+#  "Move pictures to the cloud" (copies every older picture into the bucket,
+#  checks it byte for byte, and only then frees the old copy).
 #
 #  SWITCHING TO OBJECT STORAGE LATER - no code change, only settings:
 #      pip install boto3
@@ -150,7 +168,7 @@ class LocalStorage:
     """Files in a folder on this computer."""
     name = "local"
 
-    def new_locator(self, visit_id, filename):
+    def new_locator(self, visit_id, filename, image_type=None, image_date=None):
         return f"{LOCAL_PREFIX}{visit_id}/{filename}"
 
     def path_for(self, locator):
@@ -210,6 +228,44 @@ class LocalStorage:
             os.remove(path)
 
 
+def _s3_config():
+    """Short waits (a slow network must not hang an upload) and the checksum setting
+    Cloudflare R2 accepts with every boto3 version."""
+    from botocore.config import Config
+    base = dict(connect_timeout=5, read_timeout=60, retries={"max_attempts": 3})
+    try:
+        return Config(request_checksum_calculation="when_required",
+                      response_checksum_validation="when_required", **base)
+    except TypeError:                       # older botocore: no such setting, nothing to change
+        return Config(**base)
+
+
+def _safe_part(text, fallback):
+    """A case number etc. as one safe folder name (letters, digits, - _ .)."""
+    cleaned = "".join(ch if (ch.isalnum() or ch in "-_.") else "-" for ch in str(text or "").strip())
+    cleaned = cleaned.strip(".-")[:60]
+    return cleaned or fallback
+
+
+FOLDER_FOR_TYPE = {"IOPA": "xrays", "OPG": "xrays", "CBCT": "cbct", "INTRAORAL": "photos"}
+
+
+def _patient_key(visit_id, filename, image_type=None, image_date=None):
+    """patients/<case no.>/<xrays|photos|cbct>/<YYYY-MM-DD>_v<visit>_<filename>"""
+    case = None
+    try:
+        from models import Patient
+        v = db.session.get(Visit, int(visit_id)) if Visit is not None else None
+        p = db.session.get(Patient, v.patient_id) if v is not None else None
+        case = p.case_number if p is not None else None
+    except Exception:
+        case = None
+    folder = f"patients/{_safe_part(case, 'no-case')}" if case else f"patients/no-case/visit-{visit_id}"
+    kind = FOLDER_FOR_TYPE.get(str(image_type or "").upper(), "other")
+    day = image_date.strftime("%Y-%m-%d") if hasattr(image_date, "strftime") else (datetime.utcnow() + IST_OFFSET).strftime("%Y-%m-%d")
+    return f"{folder}/{kind}/{day}_v{visit_id}_{filename}"
+
+
 class S3Storage:
     """Object storage (S3-compatible). Used only when IMAGE_STORAGE=s3."""
     name = "s3"
@@ -232,20 +288,22 @@ class S3Storage:
                                      "(run: pip install boto3).", 500)
                 if not self.bucket:
                     raise ImageError("Object storage is switched on but S3_BUCKET is not set.", 500)
-                kwargs = {}
-                if os.environ.get("S3_ENDPOINT_URL"):
-                    kwargs["endpoint_url"] = os.environ["S3_ENDPOINT_URL"]
-                if os.environ.get("S3_REGION"):
-                    kwargs["region_name"] = os.environ["S3_REGION"]
+                kwargs = {"config": _s3_config()}
+                endpoint = os.environ.get("S3_ENDPOINT_URL", "").strip()
+                if endpoint:
+                    kwargs["endpoint_url"] = endpoint
+                region = os.environ.get("S3_REGION", "").strip() or ("auto" if "r2.cloudflarestorage.com" in endpoint else "")
+                if region:
+                    kwargs["region_name"] = region
                 if os.environ.get("S3_ACCESS_KEY_ID") and os.environ.get("S3_SECRET_ACCESS_KEY"):
                     kwargs["aws_access_key_id"] = os.environ["S3_ACCESS_KEY_ID"]
                     kwargs["aws_secret_access_key"] = os.environ["S3_SECRET_ACCESS_KEY"]
                 self._client = boto3.client("s3", **kwargs)
             return self._client
 
-    def new_locator(self, visit_id, filename):
+    def new_locator(self, visit_id, filename, image_type=None, image_date=None):
         prefix = os.environ.get("S3_PREFIX", "").strip().strip("/")
-        key = f"images/{visit_id}/{filename}"
+        key = _patient_key(visit_id, filename, image_type, image_date)
         if prefix:
             key = f"{prefix}/{key}"
         if not self.bucket:
@@ -297,6 +355,19 @@ class S3Storage:
     def delete(self, locator):
         bucket, key = self._split(locator)
         self.client().delete_object(Bucket=bucket, Key=key)
+
+    def presign(self, locator, mime=None, download_name=None, expires=3600):
+        """A private link to one object that works for `expires` seconds only.
+        The browser loads the file straight from the bucket (R2 downloads are free),
+        so the picture does not pass through the server."""
+        bucket, key = self._split(locator)
+        params = {"Bucket": bucket, "Key": key, "ResponseCacheControl": f"private, max-age={int(expires)}"}
+        if mime:
+            params["ResponseContentType"] = mime
+        if download_name:
+            safe = "".join(ch for ch in download_name if ch not in '"\\\r\n')
+            params["ResponseContentDisposition"] = f'attachment; filename="{safe}"'
+        return self.client().generate_presigned_url("get_object", Params=params, ExpiresIn=int(expires))
 
 
 _LOCAL = LocalStorage()
@@ -423,11 +494,11 @@ def run_image_migrations(app):
 # ─────────────────────────────────────────────────────────────────────────────
 #  Old base64 pictures  ->  real files
 # ─────────────────────────────────────────────────────────────────────────────
-def _store_bytes(visit_id, data, mime, original_name="image"):
+def _store_bytes(visit_id, data, mime, original_name="image", image_type=None, image_date=None, store=None):
     """Save bytes with the active storage. Returns the locator to keep in images.image_path."""
     ext = EXT_FOR_MIME.get(mime, "jpg")
-    store = active_storage()
-    locator = store.new_locator(visit_id, _unique_filename(original_name, ext))
+    store = store or active_storage()
+    locator = store.new_locator(visit_id, _unique_filename(original_name, ext), image_type, image_date)
     if store is _S3:
         store.save(locator, io.BytesIO(data), mime)
     else:
@@ -458,7 +529,8 @@ def _convert_row(img):
             return "bad"
         mime = sniff_mime(data[:16]) or getattr(img, "mime_type", None) or "image/jpeg"
         original = os.path.basename(str(img.image_path or "").replace("\\", "/")) or "image"
-        img.image_path = _store_bytes(img.visit_id, data, mime, original)
+        img.image_path = _store_bytes(img.visit_id, data, mime, original,
+                                      img.image_type, getattr(img, "image_date", None))
         img.mime_type = mime
         db.session.commit()
         store = storage_for(img.image_path)
@@ -576,20 +648,27 @@ def upload_image(visit_id):
         return jsonify({"error": reason}), 400
     ext = EXT_FOR_MIME[mime_type]
 
-    # ── save the file ──
-    store    = active_storage()
-    locator  = store.new_locator(visit_id, _unique_filename(file.filename, ext))
-    if store is _S3:
-        store.save(locator, stream, mime_type)
-    else:
-        store.save(locator, stream)
-
     parsed_date = (datetime.utcnow() + IST_OFFSET).date()
     if image_date:
         try:
             parsed_date = datetime.strptime(image_date, "%Y-%m-%d").date()
         except ValueError:
             pass
+
+    # ── save the file (in the cloud: in this patient's folder) ──
+    store    = active_storage()
+    locator  = store.new_locator(visit_id, _unique_filename(file.filename, ext), image_type, parsed_date)
+    if store is _S3:
+        try:
+            store.save(locator, stream, mime_type)
+        except ImageError:
+            raise
+        except Exception as exc:
+            print("[images] cloud upload failed:", type(exc).__name__, str(exc)[:200])
+            raise ImageError("The picture could not be saved in cloud storage (" + _s3_problem(exc) + "). "
+                             "Nothing was saved - please try again in a minute.", 502)
+    else:
+        store.save(locator, stream)
 
     # ── save the record; if that fails, do not leave an orphan file behind ──
     try:
@@ -696,6 +775,37 @@ def serve_image_data(id):
     return jsonify({"error": "The file for this picture is missing on the server."}), 404
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  DIRECT LINK (pictures in the cloud)
+#  GET /api/images/<id>/link  -> { url, download_url, mime_type, expires_in }
+#  url is a private link to the file in the bucket, valid for one hour; the screen
+#  shows the picture from there. For a picture not in the cloud: { url: null } and
+#  the screen loads it through /data as before.
+# ─────────────────────────────────────────────────────────────────────────────
+LINK_SECONDS = 3600
+
+
+@images_bp.route("/images/<int:id>/link", methods=["GET"])
+@_guard
+def image_link(id):
+    if not _current_role():
+        return jsonify({"error": "Please sign in again."}), 401
+    img  = Image.query.get_or_404(id)
+    mime = getattr(img, "mime_type", None) or "image/jpeg"
+    if storage_for(img.image_path) is not _S3:
+        return jsonify({"url": None, "mime_type": mime})
+    try:
+        return jsonify({
+            "url":          _S3.presign(img.image_path, mime, None, LINK_SECONDS),
+            "download_url": _S3.presign(img.image_path, mime, _download_name(img, mime), LINK_SECONDS),
+            "mime_type":    mime,
+            "expires_in":   LINK_SECONDS,
+        })
+    except Exception as exc:                 # the screen then loads it through /data
+        print(f"[images] could not make a link for picture {id}:", type(exc).__name__, str(exc)[:200])
+        return jsonify({"url": None, "mime_type": mime})
+
+
 # Kept for old links. Only files inside the uploads folder can be fetched this way.
 @images_bp.route("/images/file/<path:filepath>", methods=["GET"])
 def serve_image(filepath):
@@ -761,6 +871,266 @@ def delete_image(id):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+#  CLOUD STORAGE - connection check and moving older pictures into the bucket
+#  GET  /api/images/storage/check          writes, reads back and removes a tiny test file
+#  POST /api/images/storage/move-to-cloud  (Doctor) copies every older picture into the
+#                                          bucket, in the background; progress in /status
+# ─────────────────────────────────────────────────────────────────────────────
+def _s3_problem(exc):
+    """A short, plain reason for a cloud storage failure (never shows a key)."""
+    if isinstance(exc, ImageError):
+        return exc.message
+    if isinstance(exc, ImportError):
+        return "the server is missing boto3 - add the line  boto3  to requirements.txt"
+    name = type(exc).__name__
+    code = ""
+    if hasattr(exc, "response"):
+        try:
+            code = str(exc.response.get("Error", {}).get("Code", ""))
+        except Exception:
+            code = ""
+    if code in ("InvalidAccessKeyId", "SignatureDoesNotMatch", "InvalidToken", "Unauthorized"):
+        return "the access key or secret key is not right - copy them again into Render"
+    if code in ("NoSuchBucket",):
+        return "the bucket name in S3_BUCKET was not found"
+    if code in ("AccessDenied", "403", "Forbidden"):
+        return "the key is not allowed to use this bucket - give the API token Object Read & Write on it"
+    if name in ("EndpointConnectionError", "ConnectTimeoutError", "ConnectionClosedError", "ReadTimeoutError"):
+        return "the storage address (S3_ENDPOINT_URL) cannot be reached"
+    if name == "NoRegionError":
+        return "set S3_REGION=auto"
+    if name in ("InvalidEndpoint", "ValueError") and "endpoint" in str(exc).lower():
+        return "S3_ENDPOINT_URL is not a valid address"
+    return f"{code or name}"
+
+
+def _cloud_settings():
+    endpoint = os.environ.get("S3_ENDPOINT_URL", "").strip()
+    host = endpoint.split("://", 1)[-1].split("/", 1)[0]
+    if ".r2.cloudflarestorage.com" in host:            # do not show the account id in full
+        acc = host.split(".", 1)[0]
+        host = f"{acc[:4]}…{acc[-4:]}.r2.cloudflarestorage.com" if len(acc) > 8 else host
+    return {
+        "configured":  bool(_S3.bucket and os.environ.get("S3_ACCESS_KEY_ID") and os.environ.get("S3_SECRET_ACCESS_KEY")),
+        "bucket":      _S3.bucket or None,
+        "endpoint":    host or None,
+        "prefix":      os.environ.get("S3_PREFIX", "").strip().strip("/") or None,
+        "switched_on": active_storage() is _S3,
+    }
+
+
+def _current_role():
+    """'doctor' / 'reception' of the signed-in person ('' when it cannot be told)."""
+    try:
+        from flask_jwt_extended import verify_jwt_in_request, get_jwt
+        verify_jwt_in_request(optional=True)
+        role = (get_jwt() or {}).get("role")
+        if role:
+            return str(role).strip().lower()
+    except Exception:
+        pass
+    try:
+        try:
+            from auth_utils import get_current_role
+        except ImportError:
+            from routes.auth_utils import get_current_role
+        return str(get_current_role() or "").strip().lower()
+    except Exception:
+        return ""
+
+
+def check_cloud():
+    """Write, read back and delete one tiny file. Returns {ok, ...}."""
+    info = _cloud_settings()
+    if not info["bucket"]:
+        return {**info, "ok": False, "error": "Cloud storage is not set up yet: S3_BUCKET is missing in Render (Environment)."}
+    if not info["configured"]:
+        return {**info, "ok": False, "error": "S3_ACCESS_KEY_ID or S3_SECRET_ACCESS_KEY is missing in Render (Environment)."}
+    started = datetime.utcnow()
+    probe = f"s3://{_S3.bucket}/" + (f"{info['prefix']}/" if info["prefix"] else "") + f".connection-check/{uuid.uuid4().hex}.txt"
+    payload = b"Sri Satya Sai Oral Health Center - storage check"
+    try:
+        _S3.save(probe, io.BytesIO(payload), "text/plain")
+        back = _S3.read(probe)
+        _S3.delete(probe)
+    except Exception as exc:
+        return {**info, "ok": False, "error": "Cloud storage could not be used: " + _s3_problem(exc) + "."}
+    if back != payload:
+        return {**info, "ok": False, "error": "A test file was saved but could not be read back the same."}
+    return {**info, "ok": True, "seconds": round((datetime.utcnow() - started).total_seconds(), 2),
+            "message": "Connected: a test file was saved, read back and removed."}
+
+
+_move = {"running": False, "started_at": None, "finished_at": None, "total": 0, "done": 0,
+         "moved": 0, "missing": 0, "failed": 0, "last_problem": None}
+_move_lock = threading.Lock()
+
+
+def _strip_old_id(name):
+    """'3f2a…(32 hex)_my_opg.jpg' -> 'my_opg' (a new unique id is added again)."""
+    stem = os.path.splitext(os.path.basename(str(name or "").replace("\\", "/")))[0]
+    head, sep, rest = stem.partition("_")
+    if sep and len(head) == 32 and all(c in "0123456789abcdef" for c in head.lower()):
+        stem = rest
+    return stem or "image"
+
+
+def _move_one(image_id):
+    """Copy one picture into the bucket and check it. 'moved' | 'already' | 'missing'."""
+    img = db.session.get(Image, image_id)
+    if img is None or str(img.image_path or "").startswith("s3://"):
+        return "already"
+    old_path = img.image_path
+    data = _LOCAL.read(old_path) if old_path else None
+    if data is None:
+        data = _decode_base64(_base64_of(img))
+    if not data:
+        return "missing"
+    mime = sniff_mime(data[:16]) or getattr(img, "mime_type", None) or "image/jpeg"
+    locator = _store_bytes(img.visit_id, data, mime, _strip_old_id(old_path), img.image_type,
+                           getattr(img, "image_date", None), store=_S3)
+    try:
+        if _S3.read(locator) != data:                      # byte-for-byte check before anything is freed
+            raise ImageError("the copy in the bucket did not match", 502)
+        changes = {"image_path": locator}
+        if hasattr(Image, "mime_type"):
+            changes["mime_type"] = mime
+        if hasattr(Image, "image_data"):
+            changes["image_data"] = None                    # the bucket now holds it - free the database
+        # only if nobody changed this picture meanwhile (another server worker, a delete)
+        done = (db.session.query(Image)
+                .filter(Image.id == image_id, Image.image_path == old_path)
+                .update(changes, synchronize_session=False))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        try:
+            _S3.delete(locator)
+        except Exception:
+            pass
+        raise
+    if not done:
+        try:
+            _S3.delete(locator)
+        except Exception:
+            pass
+        return "already"
+    path = _LOCAL.path_for(old_path) if old_path and not str(old_path).startswith("s3://") else None
+    if path and os.path.isfile(path):
+        try:
+            os.remove(path)                                 # the server disk copy is no longer needed
+        except OSError:
+            pass
+    return "moved"
+
+
+def move_pictures_to_cloud():
+    ids = [row[0] for row in db.session.query(Image.id)
+           .filter(or_(Image.image_path.is_(None), ~Image.image_path.like("s3://%")))
+           .order_by(Image.id).all()]
+    _move.update(total=len(ids), done=0, moved=0, missing=0, failed=0, last_problem=None)
+    for image_id in ids:
+        try:
+            outcome = _move_one(image_id)
+        except Exception as exc:
+            db.session.rollback()
+            outcome = "failed"
+            _move["last_problem"] = f"picture {image_id}: " + _s3_problem(exc)
+            print(f"[images] could not move picture {image_id} to the cloud:", type(exc).__name__, str(exc)[:200])
+        if outcome in ("moved", "missing", "failed"):
+            _move[outcome] += 1
+        _move["done"] += 1
+        db.session.expire_all()
+    # pictures already in the bucket that still carry an old base64 copy in the database:
+    # free it once the bucket copy is checked byte for byte
+    if hasattr(Image, "image_data"):
+        extra = [row[0] for row in db.session.query(Image.id)
+                 .filter(Image.image_path.like("s3://%"), Image.image_data.isnot(None), Image.image_data != "")
+                 .order_by(Image.id).all()]
+        _move["total"] += len(extra)
+        for image_id in extra:
+            try:
+                img = db.session.get(Image, image_id)
+                data = _decode_base64(_base64_of(img)) if img is not None else None
+                if data is not None and _S3.read(img.image_path) == data:
+                    img.image_data = None
+                    db.session.commit()
+                    _move["moved"] += 1
+            except Exception as exc:
+                db.session.rollback()
+                _move["failed"] += 1
+                _move["last_problem"] = f"picture {image_id}: " + _s3_problem(exc)
+            _move["done"] += 1
+            db.session.expire_all()
+    print("[images] move to cloud:", {k: _move[k] for k in ("total", "moved", "missing", "failed")})
+
+
+@images_bp.route("/images/storage/check", methods=["GET"])
+@_guard
+def storage_check():
+    return jsonify(check_cloud())
+
+
+@images_bp.route("/images/storage/browser-check", methods=["GET"])
+@_guard
+def storage_browser_check():
+    """A tiny file in the bucket + a private link to it: the Cloud storage panel reads it
+    from the browser to check that the bucket's CORS rule lets the website read files
+    directly (needed for CBCT scans to load straight from the cloud)."""
+    if not _current_role():
+        return jsonify({"error": "Please sign in again."}), 401
+    if active_storage() is not _S3:
+        return jsonify({"url": None})
+    info = _cloud_settings()
+    loc = f"s3://{_S3.bucket}/" + (f"{info['prefix']}/" if info["prefix"] else "") + ".connection-check/browser-read.txt"
+    try:
+        _S3.save(loc, io.BytesIO(b"ok"), "text/plain")
+        return jsonify({"url": _S3.presign(loc, "text/plain", None, 300)})
+    except Exception as exc:
+        return jsonify({"url": None, "error": "Cloud storage could not be used: " + _s3_problem(exc) + "."})
+
+
+@images_bp.route("/images/storage/move-to-cloud", methods=["POST"])
+@_guard
+def storage_move_to_cloud():
+    if _current_role() not in ("doctor", "admin"):
+        return jsonify({"error": "Only the doctor can move the pictures."}), 403
+    if active_storage() is not _S3:
+        return jsonify({"error": "Switch the cloud on first: set IMAGE_STORAGE=s3 in Render (Environment)."}), 400
+    check = check_cloud()
+    if not check["ok"]:
+        return jsonify({"error": check["error"]}), 400
+    with _move_lock:
+        if _move["running"]:
+            return jsonify({"started": False, "message": "Already moving.", "move": dict(_move)}), 200
+        _move.update(running=True, started_at=datetime.utcnow().isoformat() + "Z", finished_at=None)
+    app = current_app._get_current_object()
+
+    def work():
+        try:
+            with app.app_context():
+                for _ in range(600):                        # let the old-base64 conversion finish first
+                    if _conversion["done"] or not _conversion["started"]:
+                        break
+                    threading.Event().wait(1)
+                move_pictures_to_cloud()
+        except Exception as exc:
+            _move["last_problem"] = _s3_problem(exc)
+            print("[images] move to cloud stopped:", type(exc).__name__, str(exc)[:200])
+        finally:
+            try:
+                with app.app_context():
+                    db.session.remove()
+            except Exception:
+                pass
+            _move.update(running=False, finished_at=datetime.utcnow().isoformat() + "Z")
+
+    threading.Thread(target=work, name="image-move-to-cloud", daemon=True).start()
+    return jsonify({"started": True, "message": "Moving the pictures to the cloud in the background.",
+                    "move": dict(_move)}), 202
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 #  STATUS (for checking the storage at a glance)
 #  GET /api/images/storage/status
 # ─────────────────────────────────────────────────────────────────────────────
@@ -782,6 +1152,8 @@ def storage_status():
         "base64_conversion_done": _conversion["done"],
         "last_conversion":        _conversion["counts"],
         "max_upload_mb":          _max_bytes() // 1048576,
+        "cloud":                  _cloud_settings(),
+        "move":                   dict(_move),
     })
 
 
