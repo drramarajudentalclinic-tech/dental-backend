@@ -40,14 +40,19 @@ export function Footer() {
     <footer className="foot">
       <div className="wrap" style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <span>© {new Date().getFullYear()} {clinic.name}</span>
-        <span>{clinic.registration}</span>
+        {clinic.registration ? <span>Dental Council Reg. No. {clinic.registration}</span> : <span>{clinic.address[clinic.address.length - 1]}</span>}
       </div>
     </footer>
   );
 }
 
 /* Shown only while content.js still has [placeholders]. */
-const hasPlaceholders = JSON.stringify(content).includes("[");
+const hasPlaceholders = (function find(v) {
+  if (typeof v === "string") return /\[[^\]]+\]/.test(v);
+  if (Array.isArray(v)) return v.some(find);
+  if (v && typeof v === "object") return Object.values(v).some(find);
+  return false;
+})({ ...content });
 export function DraftNote() {
   if (!hasPlaceholders) return null;
   return <div className="draft" role="note">Draft website — some clinic details are still being filled in.</div>;

@@ -204,3 +204,10 @@ a { color: var(--ink-2); }
   .rx { border: none; padding: 0; }
 }
 .print-only { display: none; }
+
+.doc-facts { margin: 10px 0 0; padding-left: 18px; font-size: 15.5px; }
+.doc-facts li { margin: 2px 0; }
+.appt-note { margin-top: 10px; background: var(--gum-soft); color: #7a1f33; border-radius: var(--radius-s); padding: 8px 12px; font-size: 15px; font-weight: 600; }
+.map { display: block; width: 100%; height: 340px; border: 1px solid var(--line); border-radius: var(--radius-m); margin-top: 32px; background: var(--mint); }
+@media (max-width: 760px) { .map { height: 260px; } }
+.hours td:last-child { white-space: nowrap; }

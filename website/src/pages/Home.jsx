@@ -65,12 +65,13 @@ export default function Home() {
               <h1>{clinic.name}</h1>
               <p className="lead">{clinic.tagline}</p>
               <div className="hero-actions">
-                <a className="btn" href={`tel:${clinic.phone.replace(/[^\d+]/g, "")}`}>Call to book a visit</a>
-                <Link className="btn ghost" to="/portal">Patient login</Link>
+                <a className="btn" href={`tel:${clinic.phone.replace(/[^\d+]/g, "")}`}>Call {clinic.phone}</a>
+                <a className="btn ghost" href={`https://wa.me/${clinic.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent("Hello, I would like to book an appointment.")}`} target="_blank" rel="noreferrer">Book on WhatsApp</a>
               </div>
               <div className="hero-facts">
-                <span><b>Digital X-rays, OPG and CBCT</b> on site</span>
-                <span><b>Your records online</b>, shared by the doctor</span>
+                <span><b>30 years</b> of practice</span>
+                <span><b>MDS</b>, Oral Medicine &amp; Radiology</span>
+                <span><b>By appointment</b>, Mon–Sat 11 am – 7 pm</span>
               </div>
             </div>
             <ToothChart />
@@ -130,6 +131,7 @@ export default function Home() {
                     <div className="q">{d.qualification}</div>
                     <div className="muted" style={{ fontSize: 15 }}>{d.role}</div>
                     <p style={{ marginTop: 8 }}>{d.about}</p>
+                    {d.facts?.length > 0 && <ul className="doc-facts">{d.facts.map((f) => <li key={f}>{f}</li>)}</ul>}
                   </div>
                 </div>
               ))}
@@ -157,11 +159,13 @@ export default function Home() {
               <div>
                 <h3>Address</h3>
                 <p>{clinic.name}<br />{clinic.address.map((l) => <span key={l}>{l}<br /></span>)}</p>
-                {clinic.mapsLink && <p style={{ marginTop: 10 }}><a href={clinic.mapsLink} target="_blank" rel="noreferrer">Open in Google Maps</a></p>}
+                {clinic.landmark && <p className="muted" style={{ marginTop: 6, fontSize: 15 }}>{clinic.landmark}</p>}
+                {clinic.mapsLink && <p style={{ marginTop: 10 }}><a className="btn ghost small" href={clinic.mapsLink} target="_blank" rel="noreferrer">Directions in Google Maps</a></p>}
               </div>
               <div>
                 <h3>Timings</h3>
                 <table className="hours"><tbody>{clinic.hours.map(([d, h]) => <tr key={d}><td>{d}</td><td>{h}</td></tr>)}</tbody></table>
+                {clinic.hoursNote && <p className="appt-note">{clinic.hoursNote}</p>}
               </div>
               <div>
                 <h3>Contact</h3>
@@ -170,6 +174,10 @@ export default function Home() {
                 <p>Email: <a href={`mailto:${clinic.email}`}>{clinic.email}</a></p>
               </div>
             </div>
+            {clinic.mapQuery && (
+              <iframe className="map" title="Clinic location on the map" loading="lazy" referrerPolicy="no-referrer-when-downgrade"
+                src={`https://maps.google.com/maps?q=${encodeURIComponent(clinic.mapQuery)}&z=16&output=embed`} />
+            )}
           </div>
         </section>
       </main>

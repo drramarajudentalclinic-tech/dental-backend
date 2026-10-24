@@ -3,7 +3,7 @@
    Change words, phone numbers, timings, equipment and protocols in this
    one file — the pages pick them up automatically.
 
-   Anything written inside [square brackets] is a placeholder that is
+   Anything written inside square brackets, like [this], is a placeholder that is
    waiting for the clinic's real details. The site shows a small yellow
    "draft" strip at the top while any placeholder is left.
 
@@ -15,40 +15,58 @@
 export const clinic = {
   name: "Sri Satya Sai Oral Health Center & Dental Clinic",
   shortName: "Sri Satya Sai Dental",
-  tagline: "General and specialist dental care, planned with digital records and explained before we begin.",
-  phone: "[+91 00000 00000]",
-  whatsapp: "[+91 00000 00000]",
+  tagline: "Complete dental care in Chaitanyapuri, Hyderabad, led by a specialist in oral medicine and radiology with 30 years of experience. Every treatment is explained before we begin.",
+  phone: "+91 99088 94449",
+  whatsapp: "+91 99088 94449",
   email: "drramarajudentalclinic@gmail.com",
-  address: ["[Door no., street]", "[Area, town]", "[District, Andhra Pradesh – PIN]"],
-  mapsLink: "",          // paste the Google Maps "Share → Copy link" here
-  hours: [
-    ["Monday – Saturday", "[10:00 am – 1:30 pm, 5:00 pm – 9:00 pm]"],
-    ["Sunday", "[By appointment]"],
+  address: [
+    "G-15, Ground Floor, Rajanigandha Apartments",
+    "Opposite Metro Pillar No. 1563, Chaitanyapuri",
+    "Hyderabad – 500060, Telangana",
   ],
-  registration: "[Dental Council registration no.]",
+  landmark: "Near Dilsukhnagar, opposite Metro Pillar No. 1563",
+  mapsLink: "https://maps.app.goo.gl/24xzmNNGazzfwQWy9",
+  mapQuery: "Rajanigandha Apartments, Chaitanyapuri, Hyderabad 500060",
+  hours: [
+    ["Monday – Saturday", "11:00 am – 7:00 pm"],
+    ["Sunday", "Holiday"],
+  ],
+  hoursNote: "By appointment only. Please call or WhatsApp before you come.",
+  registration: "",      // Dental Council registration no. (shown in the footer once filled in)
 };
 
 export const doctors = [
   {
-    name: "Dr. Rama Raju",
-    qualification: "[BDS, MDS – speciality]",
-    role: "[Chief dental surgeon]",
-    about: "[Two or three factual lines: years in practice, areas of special interest, training.]",
+    name: "Dr. D. Rama Raju",
+    qualification: "BDS, MDS (Oral Medicine & Radiology)",
+    role: "Dental surgeon, 30 years of experience",
+    facts: [
+      "BDS, Osmania Medical College, Hyderabad (1996)",
+      "MDS in Oral Medicine & Radiology, Osmania Medical College, Hyderabad (2000)",
+      "Member, Indian Dental Association",
+    ],
+    about: "Dr. D. Rama Raju has practised dentistry for 30 years. He treats patients at Sri Satya Sai Oral Health Center & Dental Clinic in Chaitanyapuri, near Dilsukhnagar, Hyderabad: from check-ups and cleaning to surgical extractions, implants, braces and full-mouth rehabilitation.",
   },
 ];
 
 /* What patients come for — shown as a plain list, no prices. */
 export const services = [
-  ["Check-ups and cleaning", "Examination, scaling and polishing, fluoride and sealants for children."],
-  ["Fillings", "Tooth-coloured composite fillings matched to the shade of your tooth."],
-  ["Root canal treatment", "Single- and multiple-visit root canals with rotary instruments and electronic length measurement."],
+  ["Check-ups and cleaning", "Examination, scaling and polishing, fluoride application and pit-and-fissure sealants."],
+  ["Fillings", "Tooth-coloured composite and glass-ionomer fillings matched to the shade of your tooth."],
+  ["Root canal treatment", "Single- and multiple-visit root canals with rotary instruments and electronic length measurement; re-treatment of old root canals."],
   ["Crowns and bridges", "Metal-ceramic, zirconia and all-ceramic crowns; bridges to replace missing teeth."],
-  ["Dental implants", "Implant planning on a 3-D CBCT scan before surgery, then the crown on top."],
-  ["Extractions and minor surgery", "Including wisdom teeth, under local anaesthesia."],
-  ["Gum treatment", "Deep cleaning, gum surgery and maintenance for bleeding or loose gums."],
-  ["Braces and aligners", "Fixed braces and clear aligners for teeth alignment."],
-  ["Dentures", "Complete and partial dentures, flexible dentures, implant-supported dentures."],
-  ["Children's dentistry", "Gentle first visits, fillings and pulp treatment for milk teeth."],
+  ["Dental implants", "Single and multiple implants, planned on a 3-D CBCT scan, with the crown or denture on top."],
+  ["Artificial teeth and dentures", "Complete and partial dentures, flexible dentures and implant-supported dentures."],
+  ["Oral rehabilitation", "Full-mouth rehabilitation for worn, broken or missing teeth, restoring chewing and bite together."],
+  ["Wisdom teeth and extractions", "Simple and surgical extractions, including impacted wisdom teeth, under local anaesthesia."],
+  ["Oral medicine and diagnosis", "Check-ups for white or red patches, non-healing ulcers and lumps in the mouth (oral cancer screening), burning mouth and facial pain."],
+  ["Dental X-rays and scans", "IOPA, OPG and CBCT scans taken when needed and read by a specialist in oral radiology, with the findings explained to you."],
+  ["Gum treatment", "Deep cleaning, gum surgery and maintenance for bleeding, swollen or loose gums."],
+  ["Braces and aligners", "Fixed metal and ceramic braces and clear aligners for crooked or gapped teeth."],
+  ["Teeth reshaping and smile design", "Reshaping, bonding, veneers and teeth whitening to improve the look of your smile."],
+  ["Children's dentistry", "Gentle first visits, fillings, pulp treatment for milk teeth and space maintainers."],
+  ["Sensitivity, bad breath and jaw pain", "Sensitive teeth, bad breath and jaw-joint (TMJ) pain; night guards for teeth grinding."],
+  ["Dental emergencies", "Tooth pain, swelling, broken or knocked-out teeth. Call us for the earliest appointment."],
 ];
 
 /* Technology we use every day. `what` = what it is, `why` = what it changes for you. */
@@ -83,11 +101,6 @@ export const technology = [
     what: "Every visit, prescription, X-ray and scan is stored in one record for each patient.",
     why: "Nothing is lost between visits, and the doctor can share your records with you through the patient portal.",
   },
-  {
-    name: "[Add or remove equipment]",
-    what: "[e.g. dental laser, intra-oral scanner, piezo surgery unit, digital shade guide]",
-    why: "[What it changes for the patient, in one line.]",
-  },
 ];
 
 /* Protocols — these really are sequences, so they are shown as numbered steps. */
@@ -95,9 +108,9 @@ export const protocols = [
   {
     title: "Sterilisation of every instrument",
     steps: [
-      "Used instruments are soaked in disinfectant and cleaned [in an ultrasonic cleaner].",
+      "Used instruments are soaked in disinfectant and cleaned.",
       "They are packed in sealed sterilisation pouches with an indicator strip.",
-      "The pouches go through a [Class B vacuum] autoclave cycle.",
+      "The pouches go through a steam autoclave cycle.",
       "Pouches are opened in front of you, at the chair, for your treatment.",
       "Single-use items — needles, gloves, suction tips, cups — are used once and discarded.",
     ],
@@ -116,7 +129,7 @@ export const protocols = [
     title: "Root canal treatment",
     steps: [
       "X-ray to see the root shape and the infection.",
-      "Local anaesthesia and isolation of the tooth [with a rubber dam].",
+      "Local anaesthesia and isolation of the tooth to keep it clean and dry.",
       "Cleaning and shaping of the canals with rotary files; length checked with the apex locator.",
       "Disinfection and sealing of the canals.",
       "Post-treatment X-ray and, where advised, a crown to protect the tooth.",
@@ -127,7 +140,7 @@ export const protocols = [
     steps: [
       "CBCT 3-D scan and planning of implant size and position.",
       "Implant placement under local anaesthesia.",
-      "Healing period of about [3 months] while the implant joins the bone.",
+      "Healing period of about 3 months while the implant joins the bone.",
       "Impression and fitting of the crown.",
       "Review visits and cleaning to keep the implant healthy.",
     ],
