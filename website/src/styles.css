@@ -232,11 +232,11 @@ img { max-width: 100%; }
 .ps-xray div { aspect-ratio: 1; border-radius: 10px; background: radial-gradient(ellipse at 50% 60%, #e9f1f0 0 18%, #7e9896 30%, #22393b 70%); }
 @media (max-width: 900px) { .portal-grid { grid-template-columns: 1fr; } .phone { transform: none; width: 250px; height: 500px; } }
 
-/* visit */
-.visit { position: relative; }
-.map { display: block; width: 100%; height: 520px; border: 0; border-radius: var(--radius-l); background: var(--mint); box-shadow: var(--shadow-1); }
-.visit-card { position: absolute; top: 24px; left: 24px; width: 380px; background: rgba(255,255,255,.97); border-radius: var(--radius-l); padding: 24px; box-shadow: var(--shadow-2);
-  border: 1px solid rgba(13,54,55,.06); display: grid; gap: 18px; }
+/* visit: details card beside the map (Google's own place box stays visible) */
+.visit { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 24px; align-items: stretch; }
+.map { display: block; width: 100%; height: 100%; min-height: 480px; border: 0; border-radius: var(--radius-l); background: var(--mint); box-shadow: var(--shadow-1); order: 2; }
+.visit-card { order: 1; background: var(--paper); border-radius: var(--radius-l); padding: 24px; box-shadow: var(--shadow-2);
+  border: 1px solid rgba(13,54,55,.06); display: grid; gap: 18px; align-content: start; }
 .vc-row { display: grid; grid-template-columns: 40px 1fr; gap: 12px; font-size: 15.5px; }
 .vc-row b { display: block; color: var(--ink); margin-bottom: 2px; }
 .vc-ico { width: 40px; height: 40px; border-radius: 12px; background: var(--mint-2); color: var(--ink-2); display: grid; place-items: center; }
@@ -246,7 +246,7 @@ img { max-width: 100%; }
 .hours { border-collapse: collapse; }
 .hours td { padding: 1px 14px 1px 0; vertical-align: top; }
 .hours td:last-child { white-space: nowrap; }
-@media (max-width: 860px) { .visit-card { position: static; width: auto; margin-top: -40px; margin-left: 12px; margin-right: 12px; } .map { height: 320px; } }
+@media (max-width: 900px) { .visit { grid-template-columns: 1fr; } .map { order: 1; min-height: 0; height: 340px; } .visit-card { order: 2; } }
 
 /* footer */
 .foot { background: var(--ink-3); color: #b9d3cd; font-size: 15px; padding: 56px 0 0; }
