@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify, send_file, Response, current_app, stream_with_context
 import os
+import re
 import io
 import base64
 import binascii
@@ -7,7 +8,7 @@ import threading
 import uuid
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from werkzeug.exceptions import HTTPException
 
 from database import db
@@ -489,6 +490,7 @@ def run_image_migrations(app):
             run("ALTER TABLE images ADD COLUMN image_data TEXT", "Added image_data (only read for old base64 pictures)")
         if "mime_type" not in cols:
             run("ALTER TABLE images ADD COLUMN mime_type VARCHAR(50)", "Added mime_type")
+    _ensure_imaging_table(app)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -600,6 +602,7 @@ def _start_conversion_once():
 @images_bp.before_request
 def _prepare():
     _start_conversion_once()
+    _ensure_imaging_table()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1155,6 +1158,280 @@ def storage_status():
         "cloud":                  _cloud_settings(),
         "move":                   dict(_move),
     })
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  IMAGING QUEUE  (Doctor dashboard -> "X-rays & Scans")
+#
+#  X-rays, OPGs, intra-oral photos and CBCT scans are added AFTER the visit,
+#  from the Doctor dashboard - often they are not ready during the visit.
+#
+#    * Every visit that is closed (Close Visit on the visit page, or Complete
+#      on the dashboard) joins the queue as "pending" by itself.
+#    * The doctor opens it, uploads the pictures / scans, and then
+#        "Mark as uploaded"  (only when at least one file is there), or
+#        "No images needed"  (only when nothing was uploaded)
+#      - both take the visit off the queue. Either can be undone ("back to pending").
+#    * Any older visit can be found with the search and opened the same way.
+#
+#  Table visit_imaging (one row per visit that has been in the queue), made
+#  automatically at start-up / first use:
+#    visit_id, status (pending | uploaded | none), note, queued_at, done_at, done_by
+#
+#  GET  /api/imaging/queue?status=pending|done&q=     list + summary
+#  GET  /api/imaging/search?q=                        any patient's visits (older ones too)
+#  GET  /api/imaging/<visit_id>                       one visit
+#  POST /api/imaging/<visit_id>/status  {status: uploaded | none | pending, note}
+#  (Doctor only.)
+# ═════════════════════════════════════════════════════════════════════════════
+class VisitImaging(db.Model):
+    __tablename__ = "visit_imaging"
+    __table_args__ = {"extend_existing": True}
+    visit_id  = db.Column(db.Integer, primary_key=True, autoincrement=False)
+    status    = db.Column(db.String(20), nullable=False, default="pending")
+    note      = db.Column(db.Text)
+    queued_at = db.Column(db.DateTime, default=datetime.utcnow)
+    done_at   = db.Column(db.DateTime)
+    done_by   = db.Column(db.String(120))
+
+
+IMAGING_STATUSES = ("pending", "uploaded", "none")
+OVERDUE_DAYS = 2
+_imaging_ready = {"ok": False}
+_imaging_lock = threading.Lock()
+
+
+def _ensure_imaging_table(app=None):
+    """Create visit_imaging once (safe to call often)."""
+    if _imaging_ready["ok"]:
+        return
+    with _imaging_lock:
+        if _imaging_ready["ok"]:
+            return
+        try:
+            if app is not None:
+                with app.app_context():
+                    VisitImaging.__table__.create(bind=db.engine, checkfirst=True)
+            else:
+                VisitImaging.__table__.create(bind=db.engine, checkfirst=True)
+            _imaging_ready["ok"] = True
+        except Exception as exc:
+            print("[imaging] could not prepare the visit_imaging table:", type(exc).__name__, str(exc)[:200])
+
+
+_CLOSE_RX = re.compile(r"/visits/(\d+)/close/?$")
+
+
+@images_bp.after_app_request
+def _queue_closed_visit(response):
+    """A visit was closed (Close Visit / Complete): put it in the imaging queue."""
+    try:
+        if request.method != "PUT" or response.status_code >= 300 or "/billing/" in request.path:
+            return response
+        m = _CLOSE_RX.search(request.path)
+        if not m:
+            return response
+        _ensure_imaging_table()
+        vid = int(m.group(1))
+        if db.session.get(VisitImaging, vid) is None:
+            db.session.add(VisitImaging(visit_id=vid, status="pending", queued_at=datetime.utcnow()))
+            db.session.commit()
+    except Exception as exc:                       # never spoil the close itself
+        db.session.rollback()
+        print("[imaging] could not add the closed visit to the queue:", type(exc).__name__, str(exc)[:200])
+    return response
+
+
+def _doctor_only():
+    if _current_role() not in ("doctor", "admin"):
+        raise ImageError("Only the doctor can use the X-rays & Scans section.", 403)
+
+
+def _ist(dt, fmt):
+    return (dt + IST_OFFSET).strftime(fmt) if dt else None
+
+
+def _file_counts(visit_ids):
+    """{visit_id: {IOPA, OPG, INTRAORAL, CBCT, scans, total, last}}"""
+    out = {vid: {"IOPA": 0, "OPG": 0, "INTRAORAL": 0, "CBCT": 0, "scans": 0, "total": 0, "last": None}
+           for vid in visit_ids}
+    if not visit_ids:
+        return out
+    for vid, kind, n, last in (db.session.query(Image.visit_id, Image.image_type, func.count(Image.id),
+                                                func.max(Image.uploaded_at))
+                               .filter(Image.visit_id.in_(visit_ids))
+                               .group_by(Image.visit_id, Image.image_type).all()):
+        c = out[vid]
+        key = str(kind or "").upper()
+        c[key if key in c else "INTRAORAL"] += n
+        c["total"] += n
+        if last and (c["last"] is None or last > c["last"]):
+            c["last"] = last
+    try:
+        from models import CBCTVolume
+        for vid, n, last in (db.session.query(CBCTVolume.visit_id, func.count(CBCTVolume.id),
+                                              func.max(CBCTVolume.uploaded_at))
+                             .filter(CBCTVolume.visit_id.in_(visit_ids))
+                             .group_by(CBCTVolume.visit_id).all()):
+            c = out[vid]
+            c["scans"] += n
+            c["total"] += n
+            if last and (c["last"] is None or last > c["last"]):
+                c["last"] = last
+    except Exception:
+        db.session.rollback()
+    return out
+
+
+def _imaging_item(row, visit, patient, counts):
+    c = dict(counts.get(visit.id) or {"IOPA": 0, "OPG": 0, "INTRAORAL": 0, "CBCT": 0, "scans": 0, "total": 0, "last": None})
+    last = c.pop("last", None)
+    now = datetime.utcnow()
+    status = row.status if row is not None else None
+    queued = row.queued_at if row is not None else None
+    waiting = (now - queued).days if (queued and status == "pending") else None
+    treatment = (getattr(visit, "treatment_done", None) or getattr(visit, "followup_treatment", None)
+                 or getattr(visit, "diagnosis", None) or getattr(visit, "chief_complaint", None) or "")
+    vstatus = str(getattr(visit, "status", "") or "")
+    return {
+        "visit_id":     visit.id,
+        "patient_id":   patient.id,
+        "patient_name": patient.name,
+        "case_number":  patient.case_number,
+        "mobile":       patient.mobile,
+        "age":          patient.age,
+        "gender":       patient.gender,
+        "visit_date":   _ist(visit.visit_date, "%d %b %Y"),
+        "visit_closed": vstatus.lower() == "closed" or bool(getattr(visit, "closed_at", None)),
+        "closed_at":    _ist(getattr(visit, "closed_at", None), "%d %b %Y, %I:%M %p"),
+        "doctor":       getattr(visit, "closed_by", None) or getattr(visit, "assigned_doctor", None) or "",
+        "treatment":    str(treatment)[:160],
+        "status":       status,                         # None = never in the queue (older visit)
+        "note":         row.note if row is not None else None,
+        "queued_at":    _ist(queued, "%d %b %Y, %I:%M %p"),
+        "waiting_days": waiting,
+        "overdue":      bool(waiting is not None and waiting >= OVERDUE_DAYS),
+        "done_at":      _ist(row.done_at, "%d %b %Y, %I:%M %p") if row is not None else None,
+        "done_by":      row.done_by if row is not None else None,
+        "counts":       c,
+        "last_upload":  _ist(last, "%d %b %Y, %I:%M %p"),
+    }
+
+
+def _patient_filter(query, q):
+    from models import Patient
+    like = f"%{q}%"
+    return query.filter(or_(Patient.name.ilike(like), Patient.case_number.ilike(like), Patient.mobile.ilike(like)))
+
+
+@images_bp.route("/imaging/queue", methods=["GET"])
+@_guard
+def imaging_queue():
+    _doctor_only()
+    from models import Patient
+    status = (request.args.get("status") or "pending").strip().lower()
+    q = (request.args.get("q") or "").strip()
+    base = (db.session.query(VisitImaging, Visit, Patient)
+            .join(Visit, Visit.id == VisitImaging.visit_id)
+            .join(Patient, Patient.id == Visit.patient_id))
+    if status == "pending":
+        query = base.filter(VisitImaging.status == "pending").order_by(VisitImaging.queued_at.asc(), Visit.id.asc())
+        limit = 300
+    else:
+        query = (base.filter(VisitImaging.status.in_(["uploaded", "none"]))
+                 .order_by(VisitImaging.done_at.desc().nullslast(), Visit.id.desc()))
+        limit = 80
+    if q:
+        query = _patient_filter(query, q)
+    rows = query.limit(limit).all()
+    counts = _file_counts([v.id for _r, v, _p in rows])
+
+    now = datetime.utcnow()
+    today_start = datetime.combine((now + IST_OFFSET).date(), datetime.min.time()) - IST_OFFSET
+    pending = base.filter(VisitImaging.status == "pending")
+    summary = {
+        "pending":    pending.count(),
+        "overdue":    pending.filter(VisitImaging.queued_at <= now - timedelta(days=OVERDUE_DAYS)).count(),
+        "done_today": base.filter(VisitImaging.status.in_(["uploaded", "none"]), VisitImaging.done_at >= today_start).count(),
+    }
+    return jsonify({"items": [_imaging_item(r, v, p, counts) for r, v, p in rows], "summary": summary,
+                    "overdue_days": OVERDUE_DAYS})
+
+
+@images_bp.route("/imaging/search", methods=["GET"])
+@_guard
+def imaging_search():
+    """Any patient's visits (also older ones that were never in the queue)."""
+    _doctor_only()
+    from models import Patient
+    q = (request.args.get("q") or "").strip()
+    if len(q) < 2:
+        return jsonify({"items": []})
+    patients = _patient_filter(Patient.query, q).order_by(Patient.name.asc()).limit(15).all()
+    pairs = []
+    for p in patients:
+        for v in (Visit.query.filter(Visit.patient_id == p.id)
+                  .order_by(Visit.visit_date.desc().nullslast(), Visit.id.desc()).limit(6).all()):
+            if str(getattr(v, "status", "") or "").upper() == "CANCELLED":
+                continue
+            pairs.append((v, p))
+    ids = [v.id for v, _p in pairs]
+    rows = {r.visit_id: r for r in VisitImaging.query.filter(VisitImaging.visit_id.in_(ids)).all()} if ids else {}
+    counts = _file_counts(ids)
+    return jsonify({"items": [_imaging_item(rows.get(v.id), v, p, counts) for v, p in pairs]})
+
+
+def _one_item(visit_id):
+    from models import Patient
+    visit = db.session.get(Visit, visit_id)
+    if visit is None:
+        raise ImageError("This visit no longer exists.", 404)
+    patient = db.session.get(Patient, visit.patient_id)
+    if patient is None:
+        raise ImageError("The patient of this visit no longer exists.", 404)
+    return _imaging_item(db.session.get(VisitImaging, visit_id), visit, patient, _file_counts([visit_id]))
+
+
+@images_bp.route("/imaging/<int:visit_id>", methods=["GET"])
+@_guard
+def imaging_one(visit_id):
+    _doctor_only()
+    return jsonify(_one_item(visit_id))
+
+
+@images_bp.route("/imaging/<int:visit_id>/status", methods=["POST"])
+@_guard
+def imaging_set_status(visit_id):
+    _doctor_only()
+    data = request.get_json(force=True, silent=True) or {}
+    status = str(data.get("status") or "").strip().lower()
+    if status not in IMAGING_STATUSES:
+        raise ImageError("Choose: uploaded, none (no images needed) or pending.")
+    item = _one_item(visit_id)                   # also checks the visit exists
+    total = item["counts"]["total"]
+    if status == "uploaded" and total == 0:
+        raise ImageError("Nothing has been uploaded for this visit yet. Upload the pictures first, "
+                         "or press “No images needed”.")
+    if status == "none" and total > 0:
+        raise ImageError(f"This visit already has {total} file{'s' if total != 1 else ''}. "
+                         "Press “Mark as uploaded” instead.")
+    row = db.session.get(VisitImaging, visit_id)
+    if row is None:
+        row = VisitImaging(visit_id=visit_id, queued_at=datetime.utcnow())
+        db.session.add(row)
+    row.status = status
+    note = data.get("note")
+    if note is not None:
+        row.note = str(note).strip()[:500] or None
+    if status == "pending":
+        row.done_at, row.done_by = None, None
+        if row.queued_at is None:
+            row.queued_at = datetime.utcnow()
+    else:
+        row.done_at = datetime.utcnow()
+        row.done_by = (_who_is_uploading() or _current_role() or "Doctor")[:120]
+    db.session.commit()
+    return jsonify(_one_item(visit_id))
 
 
 def _serialize(img):
