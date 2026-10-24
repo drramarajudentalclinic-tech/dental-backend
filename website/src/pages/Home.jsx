@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { clinic, doctors, services, technology, protocols, portalSteps } from "../content";
-import * as photos from "../photos";
+import logoSrc from "../logo";
 import { Bar, Footer, DraftNote, waLink } from "../components/Chrome";
 import TechArt from "../components/TechArt";
 
@@ -25,15 +25,15 @@ const Icon = ({ n, size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{I[n]}</svg>
 );
 
-/* ── hero: the clinic's own equipment, as a collage ── */
-function HeroCollage() {
+/* ── hero: the clinic emblem with the doctor ── */
+function HeroEmblem({ d }) {
   return (
-    <div className="collage" aria-label="Equipment used at the clinic">
-      <figure className="c-card c-main"><img src={photos.prfuge} alt="PRFuge centrifuge with a tube of platelet-rich fibrin" /></figure>
-      <figure className="c-card c-a"><img src={photos.oroscope} alt="DrOroscope oral screening camera" /></figure>
-      <figure className="c-card c-b"><img src={photos.teethTracer} alt="Teeth Tracer digital bite analyser" /></figure>
-      <div className="c-chip c-chip-1"><span className="dot" />Oral cancer screening<small>DrOroscope</small></div>
-      <div className="c-chip c-chip-2"><span className="dot" />PRF from your own blood<small>PRFuge</small></div>
+    <div className="emblem">
+      <div className="emblem-disc"><img src={logoSrc} alt="Sri Satya Sai Oral Health Centre emblem" /></div>
+      <div className="emblem-doc">
+        <span className="ed-mono" aria-hidden="true">{d.initials}</span>
+        <span><b>{d.name}</b><small>{d.qualification}</small>{clinic.registration && <small>Reg. No. {clinic.registration}</small>}</span>
+      </div>
     </div>
   );
 }
@@ -189,7 +189,7 @@ export default function Home() {
               </div>
               <p className="hero-note"><Icon n="clock" size={16} />Mon – Sat, 11 am – 7 pm · by appointment</p>
             </div>
-            <HeroCollage />
+            <HeroEmblem d={d0} />
           </div>
         </section>
 
@@ -198,7 +198,7 @@ export default function Home() {
           <dl className="trust">
             <div><span className="tr-ico"><Icon n="award" /></span><dt>30 years</dt><dd>of dental practice</dd></div>
             <div><span className="tr-ico"><Icon n="tooth" /></span><dt>MDS</dt><dd>Oral Medicine &amp; Radiology</dd></div>
-            <div><span className="tr-ico"><Icon n="spark" /></span><dt>Made-in-India tech</dt><dd>DrOroscope, PRFuge, Tooth Titan, Teeth Tracer</dd></div>
+            <div><span className="tr-ico"><Icon n="spark" /></span><dt>Modern dentistry</dt><dd>digital scans, guided implants, oral cancer screening</dd></div>
             <div><span className="tr-ico"><Icon n="shield" /></span><dt>Sealed &amp; sterilised</dt><dd>every instrument, every patient</dd></div>
           </dl>
         </div>
