@@ -12,6 +12,8 @@
    testimonials or before/after photos of identifiable patients.
    ═══════════════════════════════════════════════════════════════════ */
 
+import * as photos from "./photos";
+
 export const clinic = {
   name: "Sri Satya Sai Oral Health Center & Dental Clinic",
   shortName: "Sri Satya Sai Dental",
@@ -76,7 +78,7 @@ export const services = [
   ["Crowns and bridges", "Zirconia, all-ceramic and metal-ceramic crowns and bridges, made from a digital scan of your teeth."],
   ["Dental implants", "Single and multiple implants planned on a CBCT scan and placed with a surgical guide; Straumann, Nobel Biocare, Osstem, DIO, Neo Biotech, Noris, Adin and Alpha-Bio systems."],
   ["Artificial teeth and dentures", "Complete and partial dentures, flexible dentures and implant-supported dentures."],
-  ["Bone grafts and PRF", "Bone grafting and platelet-rich fibrin (PRF) for extraction sockets, implants and gum surgery."],
+  ["Bone grafts and PRF", "Bone grafts made from your own extracted tooth (Tooth Titan) and platelet-rich fibrin (PRF) from your own blood, for sockets, implants and gum surgery."],
   ["Oral rehabilitation", "Full-mouth rehabilitation for worn, broken or missing teeth, restoring chewing and bite together."],
   ["Wisdom teeth and extractions", "Simple and surgical extractions, including impacted wisdom teeth, with PRF from your own blood to help healing where needed."],
   ["Oral medicine and oral cancer screening", "Check-ups for white or red patches, non-healing ulcers and lumps in the mouth with the DrOroscope screening light; burning mouth and facial pain."],
@@ -85,7 +87,7 @@ export const services = [
   ["Braces and aligners", "Fixed metal and ceramic braces, and clear aligners planned from a digital scan."],
   ["Teeth reshaping and smile design", "Reshaping, bonding, veneers and teeth whitening to improve the look of your smile."],
   ["Children's dentistry", "Gentle first visits, fillings, pulp treatment for milk teeth and space maintainers."],
-  ["Sensitivity, bad breath and jaw pain", "Sensitive teeth, bad breath and jaw-joint (TMJ) pain; night guards for teeth grinding."],
+  ["Bite problems, jaw pain and sensitivity", "Digital bite analysis with the Teeth Tracer for jaw-joint (TMJ) pain, headaches, teeth grinding and wear; night guards; sensitive teeth and bad breath."],
   ["Dental emergencies", "Tooth pain, swelling, broken or knocked-out teeth. Call us for the earliest appointment."],
 ];
 
@@ -97,9 +99,10 @@ export const technology = [
     items: [
       {
         name: "DrOroscope",
+        photo: photos.oroscope,
         art: "oroscope",
-        what: "A hand-held screening light. Blue, red and green-amber light make the lining of the mouth glow; healthy tissue looks bright green and suspicious areas look darker.",
-        why: "Helps find early changes in patches, ulcers and lumps without cutting, so a biopsy is advised only where it is needed.",
+        what: "A hand-held oral screening camera made in India by Raamah Biocare. A slim head with a 5-megapixel camera reaches the back of the mouth and photographs each area under white, blue and fluorescence light; the pictures appear on a tablet.",
+        why: "Healthy lining glows green while suspicious areas look darker, so early changes in patches, ulcers and lumps are found without cutting. The photos are kept in your record to compare at the next visit.",
       },
       {
         name: "Digital X-rays (RVG)",
@@ -183,15 +186,35 @@ export const technology = [
       },
       {
         name: "PRFuge centrifuge (PRF)",
+        photo: photos.prfuge,
         art: "centrifuge",
-        what: "Spins a small sample of your own blood to make platelet-rich fibrin (PRF), a natural healing gel.",
-        why: "Placed in extraction sockets, around implants and bone grafts to support healing. Nothing artificial is added.",
+        what: "A centrifuge made in India by Raamah Biocare that spins a small sample of your own blood at a fixed force (about 400 g) and a fixed 33° tube angle, to make platelet-rich fibrin (PRF).",
+        why: "The same standard spin every time gives a consistent PRF clot, which is placed in extraction sockets, around implants and with bone grafts to support healing. Nothing artificial is added.",
+      },
+      {
+        name: "Tooth Titan",
+        photo: photos.toothTitan,
+        art: "toothTitan",
+        what: "A chairside machine made in India by Raamah Biocare that grinds and filters a tooth that has just been taken out into graft particles of three sizes, in a sealed chamber.",
+        why: "Your own tooth becomes the bone-graft material for the socket or the implant site in the same appointment: no donor bone, and nothing foreign to your body.",
       },
       {
         name: "Implant systems",
         art: "implant",
         what: "Straumann (Switzerland), Nobel Biocare NobelActive and NobelReplace, Osstem, DIO and Neo Biotech (South Korea), and Noris Medical, Adin and Alpha-Bio Tec (Israel).",
         why: "The implant is chosen for your bone, the position of the tooth and your budget, and the parts stay available for years.",
+      },
+    ],
+  },
+  {
+    treatment: "Bite, jaw joint and tooth wear",
+    items: [
+      {
+        name: "Teeth Tracer",
+        photo: photos.teethTracer,
+        art: "teethTracer",
+        what: "A digital bite-force analyser made in India by Raamah Biocare. You bite on a wafer-thin sensor strip, and a computer shows where, how hard and in what order your teeth touch.",
+        why: "Teeth that hit too hard show up on the screen, so new crowns, bridges, dentures and implants are adjusted precisely, and causes of jaw-joint (TMJ) pain, headaches and tooth wear are found.",
       },
     ],
   },
@@ -250,7 +273,7 @@ export const protocols = [
       "A temporary crown while the lab makes the final crown.",
       "Try-in to check fit, bite and shade.",
       "The inside of the crown is cleaned with the aluminium-oxide micro-blaster.",
-      "The crown is cemented and the bite is checked again.",
+      "The crown is cemented and the bite is checked with the Teeth Tracer.",
     ],
   },
   {
@@ -258,7 +281,7 @@ export const protocols = [
     steps: [
       "Examination, a CBCT scan at an imaging centre and a digital scan of your teeth.",
       "Digital planning of implant size and position, and a 3-D printed surgical guide.",
-      "Implant placement through the guide under local anaesthesia, with PRF where it helps healing.",
+      "Implant placement through the guide under local anaesthesia, with PRF or a graft from your own tooth (Tooth Titan) where it helps healing.",
       "Healing period of about 3 months while the implant joins the bone.",
       "A digital scan of the implant and fitting of the crown.",
       "Review visits and cleaning to keep the implant healthy.",

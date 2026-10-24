@@ -134,7 +134,7 @@ export default function Home() {
                 <h3 className="tech-gh">{g.treatment}</h3>
                 <div className="tech">
                   {g.items.map((t) => (
-                    <div className="tech-row with-art" key={t.name}>
+                    <div className={`tech-row with-art${t.photo ? " has-photo" : ""}`} key={t.name}>
                       <div className="art-box"><TechArt name={t.art} photo={t.photo} label={t.name} /></div>
                       <div><h4>{t.name}</h4><p className="muted" style={{ marginTop: 4 }}>{t.what}</p></div>
                       <p className="why">{t.why}</p>
