@@ -125,16 +125,23 @@ export default function Home() {
               <h2>Technology we use every day</h2>
               <p className="muted">Equipment is only useful if it changes something for the patient. Here is what each one is, and what it changes for you.</p>
             </div>
-            <div className="tech">
-              <div className="tech-row tech-head"><span>Equipment</span><span>What it is</span><span>Why it matters</span></div>
-              {technology.map((t) => (
-                <div className="tech-row" key={t.name}>
-                  <h3>{t.name}</h3>
-                  <p className="muted">{t.what}</p>
-                  <p className="why">{t.why}</p>
+            <nav className="tech-jump" aria-label="Technology by treatment">
+              {technology.map((g, i) => <a key={g.treatment} href={`#tech-${i}`}>{g.treatment}</a>)}
+            </nav>
+            {technology.map((g, i) => (
+              <div className="tech-group" key={g.treatment} id={`tech-${i}`}>
+                <h3 className="tech-gh">{g.treatment}</h3>
+                <div className="tech">
+                  {g.items.map((t) => (
+                    <div className="tech-row" key={t.name}>
+                      <h4>{t.name}</h4>
+                      <p className="muted">{t.what}</p>
+                      <p className="why">{t.why}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -142,7 +149,7 @@ export default function Home() {
           <div className="wrap">
             <div className="sec-head measure">
               <h2>How we work</h2>
-              <p className="muted">The steps we follow, every time — from sterilising instruments to planning an implant.</p>
+              <p className="muted">The steps we follow, every time: from sterilising instruments to a root canal, a crown and a guided implant.</p>
             </div>
             <Protocols />
           </div>
@@ -191,7 +198,7 @@ export default function Home() {
             </div>
             {clinic.mapQuery && (
               <iframe className="map" title="Clinic location on the map" loading="lazy" referrerPolicy="no-referrer-when-downgrade"
-                src={`https://maps.google.com/maps?q=${encodeURIComponent(clinic.mapQuery)}&z=17&output=embed`} />
+                src={`https://maps.google.com/maps?q=${encodeURIComponent(clinic.mapQuery)}&ll=${clinic.mapCenter}&z=17&output=embed`} />
             )}
           </div>
         </section>

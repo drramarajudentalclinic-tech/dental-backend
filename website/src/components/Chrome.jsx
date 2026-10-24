@@ -1,13 +1,14 @@
 import { Link } from "react-router-dom";
 import * as content from "../content";
+import logoSrc from "../logo";
 
 const { clinic } = content;
 const tel = (n) => `tel:${String(n).replace(/[^\d+]/g, "")}`;
 export const waLink = (text) => `https://wa.me/${clinic.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(text || "Hello, I would like to book an appointment.")}`;
 
-/* The clinic's own logo (public/logo.png). */
+/* The clinic's own logo (built in: src/logo.js). */
 export function Logo({ size = 52 }) {
-  return <img src="/logo.png" alt="" width={size} height={Math.round(size * 0.92)} className="logo-img" />;
+  return <img src={logoSrc} alt="" width={size} height={Math.round(size * 0.92)} className="logo-img" />;
 }
 
 /* Full clinic name, set in two lines so it stays readable on phones. */

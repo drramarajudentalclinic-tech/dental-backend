@@ -27,7 +27,8 @@ export const clinic = {
   ],
   landmark: "Near Dilsukhnagar, opposite Metro Pillar No. 1563",
   mapsLink: "https://maps.app.goo.gl/F8Zp631MJP9MvKtk7",
-  mapQuery: "17.3680732,78.5326468",   // the clinic pin on Google Maps
+  mapQuery: "Sri Satya Sai Oral Health Center and Dental Clinic, Chaitanyapuri, Hyderabad",
+  mapCenter: "17.3680732,78.5326468",   // the clinic pin on Google Maps
   hours: [
     ["Monday – Saturday", "11:00 am – 7:00 pm"],
     ["Sunday", "Holiday"],
@@ -55,7 +56,7 @@ export const doctors = [
       "Diagnosis of mouth ulcers, patches and lumps; oral cancer screening",
       "Reading dental X-rays, OPG and CBCT scans",
       "Root canals, crowns and bridges",
-      "Implants, dentures and full-mouth rehabilitation",
+      "Implants with surgical guides, dentures and full-mouth rehabilitation",
       "Extractions, including wisdom teeth",
       "Braces, aligners and smile design",
     ],
@@ -71,53 +72,125 @@ export const doctors = [
 export const services = [
   ["Check-ups and cleaning", "Examination, scaling and polishing, fluoride application and pit-and-fissure sealants."],
   ["Fillings", "Tooth-coloured composite and glass-ionomer fillings matched to the shade of your tooth."],
-  ["Root canal treatment", "Single- and multiple-visit root canals with rotary instruments and electronic length measurement; re-treatment of old root canals."],
-  ["Crowns and bridges", "Metal-ceramic, zirconia and all-ceramic crowns; bridges to replace missing teeth."],
-  ["Dental implants", "Single and multiple implants, planned on a 3-D CBCT scan, with the crown or denture on top."],
+  ["Root canal treatment", "Single- and multiple-visit root canals with rotary files, apex locator and warm 3-D gutta-percha filling; re-treatment of old root canals."],
+  ["Crowns and bridges", "Zirconia, all-ceramic and metal-ceramic crowns and bridges, made from a digital scan of your teeth."],
+  ["Dental implants", "Single and multiple implants planned on a CBCT scan and placed with a surgical guide; Straumann, Nobel Biocare, Osstem, DIO, Neo Biotech, Noris, Adin and Alpha-Bio systems."],
   ["Artificial teeth and dentures", "Complete and partial dentures, flexible dentures and implant-supported dentures."],
+  ["Bone grafts and PRF", "Bone grafting and platelet-rich fibrin (PRF) for extraction sockets, implants and gum surgery."],
   ["Oral rehabilitation", "Full-mouth rehabilitation for worn, broken or missing teeth, restoring chewing and bite together."],
-  ["Wisdom teeth and extractions", "Simple and surgical extractions, including impacted wisdom teeth, under local anaesthesia."],
-  ["Oral medicine and diagnosis", "Check-ups for white or red patches, non-healing ulcers and lumps in the mouth (oral cancer screening), burning mouth and facial pain."],
-  ["Dental X-rays and scans", "IOPA, OPG and CBCT scans taken when needed and read by a specialist in oral radiology, with the findings explained to you."],
+  ["Wisdom teeth and extractions", "Simple and surgical extractions, including impacted wisdom teeth, with PRF from your own blood to help healing where needed."],
+  ["Oral medicine and oral cancer screening", "Check-ups for white or red patches, non-healing ulcers and lumps in the mouth with the DrOroscope screening light; burning mouth and facial pain."],
+  ["Dental X-rays and scans", "Digital X-rays at the clinic; OPG and CBCT scans at an imaging centre when needed, read and explained by the doctor, a specialist in oral radiology."],
   ["Gum treatment", "Deep cleaning, gum surgery and maintenance for bleeding, swollen or loose gums."],
-  ["Braces and aligners", "Fixed metal and ceramic braces and clear aligners for crooked or gapped teeth."],
+  ["Braces and aligners", "Fixed metal and ceramic braces, and clear aligners planned from a digital scan."],
   ["Teeth reshaping and smile design", "Reshaping, bonding, veneers and teeth whitening to improve the look of your smile."],
   ["Children's dentistry", "Gentle first visits, fillings, pulp treatment for milk teeth and space maintainers."],
   ["Sensitivity, bad breath and jaw pain", "Sensitive teeth, bad breath and jaw-joint (TMJ) pain; night guards for teeth grinding."],
   ["Dental emergencies", "Tooth pain, swelling, broken or knocked-out teeth. Call us for the earliest appointment."],
 ];
 
-/* Technology we use every day. `what` = what it is, `why` = what it changes for you. */
+/* Technology we use, grouped by the treatment it is used for.
+   `what` = what it is, `why` = what it changes for you. */
 export const technology = [
   {
-    name: "Digital X-rays (RVG)",
-    what: "A small sensor replaces film; the picture appears on screen in seconds.",
-    why: "Much lower radiation than film, and we can zoom in and show you the picture on the screen.",
+    treatment: "Check-ups, diagnosis and oral cancer screening",
+    items: [
+      {
+        name: "DrOroscope",
+        what: "A hand-held screening light. Blue, red and green-amber light make the lining of the mouth glow; healthy tissue looks bright green and suspicious areas look darker.",
+        why: "Helps find early changes in patches, ulcers and lumps without cutting, so a biopsy is advised only where it is needed.",
+      },
+      {
+        name: "Digital X-rays (RVG)",
+        what: "A small sensor replaces film; the picture appears on screen in seconds.",
+        why: "Much lower radiation than film, and we zoom in and show you the picture on the screen.",
+      },
+      {
+        name: "Intra-oral camera",
+        what: "A pen-sized camera that photographs the inside of your mouth.",
+        why: "You see what we see (cracks, decay, worn fillings) before deciding on treatment.",
+      },
+    ],
   },
   {
-    name: "OPG — full-mouth X-ray",
-    what: "One panoramic picture of all teeth, both jaws and the joints.",
-    why: "Shows wisdom teeth, bone levels and hidden problems in a single view.",
+    treatment: "Root canal treatment",
+    items: [
+      {
+        name: "Apex locator",
+        what: "An electronic device that measures the exact length of each root canal.",
+        why: "Accurate cleaning to the tip of the root, with fewer X-rays during treatment.",
+      },
+      {
+        name: "Rotary endodontics",
+        what: "Motor-driven nickel-titanium files that clean and shape the canals.",
+        why: "Quicker, more even cleaning of curved canals than hand files alone.",
+      },
+      {
+        name: "Obturation pen",
+        what: "A heated tip that softens gutta-percha (the rubber-like root filling) and presses it down the canal.",
+        why: "The warm filling flows into side canals and gaps, so the root is sealed in three dimensions.",
+      },
+      {
+        name: "Cicada thermal obturator and gutta-percha gun",
+        what: "A cordless gun that fills the rest of the canal with warm, flowing gutta-percha.",
+        why: "A dense, gap-free seal from the tip of the root to the top, which helps keep bacteria out.",
+      },
+    ],
   },
   {
-    name: "CBCT 3-D scan",
-    what: "A 3-D scan of the jaw that we can slice in any direction.",
-    why: "Used before implants and complex root canals to see bone width, nerves and sinus — so surgery is planned, not guessed.",
+    treatment: "Comfortable injections",
+    items: [
+      {
+        name: "Anaesthesia booster",
+        what: "A device used with the local anaesthetic injection.",
+        why: "Makes numbing gentler and more comfortable, especially for anxious patients and children.",
+      },
+    ],
   },
   {
-    name: "Intra-oral camera",
-    what: "A pen-sized camera that photographs the inside of your mouth.",
-    why: "You see exactly what we see — cracks, decay, worn fillings — before deciding on treatment.",
+    treatment: "Crowns, bridges, aligners and dentures",
+    items: [
+      {
+        name: "Runyes intra-oral scanner",
+        what: "A wand that takes a 3-D digital scan of your teeth instead of a putty impression.",
+        why: "No gagging on impression trays; an accurate digital model is sent to the lab for crowns, bridges, clear aligners and dentures.",
+      },
+      {
+        name: "Aluminium-oxide micro-blaster",
+        what: "A fine sand-blaster used on the inside of zirconia and metal crowns before they are cemented.",
+        why: "Cleans the crown and roughens it slightly so the cement holds it more firmly.",
+      },
+    ],
   },
   {
-    name: "Rotary endodontics and apex locator",
-    what: "Motor-driven nickel-titanium files and an electronic device that measures root length.",
-    why: "Root canals that are quicker and more consistent, with fewer X-rays during treatment.",
+    treatment: "Dental implants, extractions and gum surgery",
+    items: [
+      {
+        name: "Surgical guide for implants",
+        what: "A 3-D printed guide made from your CBCT scan and digital scan, which fits over your teeth during surgery.",
+        why: "The implant goes in the planned position, depth and angle, away from nerves and the sinus, often with a smaller cut.",
+      },
+      {
+        name: "PRFuge centrifuge (PRF)",
+        what: "Spins a small sample of your own blood to make platelet-rich fibrin (PRF), a natural healing gel.",
+        why: "Placed in extraction sockets, around implants and bone grafts to support healing. Nothing artificial is added.",
+      },
+      {
+        name: "Implant systems",
+        what: "Straumann (Switzerland), Nobel Biocare NobelActive and NobelReplace, Osstem, DIO and Neo Biotech (South Korea), and Noris Medical, Adin and Alpha-Bio Tec (Israel).",
+        why: "The implant is chosen for your bone, the position of the tooth and your budget, and the parts stay available for years.",
+      },
+    ],
   },
   {
-    name: "Digital patient records",
-    what: "Every visit, prescription, X-ray and scan is stored in one record for each patient.",
-    why: "Nothing is lost between visits, and the doctor can share your records with you through the patient portal.",
+    treatment: "Your records",
+    items: [
+      {
+        name: "Digital patient records and patient portal",
+        what: "Every visit, prescription, X-ray and scan is stored in one record for each patient.",
+        why: "Nothing is lost between visits, and the doctor can share your records with you online.",
+      },
+    ],
   },
 ];
 
@@ -130,15 +203,16 @@ export const protocols = [
       "They are packed in sealed sterilisation pouches with an indicator strip.",
       "The pouches go through a steam autoclave cycle.",
       "Pouches are opened in front of you, at the chair, for your treatment.",
-      "Single-use items — needles, gloves, suction tips, cups — are used once and discarded.",
+      "Single-use items (needles, gloves, suction tips, cups) are used once and discarded.",
     ],
   },
   {
     title: "Your first visit",
     steps: [
       "Medical history, allergies and current medicines are recorded.",
-      "Full examination of teeth, gums, tongue and jaw joint.",
-      "X-rays or a scan only if they are needed for a diagnosis.",
+      "Examination of teeth, gums, tongue and jaw joint, with intra-oral camera photos.",
+      "Screening of the lining of the mouth with the DrOroscope.",
+      "Digital X-rays, and an OPG or CBCT scan only if it is needed for a diagnosis.",
       "We explain what we found, the treatment options and the cost before starting anything.",
       "A written prescription and a date for the next visit.",
     ],
@@ -146,24 +220,38 @@ export const protocols = [
   {
     title: "Root canal treatment",
     steps: [
-      "X-ray to see the root shape and the infection.",
-      "Local anaesthesia and isolation of the tooth to keep it clean and dry.",
-      "Cleaning and shaping of the canals with rotary files; length checked with the apex locator.",
-      "Disinfection and sealing of the canals.",
-      "Post-treatment X-ray and, where advised, a crown to protect the tooth.",
+      "Digital X-ray to see the root shape and the infection.",
+      "Local anaesthesia with the anaesthesia booster, and isolation of the tooth to keep it clean and dry.",
+      "Cleaning and shaping of the canals with rotary files; the length is checked with the apex locator.",
+      "Disinfection of the canals with irrigating solutions.",
+      "Three-dimensional sealing with warm gutta-percha (obturation pen and Cicada thermal obturator).",
+      "Post-treatment X-ray and, where advised, a crown made from a digital scan to protect the tooth.",
     ],
   },
   {
-    title: "Dental implant",
+    title: "Crowns and bridges",
     steps: [
-      "CBCT 3-D scan and planning of implant size and position.",
-      "Implant placement under local anaesthesia.",
+      "The tooth is shaped under local anaesthesia.",
+      "A 3-D digital scan with the Runyes intra-oral scanner (no impression trays).",
+      "A temporary crown while the lab makes the final crown.",
+      "Try-in to check fit, bite and shade.",
+      "The inside of the crown is cleaned with the aluminium-oxide micro-blaster.",
+      "The crown is cemented and the bite is checked again.",
+    ],
+  },
+  {
+    title: "Dental implant with a surgical guide",
+    steps: [
+      "Examination, a CBCT scan at an imaging centre and a digital scan of your teeth.",
+      "Digital planning of implant size and position, and a 3-D printed surgical guide.",
+      "Implant placement through the guide under local anaesthesia, with PRF where it helps healing.",
       "Healing period of about 3 months while the implant joins the bone.",
-      "Impression and fitting of the crown.",
+      "A digital scan of the implant and fitting of the crown.",
       "Review visits and cleaning to keep the implant healthy.",
     ],
   },
 ];
+
 
 export const portalSteps = [
   ["The doctor switches on your portal", "At your visit, the doctor turns on online access for your registered mobile number."],

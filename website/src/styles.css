@@ -262,3 +262,12 @@ a { color: var(--ink-2); }
 @media (max-width: 760px) { .foot-grid { grid-template-columns: 1fr; gap: 22px; } }
 .bar .btn.small { white-space: nowrap; }
 @media (max-width: 520px) { .bn-2 { white-space: normal; overflow: visible; } }
+
+/* ── technology grouped by treatment ── */
+.tech-jump { display: flex; flex-wrap: wrap; gap: 8px; margin: -6px 0 26px; }
+.tech-jump a { text-decoration: none; border: 1.5px solid var(--line); background: var(--paper); color: var(--ink); border-radius: 999px; padding: 7px 14px; font-weight: 600; font-size: 14.5px; }
+.tech-jump a:hover { border-color: var(--gum); color: var(--gum); }
+.tech-group { scroll-margin-top: 96px; }
+.tech-group + .tech-group { margin-top: 34px; }
+.tech-gh { font-size: 1.3rem; padding-left: 12px; border-left: 4px solid var(--gum); margin-bottom: 12px; }
+.tech-row h4 { margin: 0; font: 650 1.05rem var(--display); color: var(--ink); }
