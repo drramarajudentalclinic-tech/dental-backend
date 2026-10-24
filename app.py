@@ -36,12 +36,14 @@ from routes.other_expenses import other_expenses_bp, run_other_expense_migration
 from routes.auth           import auth_bp
 from routes.cbct_backend import cbct_bp, run_cbct_migrations
 from routes.billing_ledger import billing_ledger_bp, run_billing_ledger_migrations, backfill_legacy_visit_charges
+from routes.portal         import portal_bp, ensure_portal_tables
 
 # ---------------------------
 # Single source of truth for allowed origins
 # ---------------------------
 ALLOWED_ORIGINS = [
     "https://dental-frontend-zp4w.onrender.com",
+    "https://ssd-website-i0ip.onrender.com",      # clinic website + patient portal
     "http://localhost:5173",
     "http://localhost:3000",
 ]
@@ -93,6 +95,9 @@ def protect_all_routes():
         "/api/auth/register",
         "/api/auth/setup",
         "/health",
+        # patient portal: asking for / checking the SMS code happens before login
+        "/api/portal/otp/request",
+        "/api/portal/otp/verify",
     ]
 
     if request.path in public_paths:
@@ -224,6 +229,7 @@ with app.app_context():
     safe_migrate("images", run_image_migrations, app)
     safe_migrate("cbct", run_cbct_migrations, app)
     safe_migrate("other_expenses", run_other_expense_migrations, app)
+    safe_migrate("patient_portal", ensure_portal_tables, app)
 
 with app.app_context():
 
@@ -441,6 +447,7 @@ other_blueprints = [
     cbct_bp,
     other_expenses_bp,
     billing_ledger_bp,
+    portal_bp,
 ]
 
 for bp in other_blueprints:

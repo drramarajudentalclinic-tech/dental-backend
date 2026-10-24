@@ -226,6 +226,17 @@ def _staff_name():
             return str(name)[:120]
     except Exception:
         pass
+    try:   # the clinic login: token identity = users.id
+        from flask_jwt_extended import get_jwt_identity
+        import models as _m
+        ident = get_jwt_identity()
+        U = getattr(_m, "User", None)
+        if U is not None and ident and str(ident).isdigit():
+            u = db.session.get(U, int(ident))
+            if u is not None and getattr(u, "username", None):
+                return str(u.username)[:120]
+    except Exception:
+        pass
     return "Doctor"
 
 
