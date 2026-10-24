@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { clinic, doctors, services, technology, protocols, portalSteps } from "../content";
 import { Bar, Footer, DraftNote, waLink } from "../components/Chrome";
+import TechArt from "../components/TechArt";
 
 const UPPER = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28];
 const LOWER = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38];
@@ -133,9 +134,9 @@ export default function Home() {
                 <h3 className="tech-gh">{g.treatment}</h3>
                 <div className="tech">
                   {g.items.map((t) => (
-                    <div className="tech-row" key={t.name}>
-                      <h4>{t.name}</h4>
-                      <p className="muted">{t.what}</p>
+                    <div className="tech-row with-art" key={t.name}>
+                      <div className="art-box"><TechArt name={t.art} photo={t.photo} label={t.name} /></div>
+                      <div><h4>{t.name}</h4><p className="muted" style={{ marginTop: 4 }}>{t.what}</p></div>
                       <p className="why">{t.why}</p>
                     </div>
                   ))}

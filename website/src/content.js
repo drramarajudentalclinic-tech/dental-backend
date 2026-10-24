@@ -97,16 +97,19 @@ export const technology = [
     items: [
       {
         name: "DrOroscope",
+        art: "oroscope",
         what: "A hand-held screening light. Blue, red and green-amber light make the lining of the mouth glow; healthy tissue looks bright green and suspicious areas look darker.",
         why: "Helps find early changes in patches, ulcers and lumps without cutting, so a biopsy is advised only where it is needed.",
       },
       {
         name: "Digital X-rays (RVG)",
+        art: "rvg",
         what: "A small sensor replaces film; the picture appears on screen in seconds.",
         why: "Much lower radiation than film, and we zoom in and show you the picture on the screen.",
       },
       {
         name: "Intra-oral camera",
+        art: "camera",
         what: "A pen-sized camera that photographs the inside of your mouth.",
         why: "You see what we see (cracks, decay, worn fillings) before deciding on treatment.",
       },
@@ -117,21 +120,25 @@ export const technology = [
     items: [
       {
         name: "Apex locator",
+        art: "apex",
         what: "An electronic device that measures the exact length of each root canal.",
         why: "Accurate cleaning to the tip of the root, with fewer X-rays during treatment.",
       },
       {
         name: "Rotary endodontics",
+        art: "rotary",
         what: "Motor-driven nickel-titanium files that clean and shape the canals.",
         why: "Quicker, more even cleaning of curved canals than hand files alone.",
       },
       {
         name: "Obturation pen",
+        art: "obturationPen",
         what: "A heated tip that softens gutta-percha (the rubber-like root filling) and presses it down the canal.",
         why: "The warm filling flows into side canals and gaps, so the root is sealed in three dimensions.",
       },
       {
         name: "Cicada thermal obturator and gutta-percha gun",
+        art: "obturationGun",
         what: "A cordless gun that fills the rest of the canal with warm, flowing gutta-percha.",
         why: "A dense, gap-free seal from the tip of the root to the top, which helps keep bacteria out.",
       },
@@ -142,6 +149,7 @@ export const technology = [
     items: [
       {
         name: "Anaesthesia booster",
+        art: "anaesthesia",
         what: "A device used with the local anaesthetic injection.",
         why: "Makes numbing gentler and more comfortable, especially for anxious patients and children.",
       },
@@ -152,11 +160,13 @@ export const technology = [
     items: [
       {
         name: "Runyes intra-oral scanner",
+        art: "scanner",
         what: "A wand that takes a 3-D digital scan of your teeth instead of a putty impression.",
         why: "No gagging on impression trays; an accurate digital model is sent to the lab for crowns, bridges, clear aligners and dentures.",
       },
       {
         name: "Aluminium-oxide micro-blaster",
+        art: "blaster",
         what: "A fine sand-blaster used on the inside of zirconia and metal crowns before they are cemented.",
         why: "Cleans the crown and roughens it slightly so the cement holds it more firmly.",
       },
@@ -167,16 +177,19 @@ export const technology = [
     items: [
       {
         name: "Surgical guide for implants",
+        art: "guide",
         what: "A 3-D printed guide made from your CBCT scan and digital scan, which fits over your teeth during surgery.",
         why: "The implant goes in the planned position, depth and angle, away from nerves and the sinus, often with a smaller cut.",
       },
       {
         name: "PRFuge centrifuge (PRF)",
+        art: "centrifuge",
         what: "Spins a small sample of your own blood to make platelet-rich fibrin (PRF), a natural healing gel.",
         why: "Placed in extraction sockets, around implants and bone grafts to support healing. Nothing artificial is added.",
       },
       {
         name: "Implant systems",
+        art: "implant",
         what: "Straumann (Switzerland), Nobel Biocare NobelActive and NobelReplace, Osstem, DIO and Neo Biotech (South Korea), and Noris Medical, Adin and Alpha-Bio Tec (Israel).",
         why: "The implant is chosen for your bone, the position of the tooth and your budget, and the parts stay available for years.",
       },
@@ -187,6 +200,7 @@ export const technology = [
     items: [
       {
         name: "Digital patient records and patient portal",
+        art: "records",
         what: "Every visit, prescription, X-ray and scan is stored in one record for each patient.",
         why: "Nothing is lost between visits, and the doctor can share your records with you online.",
       },

@@ -271,3 +271,10 @@ a { color: var(--ink-2); }
 .tech-group + .tech-group { margin-top: 34px; }
 .tech-gh { font-size: 1.3rem; padding-left: 12px; border-left: 4px solid var(--gum); margin-bottom: 12px; }
 .tech-row h4 { margin: 0; font: 650 1.05rem var(--display); color: var(--ink); }
+
+/* equipment pictures */
+.tech-row.with-art { grid-template-columns: 112px minmax(0, 1.25fr) minmax(0, 1fr); align-items: center; }
+.art-box { width: 112px; height: 104px; border-radius: 16px; background: radial-gradient(circle at 35% 30%, #ffffff 0%, var(--mint) 75%); display: grid; place-items: center; border: 1px solid var(--line); }
+.tech-art { width: 100px; height: 94px; display: block; object-fit: cover; border-radius: 12px; }
+@media (max-width: 820px) { .tech-row.with-art { grid-template-columns: 84px minmax(0, 1fr); gap: 6px 14px; } .tech-row.with-art .why { grid-column: 1 / -1; }
+  .art-box { width: 84px; height: 78px; } .tech-art { width: 76px; height: 70px; } }
