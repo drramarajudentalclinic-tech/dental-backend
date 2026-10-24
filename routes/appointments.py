@@ -463,7 +463,7 @@ def complete_today(patient, visit_id=None):
         rows = [r for r in cand if found.get(r["id"]) is not None and found[r["id"]].id == patient.id]
     for r in rows:
         ch = {"status": "COMPLETED", "patient_id": patient.id}
-        if visit_id and not r.get("visit_id"):
+        if visit_id and (not r.get("visit_id") or _visit_of_day(r, day) is None):
             ch["visit_id"] = visit_id
         sb_update(r["id"], ch)
     return len(rows)
@@ -763,10 +763,9 @@ def sync_today(force=False):
     for r in rows:
         if (r.get("status") or "").upper() != "SCHEDULED" or not r.get("patient_id"):
             continue
-        if r.get("visit_id"):
-            v = db.session.get(Visit, int(r["visit_id"]))
-            if v is not None:
-                continue
+        old_link = r.get("visit_id")
+        if old_link and _visit_of_day(r, day) is not None:
+            continue                                     # already has its visit for today
         pid = int(r["patient_id"])
         if db.session.get(Patient, pid) is None:
             continue
@@ -784,8 +783,8 @@ def sync_today(force=False):
         db.session.add(v)
         db.session.commit()
         # claim the appointment only if nobody else did meanwhile (several server workers)
-        claimed = _call("PATCH", _q(id=f"eq.{r['id']}", visit_id="is.null"), {"visit_id": v.id},
-                        prefer="return=representation")
+        claimed = _call("PATCH", _q(id=f"eq.{r['id']}", visit_id=(f"eq.{old_link}" if old_link else "is.null")),
+                        {"visit_id": v.id}, prefer="return=representation")
         if not claimed:
             v.status = "CANCELLED"
             db.session.commit()
@@ -812,6 +811,23 @@ def sync_today(force=False):
     return report
 
 
+def _visit_of_day(r, day=None):
+    """The visit a booking is really for: a visit on the booking's own day (not cancelled).
+    None when there is none - also when visit_id points to an EARLIER visit: a follow-up
+    booked during an earlier visit carries that visit's number, and must still get its
+    own new visit on the follow-up day."""
+    vid = r.get("visit_id")
+    if not str(vid or "").isdigit():
+        return None
+    v = db.session.get(Visit, int(vid))
+    if v is None or (v.status or "").upper() == "CANCELLED":
+        return None
+    day = day or str(r.get("appointment_date") or "")[:10]
+    if v.visit_date is not None and (v.visit_date + timedelta(hours=5, minutes=30)).date().isoformat() != day:
+        return None
+    return v
+
+
 def on_visit_created(visit, body=None):
     """A visit was created in this app: link it to today's appointment, or book one for it."""
     body = body or {}
@@ -829,7 +845,8 @@ def on_visit_created(visit, body=None):
         db.session.commit()
     # today's booking that has no visit yet (or already this one) — an earlier, finished
     # visit's appointment is left alone
-    free = lambda r: (r.get("status") or "").upper() == "SCHEDULED" and r.get("visit_id") in (None, visit.id)
+    free = lambda r: (r.get("status") or "").upper() == "SCHEDULED" and (
+        r.get("visit_id") in (None, visit.id) or _visit_of_day(r, day) is None)
     rows = [r for r in sb_select(patient_id=f"eq.{patient.id}", appointment_date=f"eq.{day}") if free(r)]
     if not rows:                                          # booked in the Appointments app, not linked yet
         cand = sb_select(appointment_date=f"eq.{day}", patient_id="is.null", status="eq.SCHEDULED")
