@@ -15,6 +15,7 @@
 export const clinic = {
   name: "Sri Satya Sai Oral Health Center & Dental Clinic",
   shortName: "Sri Satya Sai Dental",
+  motto: "Oral health for healthy life",
   tagline: "Complete dental care in Chaitanyapuri, Hyderabad, led by a specialist in oral medicine and radiology with 30 years of experience. Every treatment is explained before we begin.",
   phone: "+91 99088 94449",
   whatsapp: "+91 99088 94449",
@@ -25,8 +26,8 @@ export const clinic = {
     "Hyderabad – 500060, Telangana",
   ],
   landmark: "Near Dilsukhnagar, opposite Metro Pillar No. 1563",
-  mapsLink: "https://maps.app.goo.gl/24xzmNNGazzfwQWy9",
-  mapQuery: "Rajanigandha Apartments, Chaitanyapuri, Hyderabad 500060",
+  mapsLink: "https://maps.app.goo.gl/F8Zp631MJP9MvKtk7",
+  mapQuery: "17.3680732,78.5326468",   // the clinic pin on Google Maps
   hours: [
     ["Monday – Saturday", "11:00 am – 7:00 pm"],
     ["Sunday", "Holiday"],
@@ -38,14 +39,31 @@ export const clinic = {
 export const doctors = [
   {
     name: "Dr. D. Rama Raju",
+    initials: "RR",
     qualification: "BDS, MDS (Oral Medicine & Radiology)",
-    role: "Dental surgeon, 30 years of experience",
-    facts: [
-      "BDS, Osmania Medical College, Hyderabad (1996)",
-      "MDS in Oral Medicine & Radiology, Osmania Medical College, Hyderabad (2000)",
-      "Member, Indian Dental Association",
+    title: "Dentist and specialist in Oral Medicine & Radiology",
+    stats: [
+      ["30", "years in practice"],
+      ["MDS", "Oral Medicine & Radiology"],
+      ["IDA", "Member, Indian Dental Association"],
     ],
-    about: "Dr. D. Rama Raju has practised dentistry for 30 years. He treats patients at Sri Satya Sai Oral Health Center & Dental Clinic in Chaitanyapuri, near Dilsukhnagar, Hyderabad: from check-ups and cleaning to surgical extractions, implants, braces and full-mouth rehabilitation.",
+    about: [
+      "Dr. D. Rama Raju holds a master's degree in Oral Medicine and Radiology, the speciality that deals with diagnosing diseases of the mouth, jaws and face and with reading dental X-rays and scans. He has practised dentistry for 30 years and runs Sri Satya Sai Oral Health Center & Dental Clinic in Chaitanyapuri, near Dilsukhnagar, Hyderabad.",
+      "Patients see him for everything from check-ups, fillings and root canals to extractions, implants, dentures, braces and full-mouth rehabilitation. Every treatment starts with a clear diagnosis, and the options and the cost are explained before anything begins.",
+    ],
+    focus: [
+      "Diagnosis of mouth ulcers, patches and lumps; oral cancer screening",
+      "Reading dental X-rays, OPG and CBCT scans",
+      "Root canals, crowns and bridges",
+      "Implants, dentures and full-mouth rehabilitation",
+      "Extractions, including wisdom teeth",
+      "Braces, aligners and smile design",
+    ],
+    timeline: [
+      ["1996", "BDS", "Osmania Medical College, Hyderabad"],
+      ["2000", "MDS, Oral Medicine & Radiology", "Osmania Medical College, Hyderabad"],
+      ["Today", "30 years in practice", "Sri Satya Sai Oral Health Center & Dental Clinic, Chaitanyapuri"],
+    ],
   },
 ];
 

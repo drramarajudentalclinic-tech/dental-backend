@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { clinic, doctors, services, technology, protocols, portalSteps } from "../content";
-import { Bar, Footer, DraftNote } from "../components/Chrome";
+import { Bar, Footer, DraftNote, waLink } from "../components/Chrome";
 
 const UPPER = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28];
 const LOWER = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38];
@@ -51,7 +51,35 @@ function Protocols() {
   );
 }
 
-const initials = (n) => n.replace(/^Dr\.?\s*/i, "").split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+function Doctor({ d }) {
+  return (
+    <div className="doctor">
+      <aside className="doc-card">
+        <div className="doc-mono" aria-hidden="true">{d.initials}</div>
+        <h2 className="doc-name">{d.name}</h2>
+        <div className="doc-q">{d.qualification}</div>
+        <div className="doc-title">{d.title}</div>
+        <dl className="doc-stats">
+          {d.stats.map(([big, small]) => <div key={small}><dt>{big}</dt><dd>{small}</dd></div>)}
+        </dl>
+        <div className="doc-actions">
+          <a className="btn" href={`tel:${clinic.phone.replace(/[^\d+]/g, "")}`}>Call for an appointment</a>
+          <a className="btn ghost" href={waLink(`Hello, I would like an appointment with ${d.name}.`)} target="_blank" rel="noreferrer">WhatsApp</a>
+        </div>
+      </aside>
+      <div className="doc-body">
+        <h2>About the doctor</h2>
+        {d.about.map((p) => <p key={p.slice(0, 20)} className="measure">{p}</p>)}
+        <h3>Areas of care</h3>
+        <ul className="doc-focus">{d.focus.map((f) => <li key={f}>{f}</li>)}</ul>
+        <h3>Education and practice</h3>
+        <ol className="doc-time">
+          {d.timeline.map(([y, t, w]) => <li key={y}><span className="yr">{y}</span><span><b>{t}</b><br /><span className="muted">{w}</span></span></li>)}
+        </ol>
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
   return (
@@ -63,16 +91,17 @@ export default function Home() {
           <div className="wrap hero-grid">
             <div>
               <h1>{clinic.name}</h1>
+              <p className="motto">{clinic.motto}</p>
               <p className="lead">{clinic.tagline}</p>
               <div className="hero-actions">
                 <a className="btn" href={`tel:${clinic.phone.replace(/[^\d+]/g, "")}`}>Call {clinic.phone}</a>
-                <a className="btn ghost" href={`https://wa.me/${clinic.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent("Hello, I would like to book an appointment.")}`} target="_blank" rel="noreferrer">Book on WhatsApp</a>
+                <a className="btn ghost" href={waLink()} target="_blank" rel="noreferrer">Book on WhatsApp</a>
               </div>
-              <div className="hero-facts">
-                <span><b>30 years</b> of practice</span>
-                <span><b>MDS</b>, Oral Medicine &amp; Radiology</span>
-                <span><b>By appointment</b>, Mon–Sat 11 am – 7 pm</span>
-              </div>
+              <dl className="hero-facts">
+                <div><dt>30 years</dt><dd>in practice</dd></div>
+                <div><dt>MDS</dt><dd>Oral Medicine &amp; Radiology</dd></div>
+                <div><dt>Mon – Sat</dt><dd>11 am – 7 pm, by appointment</dd></div>
+              </dl>
             </div>
             <ToothChart />
           </div>
@@ -119,23 +148,9 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="sec" id="doctors">
+        <section className="sec doctor-sec" id="doctors">
           <div className="wrap">
-            <div className="sec-head"><h2>Our doctors</h2></div>
-            <div className="docs">
-              {doctors.map((d) => (
-                <div className="doc" key={d.name}>
-                  <div className="mono" aria-hidden="true">{initials(d.name)}</div>
-                  <div>
-                    <h3>{d.name}</h3>
-                    <div className="q">{d.qualification}</div>
-                    <div className="muted" style={{ fontSize: 15 }}>{d.role}</div>
-                    <p style={{ marginTop: 8 }}>{d.about}</p>
-                    {d.facts?.length > 0 && <ul className="doc-facts">{d.facts.map((f) => <li key={f}>{f}</li>)}</ul>}
-                  </div>
-                </div>
-              ))}
-            </div>
+            {doctors.map((d) => <Doctor key={d.name} d={d} />)}
           </div>
         </section>
 
@@ -176,7 +191,7 @@ export default function Home() {
             </div>
             {clinic.mapQuery && (
               <iframe className="map" title="Clinic location on the map" loading="lazy" referrerPolicy="no-referrer-when-downgrade"
-                src={`https://maps.google.com/maps?q=${encodeURIComponent(clinic.mapQuery)}&z=16&output=embed`} />
+                src={`https://maps.google.com/maps?q=${encodeURIComponent(clinic.mapQuery)}&z=17&output=embed`} />
             )}
           </div>
         </section>
