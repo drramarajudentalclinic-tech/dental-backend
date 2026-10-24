@@ -33,7 +33,7 @@ from routes.family_doctor  import family_doctor_bp
 from routes.consent        import consent_bp
 from routes.appointments   import appointments_bp
 from routes.other_expenses import other_expenses_bp, run_other_expense_migrations
-from routes.auth           import auth_bp
+from routes.auth           import auth_bp, run_auth_migrations
 from routes.cbct_backend import cbct_bp, run_cbct_migrations
 from routes.billing_ledger import billing_ledger_bp, run_billing_ledger_migrations, backfill_legacy_visit_charges
 from routes.portal         import portal_bp, ensure_portal_tables
@@ -94,6 +94,9 @@ def protect_all_routes():
         "/api/auth/login",
         "/api/auth/register",
         "/api/auth/setup",
+        "/api/auth/link",            # set-password link (invite / forgot password)
+        "/api/auth/set-password",
+        "/api/auth/forgot",
         "/health",
         # patient portal: asking for / checking the SMS code happens before login
         "/api/portal/otp/request",
@@ -103,28 +106,8 @@ def protect_all_routes():
     if request.path in public_paths:
         return
 
-    # Patient search
-    if request.path.startswith("/patients/search"):
-        return
-
-    if request.path.startswith("/api/patients/search"):
-        return
-
-    # Patient history
-    # NOTE: /history was replaced by /complete-history (see patients.py) —
-    # kept this exemption for any old bookmarked/cached callers, and added
-    # the same exemption for the new route so behavior is unchanged.
-    if request.path.startswith("/patients/") and request.path.endswith("/history"):
-        return
-
-    if request.path.startswith("/api/patients/") and request.path.endswith("/history"):
-        return
-
-    if request.path.startswith("/patients/") and request.path.endswith("/complete-history"):
-        return
-
-    if request.path.startswith("/api/patients/") and request.path.endswith("/complete-history"):
-        return
+    # Patient search and patient history now need a login like everything
+    # else (they used to be open to anyone who knew the server address).
 
     # Receipts
     if request.path.startswith("/api/receipts/") and (
@@ -218,6 +201,7 @@ with app.app_context():
     # safe_migrate() keeps startup behavior consistent with the rest of
     # this file.
     safe_migrate("create_all", db.create_all)
+    safe_migrate("staff_login_security", run_auth_migrations, app)
 
 print("Running migrations...")
 
