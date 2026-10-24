@@ -121,6 +121,7 @@ function Doctor({ d }) {
         <h3 className="doc-name">{d.name}</h3>
         <div className="doc-q">{d.qualification}</div>
         <div className="doc-title">{d.title}</div>
+        {clinic.registration && <div className="doc-reg">Dental Council Reg. No. {clinic.registration}</div>}
         <dl className="doc-stats">
           {d.stats.map(([big, small]) => <div key={small}><dt>{big}</dt><dd>{small}</dd></div>)}
         </dl>

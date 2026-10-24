@@ -36,7 +36,7 @@ export const clinic = {
     ["Sunday", "Holiday"],
   ],
   hoursNote: "By appointment only. Please call or WhatsApp before you come.",
-  registration: "",      // Dental Council registration no. (shown in the footer once filled in)
+  registration: "A-1096",      // Dental Council registration no. (footer and doctor card)
 };
 
 export const doctors = [
