@@ -106,12 +106,14 @@ export const technology = [
       },
       {
         name: "Digital X-rays (RVG)",
+        photo: photos.rvg,
         art: "rvg",
         what: "A small sensor replaces film; the picture appears on screen in seconds.",
         why: "Much lower radiation than film, and we zoom in and show you the picture on the screen.",
       },
       {
         name: "Intra-oral camera",
+        photo: photos.camera,
         art: "camera",
         what: "A pen-sized camera that photographs the inside of your mouth.",
         why: "You see what we see (cracks, decay, worn fillings) before deciding on treatment.",
@@ -128,21 +130,24 @@ export const technology = [
         why: "Accurate cleaning to the tip of the root, with fewer X-rays during treatment.",
       },
       {
-        name: "Rotary endodontics",
+        name: "Endo motor and rotary files",
+        photo: photos.endoMotor,
         art: "rotary",
-        what: "Motor-driven nickel-titanium files that clean and shape the canals.",
+        what: "A cordless endo motor that turns nickel-titanium files at a controlled speed and force to clean and shape the canals.",
         why: "Quicker, more even cleaning of curved canals than hand files alone.",
       },
       {
         name: "Obturation pen",
+        photo: photos.obturationPen,
         art: "obturationPen",
         what: "A heated tip that softens gutta-percha (the rubber-like root filling) and presses it down the canal.",
         why: "The warm filling flows into side canals and gaps, so the root is sealed in three dimensions.",
       },
       {
-        name: "Cicada thermal obturator and gutta-percha gun",
+        name: "Cicada DT Fill thermal obturator",
+        photo: photos.cicada,
         art: "obturationGun",
-        what: "A cordless gun that fills the rest of the canal with warm, flowing gutta-percha.",
+        what: "A cordless gun that fills the rest of the canal with warm, flowing gutta-percha (gutta-percha backfill).",
         why: "A dense, gap-free seal from the tip of the root to the top, which helps keep bacteria out.",
       },
     ],
@@ -152,8 +157,9 @@ export const technology = [
     items: [
       {
         name: "Anaesthesia booster",
+        photo: photos.anaesthesia,
         art: "anaesthesia",
-        what: "A device used with the local anaesthetic injection.",
+        what: "A cordless device that delivers the local anaesthetic from the cartridge in a slow, steady flow.",
         why: "Makes numbing gentler and more comfortable, especially for anxious patients and children.",
       },
     ],
@@ -162,13 +168,15 @@ export const technology = [
     treatment: "Crowns, bridges, aligners and dentures",
     items: [
       {
-        name: "Runyes intra-oral scanner",
+        name: "Runyes 3DS V3 Pro intra-oral scanner",
+        photo: photos.runyes,
         art: "scanner",
         what: "A wand that takes a 3-D digital scan of your teeth instead of a putty impression.",
         why: "No gagging on impression trays; an accurate digital model is sent to the lab for crowns, bridges, clear aligners and dentures.",
       },
       {
         name: "Aluminium-oxide micro-blaster",
+        photo: photos.blaster,
         art: "blaster",
         what: "A fine sand-blaster used on the inside of zirconia and metal crowns before they are cemented.",
         why: "Cleans the crown and roughens it slightly so the cement holds it more firmly.",
@@ -259,9 +267,9 @@ export const protocols = [
     steps: [
       "Digital X-ray to see the root shape and the infection.",
       "Local anaesthesia with the anaesthesia booster, and isolation of the tooth to keep it clean and dry.",
-      "Cleaning and shaping of the canals with rotary files; the length is checked with the apex locator.",
+      "Cleaning and shaping of the canals with rotary files on the endo motor; the length is checked with the apex locator.",
       "Disinfection of the canals with irrigating solutions.",
-      "Three-dimensional sealing with warm gutta-percha (obturation pen and Cicada thermal obturator).",
+      "Three-dimensional sealing with warm gutta-percha (obturation pen and Cicada DT Fill).",
       "Post-treatment X-ray and, where advised, a crown made from a digital scan to protect the tooth.",
     ],
   },
@@ -269,7 +277,7 @@ export const protocols = [
     title: "Crowns and bridges",
     steps: [
       "The tooth is shaped under local anaesthesia.",
-      "A 3-D digital scan with the Runyes intra-oral scanner (no impression trays).",
+      "A 3-D digital scan with the Runyes 3DS intra-oral scanner (no impression trays).",
       "A temporary crown while the lab makes the final crown.",
       "Try-in to check fit, bite and shade.",
       "The inside of the crown is cleaned with the aluminium-oxide micro-blaster.",
