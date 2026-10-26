@@ -33,6 +33,7 @@ export function Bar({ right }) {
               <a href="/#technology">Technology</a>
               <a href="/#screening">Cancer screening</a>
               <a href="/#doctors">Doctor</a>
+              <a href="/#book">Book</a>
               <a href="/#visit">Visit us</a>
             </nav>
             <Link className="btn small" to="/portal">Patient login</Link>

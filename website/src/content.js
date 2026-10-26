@@ -350,3 +350,15 @@ export const screening = {
     ],
   },
 };
+
+/* Common questions — plain, factual answers. */
+export const faqs = [
+  ["Do I need an appointment?", "Yes. The clinic works by appointment only, Monday to Saturday, 11 am to 7 pm. Call or WhatsApp +91 99088 94449 to book a time. Sunday is a holiday."],
+  ["Is root canal treatment painful?", "The tooth is numbed with local anaesthesia before treatment, so you should feel pressure but not pain. Some soreness for a day or two afterwards is common, and the doctor prescribes medicine for it."],
+  ["How long does a dental implant take?", "The implant is placed in one sitting under local anaesthesia. It then needs about 3 months to join the bone before the crown is fitted. If a bone graft is needed, healing can take longer; the doctor explains the timeline for your case."],
+  ["Is the oral cancer screening painful?", "No. The DrOroscope only shines light and takes photos of the inside of your mouth. It takes a few minutes during your check-up."],
+  ["What should I bring to my first visit?", "A list of the medicines you take, any medical reports, and any old dental X-rays or scans. If you have diabetes, blood pressure or heart problems, or are pregnant, please tell the doctor."],
+  ["Can I see my X-rays and prescriptions later?", "Yes. When the doctor switches on your patient portal and shares them, you can see your visit summaries, prescriptions, X-rays and receipts on your phone."],
+  ["How are instruments kept clean?", "Instruments are cleaned, sealed in sterilisation pouches and steam-autoclaved. The pouch is opened in front of you, and needles, gloves and suction tips are used once and thrown away."],
+  ["When should a child first see a dentist?", "By the first birthday, or when the first tooth comes in. Early visits help catch decay in milk teeth and get children comfortable at the dentist."],
+];

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { clinic, doctors, services, technology, protocols, portalSteps, screening } from "../content";
+import { clinic, doctors, services, technology, protocols, portalSteps, screening, faqs } from "../content";
 import * as photos from "../photos";
 import logoSrc from "../logo";
 import { Bar, Footer, DraftNote, waLink } from "../components/Chrome";
@@ -183,6 +183,62 @@ function Screening() {
   );
 }
 
+
+/* ── appointment request: fills a WhatsApp message (nothing is stored on the website) ── */
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const SLOTS = ["Morning (11 am – 1 pm)", "Afternoon (1 – 4 pm)", "Evening (4 – 7 pm)"];
+function BookForm() {
+  const [f, setF] = useState({ name: "", phone: "", day: "", slot: "", reason: "", note: "" });
+  const [err, setErr] = useState("");
+  const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
+  const send = (e) => {
+    e.preventDefault();
+    const digits = f.phone.replace(/\D/g, "").replace(/^91(?=\d{10}$)/, "");
+    if (!f.name.trim()) { setErr("Please enter your name."); return; }
+    if (!/^[6-9]\d{9}$/.test(digits)) { setErr("Please enter a 10-digit mobile number."); return; }
+    setErr("");
+    const text = [
+      "Hello, I would like to book an appointment.",
+      `Name: ${f.name.trim()}`,
+      `Mobile: ${digits}`,
+      f.day && `Preferred day: ${f.day}`,
+      f.slot && `Preferred time: ${f.slot}`,
+      f.reason && `Reason: ${f.reason}`,
+      f.note.trim() && `Note: ${f.note.trim()}`,
+    ].filter(Boolean).join("\n");
+    window.open(waLink(text), "_blank", "noopener");
+  };
+  return (
+    <form className="book-form" onSubmit={send} noValidate>
+      <div className="bf-grid">
+        <label>Your name<input value={f.name} onChange={set("name")} autoComplete="name" required /></label>
+        <label>Mobile number<input value={f.phone} onChange={set("phone")} type="tel" inputMode="numeric" autoComplete="tel-national" placeholder="98765 43210" required /></label>
+        <label>Preferred day<select value={f.day} onChange={set("day")}><option value="">Any day</option>{DAYS.map((d) => <option key={d}>{d}</option>)}</select></label>
+        <label>Preferred time<select value={f.slot} onChange={set("slot")}><option value="">Any time</option>{SLOTS.map((d) => <option key={d}>{d}</option>)}</select></label>
+        <label className="bf-wide">Reason for the visit<select value={f.reason} onChange={set("reason")}><option value="">Choose (optional)</option>
+          {services.map(([t]) => <option key={t}>{t}</option>)}<option>Tooth pain or swelling</option><option>Other</option></select></label>
+        <label className="bf-wide">Anything else (optional)<textarea value={f.note} onChange={set("note")} rows={3} /></label>
+      </div>
+      {err && <p className="bf-err" role="alert">{err}</p>}
+      <button className="btn bf-send" type="submit"><Icon n="chat" size={18} />Send request on WhatsApp</button>
+      <p className="bf-note">This opens WhatsApp with your request ready to send. The clinic replies to confirm the time. Nothing is saved on this website.</p>
+    </form>
+  );
+}
+
+function Faq() {
+  return (
+    <div className="faq">
+      {faqs.map(([q, a]) => (
+        <details key={q}>
+          <summary>{q}<span className="faq-plus" aria-hidden="true" /></summary>
+          <p>{a}</p>
+        </details>
+      ))}
+    </div>
+  );
+}
+
 /* ── a phone showing the patient portal (illustration, sample data) ── */
 function PortalPhone() {
   return (
@@ -224,7 +280,7 @@ export default function Home() {
               <p className="lead">{clinic.tagline}</p>
               <div className="hero-actions">
                 <a className="btn light" href={tel(clinic.phone)}><Icon n="phone" size={18} />Call {clinic.phone}</a>
-                <a className="btn outline-light" href={waLink()} target="_blank" rel="noreferrer"><Icon n="chat" size={18} />Book on WhatsApp</a>
+                <a className="btn outline-light" href="#book"><Icon n="clock" size={18} />Book an appointment</a>
               </div>
               <p className="hero-note"><Icon n="clock" size={16} />Mon – Sat, 11 am – 7 pm · by appointment</p>
             </div>
@@ -300,6 +356,30 @@ export default function Home() {
           </div>
         </section>
 
+        {/* ── BOOK ── */}
+        <section className="sec" id="book">
+          <div className="wrap book-grid">
+            <div>
+              <h2>Book an appointment</h2>
+              <p className="book-lead">Tell us when suits you and what you need. The clinic will confirm a time on WhatsApp.</p>
+              <ul className="book-points">
+                <li><Icon n="clock" size={18} />Monday to Saturday, 11 am – 7 pm, by appointment</li>
+                <li><Icon n="phone" size={18} />Prefer to talk? Call <a href={tel(clinic.phone)}>{clinic.phone}</a></li>
+                <li><Icon n="pin" size={18} />Opposite Metro Pillar No. 1563, Chaitanyapuri</li>
+              </ul>
+            </div>
+            <BookForm />
+          </div>
+        </section>
+
+        {/* ── FAQ ── */}
+        <section className="sec sec-tint" id="faq">
+          <div className="wrap faq-grid">
+            <header className="sec-head"><h2>Common questions</h2><p>Short answers to what patients ask most. For anything else, call or WhatsApp the clinic.</p></header>
+            <Faq />
+          </div>
+        </section>
+
         {/* ── VISIT ── */}
         <section className="sec" id="visit">
           <div className="wrap">
@@ -327,6 +407,11 @@ export default function Home() {
         </section>
       </main>
       <Footer />
+      <nav className="mobile-bar" aria-label="Contact the clinic">
+        <a href={tel(clinic.phone)}><Icon n="phone" size={20} />Call</a>
+        <a href={waLink()} target="_blank" rel="noreferrer"><Icon n="chat" size={20} />WhatsApp</a>
+        <a href="#book"><Icon n="clock" size={20} />Book</a>
+      </nav>
       <a className={`wa-float${scrolled ? " show" : ""}`} href={waLink()} target="_blank" rel="noreferrer" aria-label="Book an appointment on WhatsApp">
         <Icon n="chat" size={24} /><span>Book on WhatsApp</span>
       </a>
