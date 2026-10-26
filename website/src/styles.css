@@ -111,7 +111,7 @@ img { max-width: 100%; }
 /* trust strip, overlapping the hero */
 .trust { position: relative; z-index: 2; margin: -64px 0 0; display: grid; grid-template-columns: repeat(4, 1fr); background: var(--paper);
   border-radius: var(--radius-l); box-shadow: var(--shadow-2); border: 1px solid rgba(13,54,55,.06); }
-.trust > div { padding: 24px 24px 22px; display: grid; grid-template-columns: auto 1fr; column-gap: 14px; align-items: start; }
+.trust > div { padding: 24px 24px 22px; display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto 1fr; column-gap: 14px; align-items: start; align-content: start; }
 .trust > div + div { border-left: 1px solid var(--line); }
 .tr-ico { grid-row: span 2; width: 44px; height: 44px; border-radius: 12px; background: var(--mint-2); color: var(--ink-2); display: grid; place-items: center; }
 .trust dt { font: 700 1.15rem var(--display); color: var(--ink); }

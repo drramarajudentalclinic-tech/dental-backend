@@ -18,7 +18,7 @@ export const clinic = {
   name: "Sri Satya Sai Oral Health Center & Dental Clinic",
   shortName: "Sri Satya Sai Dental",
   motto: "Oral health for healthy life",
-  tagline: "Complete dental care in Chaitanyapuri, Hyderabad, led by a specialist in oral medicine and radiology with 30 years of experience. Every treatment is explained before we begin.",
+  tagline: "Complete dental care in Chaitanyapuri, Hyderabad, led by a specialist in oral medicine and radiology with 25 years of experience. Every treatment is explained before we begin.",
   phone: "+91 99088 94449",
   whatsapp: "+91 99088 94449",
   email: "drramarajudentalclinic@gmail.com",
@@ -46,12 +46,12 @@ export const doctors = [
     qualification: "BDS, MDS (Oral Medicine & Radiology)",
     title: "Dentist and specialist in Oral Medicine & Radiology",
     stats: [
-      ["30", "years in practice"],
+      ["25", "years in practice"],
       ["MDS", "Oral Medicine & Radiology"],
       ["IDA", "Member, Indian Dental Association"],
     ],
     about: [
-      "Dr. D. Rama Raju holds a master's degree in Oral Medicine and Radiology, the speciality that deals with diagnosing diseases of the mouth, jaws and face and with reading dental X-rays and scans. He has practised dentistry for 30 years and runs Sri Satya Sai Oral Health Center & Dental Clinic in Chaitanyapuri, near Dilsukhnagar, Hyderabad.",
+      "Dr. D. Rama Raju holds a master's degree in Oral Medicine and Radiology, the speciality that deals with diagnosing diseases of the mouth, jaws and face and with reading dental X-rays and scans. He has practised dentistry for 25 years and runs Sri Satya Sai Oral Health Center & Dental Clinic in Chaitanyapuri, near Dilsukhnagar, Hyderabad.",
       "Patients see him for everything from check-ups, fillings and root canals to extractions, implants, dentures, braces and full-mouth rehabilitation. Every treatment starts with a clear diagnosis, and the options and the cost are explained before anything begins.",
     ],
     focus: [
@@ -65,7 +65,7 @@ export const doctors = [
     timeline: [
       ["1996", "BDS", "Osmania Medical College, Hyderabad"],
       ["2000", "MDS, Oral Medicine & Radiology", "Osmania Medical College, Hyderabad"],
-      ["Today", "30 years in practice", "Sri Satya Sai Oral Health Center & Dental Clinic, Chaitanyapuri"],
+      ["Today", "25 years in practice", "Sri Satya Sai Oral Health Center & Dental Clinic, Chaitanyapuri"],
     ],
   },
 ];
@@ -125,6 +125,7 @@ export const technology = [
     items: [
       {
         name: "Apex locator",
+        photo: photos.apex,
         art: "apex",
         what: "An electronic device that measures the exact length of each root canal.",
         why: "Accurate cleaning to the tip of the root, with fewer X-rays during treatment.",
@@ -188,6 +189,7 @@ export const technology = [
     items: [
       {
         name: "Surgical guide for implants",
+        photo: photos.guide,
         art: "guide",
         what: "A 3-D printed guide made from your CBCT scan and digital scan, which fits over your teeth during surgery.",
         why: "The implant goes in the planned position, depth and angle, away from nerves and the sinus, often with a smaller cut.",
@@ -231,6 +233,7 @@ export const technology = [
     items: [
       {
         name: "Digital patient records and patient portal",
+        photo: photos.records,
         art: "records",
         what: "Every visit, prescription, X-ray and scan is stored in one record for each patient.",
         why: "Nothing is lost between visits, and the doctor can share your records with you online.",

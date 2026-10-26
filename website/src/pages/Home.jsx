@@ -196,9 +196,9 @@ export default function Home() {
         {/* ── TRUST STRIP ── */}
         <div className="wrap">
           <dl className="trust">
-            <div><span className="tr-ico"><Icon n="award" /></span><dt>30 years</dt><dd>of dental practice</dd></div>
+            <div><span className="tr-ico"><Icon n="award" /></span><dt>25 years</dt><dd>of dental practice</dd></div>
             <div><span className="tr-ico"><Icon n="tooth" /></span><dt>MDS</dt><dd>Oral Medicine &amp; Radiology</dd></div>
-            <div><span className="tr-ico"><Icon n="spark" /></span><dt>Modern dentistry</dt><dd>digital scans, guided implants, oral cancer screening</dd></div>
+            <div><span className="tr-ico"><Icon n="spark" /></span><dt>Personalised dentistry</dt><dd>a treatment plan made for you, explained before we begin</dd></div>
             <div><span className="tr-ico"><Icon n="shield" /></span><dt>Sealed &amp; sterilised</dt><dd>every instrument, every patient</dd></div>
           </dl>
         </div>
