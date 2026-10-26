@@ -26,14 +26,18 @@ const Icon = ({ n, size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{I[n]}</svg>
 );
 
-/* ── hero: the clinic emblem with the doctor ── */
-function HeroEmblem({ d }) {
+/* ── hero: a quick booking card (the clinic emblem sits behind it) ── */
+function HeroBook() {
   return (
-    <div className="emblem">
-      <div className="emblem-disc"><img src={logoSrc} alt="Sri Satya Sai Oral Health Centre emblem" /></div>
-      <div className="emblem-doc">
-        <span className="ed-mono" aria-hidden="true">{d.initials}</span>
-        <span><b>{d.name}</b><small>{d.qualification}</small>{clinic.registration && <small>Reg. No. {clinic.registration}</small>}</span>
+    <div className="hero-book">
+      <img className="hb-mark" src={logoSrc} alt="" aria-hidden="true" />
+      <div className="hb-card">
+        <div className="hb-head">
+          <img src={logoSrc} alt="" />
+          <div><b>Book your visit</b><span>Mon – Sat, 11 am – 7 pm · by appointment</span></div>
+        </div>
+        <BookForm compact />
+        <a className="hb-call" href={tel(clinic.phone)}><Icon n="phone" size={16} />Prefer to talk? Call {clinic.phone}</a>
       </div>
     </div>
   );
@@ -187,7 +191,7 @@ function Screening() {
 /* ── appointment request: fills a WhatsApp message (nothing is stored on the website) ── */
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const SLOTS = ["Morning (11 am – 1 pm)", "Afternoon (1 – 4 pm)", "Evening (4 – 7 pm)"];
-function BookForm() {
+function BookForm({ compact = false }) {
   const [f, setF] = useState({ name: "", phone: "", day: "", slot: "", reason: "", note: "" });
   const [err, setErr] = useState("");
   const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
@@ -209,7 +213,16 @@ function BookForm() {
     window.open(waLink(text), "_blank", "noopener");
   };
   return (
-    <form className="book-form" onSubmit={send} noValidate>
+    <form className={`book-form${compact ? " compact" : ""}`} onSubmit={send} noValidate>
+      {compact ? (
+        <div className="bf-grid">
+          <label className="bf-wide">Your name<input value={f.name} onChange={set("name")} autoComplete="name" required /></label>
+          <label className="bf-wide">Mobile number<input value={f.phone} onChange={set("phone")} type="tel" inputMode="numeric" autoComplete="tel-national" placeholder="98765 43210" required /></label>
+          <label>Preferred day<select value={f.day} onChange={set("day")}><option value="">Any day</option>{DAYS.map((d) => <option key={d}>{d}</option>)}</select></label>
+          <label>Reason<select value={f.reason} onChange={set("reason")}><option value="">Choose</option>
+            {services.map(([t]) => <option key={t}>{t}</option>)}<option>Tooth pain or swelling</option><option>Other</option></select></label>
+        </div>
+      ) : (
       <div className="bf-grid">
         <label>Your name<input value={f.name} onChange={set("name")} autoComplete="name" required /></label>
         <label>Mobile number<input value={f.phone} onChange={set("phone")} type="tel" inputMode="numeric" autoComplete="tel-national" placeholder="98765 43210" required /></label>
@@ -219,9 +232,10 @@ function BookForm() {
           {services.map(([t]) => <option key={t}>{t}</option>)}<option>Tooth pain or swelling</option><option>Other</option></select></label>
         <label className="bf-wide">Anything else (optional)<textarea value={f.note} onChange={set("note")} rows={3} /></label>
       </div>
+      )}
       {err && <p className="bf-err" role="alert">{err}</p>}
       <button className="btn bf-send" type="submit"><Icon n="chat" size={18} />Send request on WhatsApp</button>
-      <p className="bf-note">This opens WhatsApp with your request ready to send. The clinic replies to confirm the time. Nothing is saved on this website.</p>
+      <p className="bf-note">{compact ? "Opens WhatsApp with your request ready to send. The clinic confirms the time." : "This opens WhatsApp with your request ready to send. The clinic replies to confirm the time. Nothing is saved on this website."}</p>
     </form>
   );
 }
@@ -278,13 +292,16 @@ export default function Home() {
               <h1>{clinic.name}</h1>
               <p className="motto">{clinic.motto}</p>
               <p className="lead">{clinic.tagline}</p>
+              <div className="hero-doc">
+                <span className="ed-mono" aria-hidden="true">{d0.initials}</span>
+                <span><b>{d0.name}</b><small>{d0.qualification}{clinic.registration ? ` · Reg. No. ${clinic.registration}` : ""}</small></span>
+              </div>
               <div className="hero-actions">
                 <a className="btn light" href={tel(clinic.phone)}><Icon n="phone" size={18} />Call {clinic.phone}</a>
-                <a className="btn outline-light" href="#book"><Icon n="clock" size={18} />Book an appointment</a>
+                <a className="btn outline-light" href="#treatments">See treatments <Icon n="arrow" size={18} /></a>
               </div>
-              <p className="hero-note"><Icon n="clock" size={16} />Mon – Sat, 11 am – 7 pm · by appointment</p>
             </div>
-            <HeroEmblem d={d0} />
+            <HeroBook />
           </div>
         </section>
 
@@ -293,8 +310,8 @@ export default function Home() {
           <dl className="trust">
             <div><span className="tr-ico"><Icon n="award" /></span><dt>25 years</dt><dd>of dental practice</dd></div>
             <div><span className="tr-ico"><Icon n="tooth" /></span><dt>MDS</dt><dd>Oral Medicine &amp; Radiology</dd></div>
-            <div><span className="tr-ico"><Icon n="spark" /></span><dt>Personalised dentistry</dt><dd>a treatment plan made for you, explained before we begin</dd></div>
-            <div><span className="tr-ico"><Icon n="shield" /></span><dt>Sealed &amp; sterilised</dt><dd>every instrument, every patient</dd></div>
+            <div><span className="tr-ico"><Icon n="spark" /></span><dt>Personalised dentistry</dt><dd>a plan made for you, explained first</dd></div>
+            <div><span className="tr-ico"><Icon n="shield" /></span><dt>Sealed &amp; sterilised</dt><dd>every instrument, every time</dd></div>
           </dl>
         </div>
 
