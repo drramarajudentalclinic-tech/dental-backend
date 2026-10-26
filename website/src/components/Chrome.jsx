@@ -31,6 +31,7 @@ export function Bar({ right }) {
             <nav className="nav" aria-label="Sections">
               <a href="/#treatments">Treatments</a>
               <a href="/#technology">Technology</a>
+              <a href="/#screening">Cancer screening</a>
               <a href="/#doctors">Doctor</a>
               <a href="/#visit">Visit us</a>
             </nav>

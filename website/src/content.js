@@ -102,7 +102,7 @@ export const technology = [
         photo: photos.oroscope,
         art: "oroscope",
         what: "A hand-held oral screening camera made in India by Raamah Biocare. A slim head with a 5-megapixel camera reaches the back of the mouth and photographs each area under white, blue and fluorescence light; the pictures appear on a tablet.",
-        why: "Healthy lining glows green while suspicious areas look darker, so early changes in patches, ulcers and lumps are found without cutting. The photos are kept in your record to compare at the next visit.",
+        why: "Healthy lining glows green while suspicious areas look darker, so early changes in patches, ulcers and lumps are found without cutting, and it helps decide which areas need a biopsy. The photos are kept in your record to compare at the next visit.",
       },
       {
         name: "Digital X-rays (RVG)",
@@ -210,6 +210,7 @@ export const technology = [
       },
       {
         name: "Implant systems",
+        photo: photos.implant,
         art: "implant",
         what: "Straumann (Switzerland), Nobel Biocare NobelActive and NobelReplace, Osstem, DIO and Neo Biotech (South Korea), and Noris Medical, Adin and Alpha-Bio Tec (Israel).",
         why: "The implant is chosen for your bone, the position of the tooth and your budget, and the parts stay available for years.",
@@ -306,3 +307,46 @@ export const portalSteps = [
   ["The doctor chooses what to share", "Visit summaries, prescriptions, X-rays, scans and receipts — only what the doctor shares appears online."],
   ["You log in with your mobile number", "We send a 6-digit code by SMS. No password to remember."],
 ];
+
+/* Oral cancer screening with the DrOroscope — facts from the published studies. */
+export const screening = {
+  title: "Oral cancer screening with the DrOroscope",
+  lead: "Oral cancer often starts as a painless white or red patch. Found early, these changes can be treated before they become cancer. At our clinic, the lining of your mouth is checked with the DrOroscope, a hand-held fluorescence camera made in India, as part of the examination.",
+  who: [
+    "You use or have used tobacco, gutka, khaini, pan or betel nut, or you smoke",
+    "You drink alcohol regularly",
+    "A white or red patch, a lump, or a rough area in the mouth",
+    "An ulcer or sore that has not healed in 2 weeks",
+    "Burning in the mouth with spicy food, or the mouth opening less widely than before",
+    "A routine check-up, especially after the age of 40",
+  ],
+  how: [
+    "A normal photo of each area of the mouth with the 5-megapixel camera, under white light.",
+    "Blue light (400–460 nm) makes healthy lining glow green; areas with abnormal cells lose the glow and look dark.",
+    "Green and amber light show the small blood vessels, which change in abnormal tissue.",
+    "The pictures appear on a tablet, where software with artificial-intelligence features helps assess them. The doctor, a specialist in oral medicine and radiology, reads them with you.",
+    "If an area looks suspicious, a biopsy of exactly that spot is advised to confirm it.",
+    "The photos are saved in your record, so the same area is compared at your next visit.",
+  ],
+  benefits: [
+    ["No pain, no cutting", "Light and a camera only. It takes a few minutes during your check-up."],
+    ["Earlier detection", "Changes in the lining show up before they are easy to see by eye."],
+    ["The right spot for a biopsy", "When a biopsy is needed, the screening shows which area to test."],
+    ["A record you can follow", "Photos from each visit are compared, so slow changes are not missed."],
+  ],
+  tech: [
+    "Autofluorescence imaging with three light modes (white, blue, and green-amber)",
+    "Slim 5-megapixel intra-oral camera that reaches the back of the mouth",
+    "Tablet software with artificial-intelligence features, reports and stored records",
+    "Made in India by Raamah Biocare, with a granted design patent",
+  ],
+  study: {
+    stats: [["100%", "of the dysplasia confirmed by biopsy was picked up"], ["90%", "overall accuracy compared with biopsy"], ["40", "patients with red and white oral lesions, Hyderabad"]],
+    text: "In a 2024 study of 40 patients with lesions such as leukoplakia and oral submucous fibrosis, every lesion was also biopsied. The DrOroscope picked up every case with dysplasia (sensitivity 100%) and was correct in 90% of patients overall. A larger study of 200 people reported 92.7% sensitivity and 88.5% accuracy.",
+    caution: "The DrOroscope is a screening aid. Some areas it marks turn out to be harmless, so a biopsy is still the test that confirms a diagnosis.",
+    sources: [
+      ["Yeladandi M et al. Journal of Pharmacology and Pharmacotherapeutics, 2024", "https://journals.sagepub.com/doi/10.1177/0976500X241300758"],
+      ["Illuminating Dysplasia: a prospective cohort study. Biomedical & Pharmacology Journal, 2025", "https://biomedpharmajournal.org/vol18no2/illuminating-dysplasia-a-novel-approach-using-droroscope-for-early-non-invasive-detection-a-prospective-cohort-study/"],
+    ],
+  },
+};

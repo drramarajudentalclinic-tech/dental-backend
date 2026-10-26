@@ -206,6 +206,38 @@ img { max-width: 100%; }
 @media (max-width: 960px) { .doctor { grid-template-columns: 1fr; gap: 32px; } .doc-card { position: static; max-width: 460px; } }
 @media (max-width: 560px) { .doc-focus { grid-template-columns: 1fr; } .doc-time li { grid-template-columns: 1fr; gap: 2px; } }
 
+/* oral cancer screening */
+.scr-top { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 48px; align-items: center; margin-bottom: 36px; }
+.scr-photo { margin: 0; border-radius: var(--radius-l); overflow: hidden; box-shadow: var(--shadow-2); aspect-ratio: 1; background: #0e2a44; }
+.scr-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.scr-lead { margin: 14px 0 20px; font-size: 1.08rem; color: var(--muted); }
+.scr-tech { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.scr-tech li { display: flex; gap: 10px; align-items: flex-start; font-size: 15.5px; }
+.scr-tech svg { color: var(--gum); flex-shrink: 0; margin-top: 3px; }
+.scr-grid { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 20px; }
+.scr-card { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-l); padding: 26px 26px 28px; box-shadow: var(--shadow-1); }
+.scr-card h3 { font-size: 1.25rem; margin-bottom: 16px; }
+.scr-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+.scr-list li { display: flex; gap: 10px; align-items: flex-start; }
+.scr-list svg { color: var(--gum); flex-shrink: 0; margin-top: 3px; }
+.scr-benefits { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin: 20px 0; }
+.scr-benefits > div { background: var(--mint-2); border-radius: var(--radius-m); padding: 18px; display: grid; gap: 4px; }
+.scr-benefits b { color: var(--ink); font-family: var(--display); font-size: 1.05rem; }
+.scr-benefits span { color: var(--muted); font-size: 15px; }
+.scr-study { background: linear-gradient(160deg, #0d3637, #062224); color: #cfe3df; border-radius: var(--radius-l); padding: 30px 32px; }
+.scr-study h3 { color: #fff; font-size: 1.3rem; }
+.scr-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 20px 0; }
+.scr-stats > div { border-left: 3px solid var(--gum); padding-left: 14px; }
+.scr-stats dt { font: 700 2.2rem var(--display); color: #fff; line-height: 1.1; }
+.scr-stats dd { margin: 4px 0 0; font-size: 14.5px; color: #b7d4ce; }
+.scr-study p { max-width: 80ch; }
+.scr-caution { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; background: rgba(255,255,255,.07); border-radius: 12px; padding: 12px 14px; color: #fff; }
+.scr-caution svg { flex-shrink: 0; margin-top: 3px; color: var(--gum-2); }
+.scr-src { margin-top: 14px; font-size: 13.5px; color: #9fbfb8; }
+.scr-src a { color: #d7ece7; }
+@media (max-width: 900px) { .scr-top, .scr-grid { grid-template-columns: 1fr; gap: 24px; } .scr-photo { max-width: 420px; } .scr-benefits { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) { .scr-benefits, .scr-stats { grid-template-columns: 1fr; } .scr-study { padding: 24px 20px; } .scr-card { padding: 20px; } }
+
 /* portal band with a phone */
 .portal-band { background: radial-gradient(800px 400px at 90% 10%, #1f6a66 0%, transparent 60%), linear-gradient(160deg, #0d3637, #062224); color: #cfe3df; border: 0; }
 .portal-band h2 { color: #fff; }

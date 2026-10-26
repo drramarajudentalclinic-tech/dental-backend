@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { clinic, doctors, services, technology, protocols, portalSteps } from "../content";
+import { clinic, doctors, services, technology, protocols, portalSteps, screening } from "../content";
+import * as photos from "../photos";
 import logoSrc from "../logo";
 import { Bar, Footer, DraftNote, waLink } from "../components/Chrome";
 import TechArt from "../components/TechArt";
@@ -144,6 +145,44 @@ function Doctor({ d }) {
   );
 }
 
+
+/* ── oral cancer screening (DrOroscope) ── */
+function Screening() {
+  const s = screening;
+  return (
+    <>
+      <div className="scr-top">
+        <figure className="scr-photo"><img src={photos.oroscope} alt="DrOroscope hand-held oral screening camera" /></figure>
+        <div>
+          <h2>{s.title}</h2>
+          <p className="scr-lead">{s.lead}</p>
+          <ul className="scr-tech">{s.tech.map((t) => <li key={t}><Icon n="spark" size={18} />{t}</li>)}</ul>
+        </div>
+      </div>
+      <div className="scr-grid">
+        <div className="scr-card">
+          <h3>Who should be screened</h3>
+          <ul className="scr-list">{s.who.map((t) => <li key={t}><Icon n="check" size={18} />{t}</li>)}</ul>
+        </div>
+        <div className="scr-card">
+          <h3>How we use it</h3>
+          <ol className="steps">{s.how.map((t) => <li key={t}><span>{t}</span></li>)}</ol>
+        </div>
+      </div>
+      <div className="scr-benefits">
+        {s.benefits.map(([t, d]) => <div key={t}><b>{t}</b><span>{d}</span></div>)}
+      </div>
+      <div className="scr-study">
+        <h3>What the research shows</h3>
+        <dl className="scr-stats">{s.study.stats.map(([n, l]) => <div key={l}><dt>{n}</dt><dd>{l}</dd></div>)}</dl>
+        <p>{s.study.text}</p>
+        <p className="scr-caution"><Icon n="shield" size={18} />{s.study.caution}</p>
+        <p className="scr-src">Sources: {s.study.sources.map(([t, u], i) => <span key={u}>{i ? "; " : ""}<a href={u} target="_blank" rel="noreferrer">{t}</a></span>)}</p>
+      </div>
+    </>
+  );
+}
+
 /* ── a phone showing the patient portal (illustration, sample data) ── */
 function PortalPhone() {
   return (
@@ -225,8 +264,13 @@ export default function Home() {
           </div>
         </section>
 
+        {/* ── ORAL CANCER SCREENING ── */}
+        <section className="sec" id="screening">
+          <div className="wrap"><Screening /></div>
+        </section>
+
         {/* ── PROTOCOLS ── */}
-        <section className="sec" id="protocols">
+        <section className="sec sec-tint" id="protocols">
           <div className="wrap">
             <header className="sec-head">
               <h2>How we work</h2>
@@ -237,7 +281,7 @@ export default function Home() {
         </section>
 
         {/* ── DOCTOR ── */}
-        <section className="sec sec-tint" id="doctors">
+        <section className="sec" id="doctors">
           <div className="wrap"><Doctor d={d0} /></div>
         </section>
 
