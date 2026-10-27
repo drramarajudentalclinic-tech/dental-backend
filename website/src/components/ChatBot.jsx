@@ -57,9 +57,22 @@ export default function ChatBot() {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [ai, setAi] = useState(null);                 // null = not checked yet
+  const [teaser, setTeaser] = useState(false);       // small "Hi! Need help?" bubble
+  const [opened, setOpened] = useState(false);
   const scroller = useRef(null);
   const input = useRef(null);
   const ui = UI[lang];
+
+  // show the greeting bubble a few seconds after the page loads (once per visit)
+  useEffect(() => {
+    let seen = false;
+    try { seen = sessionStorage.getItem("ssd_chat_teased") === "1"; } catch { /* private mode */ }
+    if (seen) return;
+    const t = setTimeout(() => { setTeaser(true); try { sessionStorage.setItem("ssd_chat_teased", "1"); } catch { /* */ } }, 4000);
+    const hide = setTimeout(() => setTeaser(false), 16000);
+    return () => { clearTimeout(t); clearTimeout(hide); };
+  }, []);
+  useEffect(() => { if (open) { setTeaser(false); setOpened(true); } }, [open]);
 
   const setLang = (l) => { setLangState(l); try { localStorage.setItem(LKEY, l); } catch { /* private mode */ } };
 
@@ -142,10 +155,17 @@ export default function ChatBot() {
 
   return (
     <>
-      <button type="button" className={`chat-launch${open ? " is-open" : ""}`} onClick={() => setOpen((o) => !o)}
+      {teaser && !open && (
+        <div className="chat-teaser" role="status">
+          <button type="button" className="ct-msg" onClick={() => setOpen(true)}>{ui.teaser}</button>
+          <button type="button" className="ct-x" onClick={() => setTeaser(false)} aria-label={ui.close}>×</button>
+        </div>
+      )}
+      <button type="button" className={`chat-launch${open ? " is-open" : ""}${opened ? "" : " fresh"}`} onClick={() => setOpen((o) => !o)}
         aria-expanded={open} aria-controls="clinic-chat" aria-label={open ? ui.close : ui.open}>
-        {open ? Ico.close : Ico.chat}
+        <span className="cl-ico" key={open ? "x" : "c"}>{open ? Ico.close : Ico.chat}</span>
         {!open && <span className="chat-launch-txt">{ui.open}</span>}
+        {!opened && <span className="cl-dot" aria-hidden="true" />}
       </button>
 
       {open && (
@@ -185,8 +205,8 @@ export default function ChatBot() {
           <div className="chat-chips">
             {view === "care" && <button type="button" className="chip back" onClick={() => setView("main")}>{ui.back}</button>}
             {view === "care" && <span className="chip-q">{ui.pickTreatment}</span>}
-            {chips.map((t) => (
-              <button key={t.id} type="button" className={`chip${t.urgent ? " urgent" : ""}`} onClick={() => pick(t)}>{t.title[lang]}</button>
+            {chips.map((t, i) => (
+              <button key={`${view}-${t.id}`} type="button" className={`chip${t.urgent ? " urgent" : ""}`} style={{ "--i": i }} onClick={() => pick(t)}>{t.title[lang]}</button>
             ))}
             {view === "main" && <button type="button" className="chip care" onClick={() => setView("care")}>{ui.aftercare} →</button>}
           </div>

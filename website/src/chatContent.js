@@ -15,7 +15,7 @@ export const UI = {
     placeholder: "Type your question…", send: "Send", aftercare: "After-treatment care", back: "← Main topics",
     pickTreatment: "Which treatment did you have?", notFound: "Sorry, I don't have an answer for that. Please call or WhatsApp the clinic on +91 99088 94449.",
     note: "General instructions only. Always follow your doctor's advice. In an emergency, call the clinic or 108.",
-    thinking: "Typing…", call: "Call", whatsapp: "WhatsApp", open: "Chat with us", close: "Close chat", bookForm: "Open the booking form", maps: "Open in Google Maps",
+    thinking: "Typing…", call: "Call", whatsapp: "WhatsApp", open: "Chat with us", close: "Close chat", teaser: "Hi! Need help with timings, booking or after-care?", bookForm: "Open the booking form", maps: "Open in Google Maps",
     aiOff: "Choose a topic below, or type a few words (for example: timings, extraction, braces).",
   },
   te: {
@@ -24,7 +24,7 @@ export const UI = {
     placeholder: "మీ ప్రశ్న టైప్ చేయండి…", send: "పంపండి", aftercare: "చికిత్స తర్వాత జాగ్రత్తలు", back: "← ప్రధాన విషయాలు",
     pickTreatment: "మీకు ఏ చికిత్స జరిగింది?", notFound: "క్షమించండి, దీనికి నా దగ్గర సమాధానం లేదు. దయచేసి క్లినిక్‌కు +91 99088 94449 కు కాల్ లేదా వాట్సాప్ చేయండి.",
     note: "ఇవి సాధారణ సూచనలు మాత్రమే. ఎల్లప్పుడూ డాక్టర్ సలహా పాటించండి. అత్యవసరమైతే క్లినిక్‌కు లేదా 108 కు కాల్ చేయండి.",
-    thinking: "టైప్ చేస్తోంది…", call: "కాల్", whatsapp: "వాట్సాప్", open: "మాతో చాట్ చేయండి", close: "చాట్ మూసివేయండి", bookForm: "బుకింగ్ ఫారమ్ తెరవండి", maps: "గూగుల్ మ్యాప్స్‌లో తెరవండి",
+    thinking: "టైప్ చేస్తోంది…", call: "కాల్", whatsapp: "వాట్సాప్", open: "మాతో చాట్ చేయండి", close: "చాట్ మూసివేయండి", teaser: "నమస్తే! సమయాలు, బుకింగ్ లేదా చికిత్స తర్వాత జాగ్రత్తల గురించి అడగండి.", bookForm: "బుకింగ్ ఫారమ్ తెరవండి", maps: "గూగుల్ మ్యాప్స్‌లో తెరవండి",
     aiOff: "క్రింద ఒక విషయం ఎంచుకోండి, లేదా కొన్ని పదాలు టైప్ చేయండి (ఉదా: సమయాలు, పన్ను తీయడం, బ్రేసెస్).",
   },
   hi: {
@@ -33,7 +33,7 @@ export const UI = {
     placeholder: "अपना सवाल लिखें…", send: "भेजें", aftercare: "इलाज के बाद देखभाल", back: "← मुख्य विषय",
     pickTreatment: "आपका कौन-सा इलाज हुआ है?", notFound: "माफ़ कीजिए, इसका जवाब मेरे पास नहीं है। कृपया क्लिनिक को +91 99088 94449 पर कॉल या व्हाट्सऐप करें।",
     note: "ये केवल सामान्य निर्देश हैं। हमेशा डॉक्टर की सलाह मानें। आपात स्थिति में क्लिनिक या 108 पर कॉल करें।",
-    thinking: "लिख रहा है…", call: "कॉल", whatsapp: "व्हाट्सऐप", open: "हमसे चैट करें", close: "चैट बंद करें", bookForm: "बुकिंग फ़ॉर्म खोलें", maps: "गूगल मैप्स में खोलें",
+    thinking: "लिख रहा है…", call: "कॉल", whatsapp: "व्हाट्सऐप", open: "हमसे चैट करें", close: "चैट बंद करें", teaser: "नमस्ते! समय, बुकिंग या इलाज के बाद की देखभाल के बारे में पूछें।", bookForm: "बुकिंग फ़ॉर्म खोलें", maps: "गूगल मैप्स में खोलें",
     aiOff: "नीचे कोई विषय चुनें, या कुछ शब्द लिखें (जैसे: समय, दाँत निकालना, ब्रेसेस)।",
   },
 };
