@@ -72,24 +72,29 @@ export const doctors = [
 
 /* What patients come for — shown as a plain list, no prices. */
 export const services = [
-  ["Check-ups and cleaning", "Examination, scaling and polishing, fluoride application and pit-and-fissure sealants."],
+  ["Check-ups and cleaning", "Examination, scaling and polishing (oral prophylaxis), fluoride application and pit-and-fissure sealants.", "Oral prophylaxis (scaling and polishing)"],
   ["Fillings", "Tooth-coloured composite and glass-ionomer fillings matched to the shade of your tooth."],
-  ["Root canal treatment", "Single- and multiple-visit root canals with rotary files, apex locator and warm 3-D gutta-percha filling; re-treatment of old root canals."],
-  ["Crowns and bridges", "Zirconia, all-ceramic and metal-ceramic crowns and bridges, made from a digital scan of your teeth."],
-  ["Dental implants", "Single and multiple implants planned on a CBCT scan and placed with a surgical guide; Straumann, Nobel Biocare, Osstem, DIO, Neo Biotech, Noris, Adin and Alpha-Bio systems."],
-  ["Artificial teeth and dentures", "Complete and partial dentures, flexible dentures and implant-supported dentures."],
+  ["Root canal treatment", "Single- and multiple-visit root canals with rotary files, apex locator and warm 3-D gutta-percha filling; re-treatment of old root canals.", "Root canal treatment"],
+  ["Crowns and bridges", "Zirconia, all-ceramic and metal-ceramic crowns and bridges, made from a digital scan of your teeth.", "Crowns and bridges"],
+  ["Dental implants", "Single and multiple implants planned on a CBCT scan and placed with a surgical guide; Straumann, Nobel Biocare, Osstem, DIO, Neo Biotech, Noris, Adin and Alpha-Bio systems.", "Dental implant with a surgical guide"],
+  ["Complete dentures", "Full dentures for patients with no teeth, made from accurate impressions and a measured bite; implant-supported dentures for a firmer hold.", "Complete dentures"],
+  ["Partial dentures", "Cast metal, flexible and acrylic partial dentures that replace some missing teeth.", "Partial dentures"],
+  ["Veneers and laminates", "Thin porcelain or composite shells bonded to the front of the teeth to improve shape, colour and gaps, with little or no shaping of the tooth.", "Veneers and laminates"],
+  ["Braces and aligners", "Fixed metal and ceramic braces, and clear aligners planned from a digital scan.", "Braces and clear aligners"],
+  ["Tooth extraction", "Gentle removal of teeth that cannot be saved, with socket grafting from your own tooth when an implant is planned.", "Tooth extraction"],
+  ["Wisdom tooth removal", "Removal of impacted or decayed wisdom teeth, with PRF from your own blood to help healing.", "Wisdom tooth removal"],
+  ["Gum treatment and flap surgery", "Curettage, flap surgery and laser-assisted flap surgery for bleeding, swollen or loose gums, with bone grafts and PRF where bone is lost.", "Flap surgery"],
+  ["Laser dentistry", "Laser gum treatment and low-level laser therapy for painful ulcers, sensitivity, jaw pain and healing after surgery.", "Low-level laser therapy (LLLT)"],
+  ["Oral lesions and oral cancer screening", "Check-ups for white or red patches, non-healing ulcers and lumps with the DrOroscope; burning mouth and facial pain.", "Oral lesions (patches, ulcers and lumps)"],
   ["Bone grafts and PRF", "Bone grafts made from your own extracted tooth (Tooth Titan) and platelet-rich fibrin (PRF) from your own blood, for sockets, implants and gum surgery."],
   ["Oral rehabilitation", "Full-mouth rehabilitation for worn, broken or missing teeth, restoring chewing and bite together."],
-  ["Wisdom teeth and extractions", "Simple and surgical extractions, including impacted wisdom teeth, with PRF from your own blood to help healing where needed."],
-  ["Oral medicine and oral cancer screening", "Check-ups for white or red patches, non-healing ulcers and lumps in the mouth with the DrOroscope screening light; burning mouth and facial pain."],
   ["Dental X-rays and scans", "Digital X-rays at the clinic; OPG and CBCT scans at an imaging centre when needed, read and explained by the doctor, a specialist in oral radiology."],
-  ["Gum treatment", "Deep cleaning, gum surgery and maintenance for bleeding, swollen or loose gums."],
-  ["Braces and aligners", "Fixed metal and ceramic braces, and clear aligners planned from a digital scan."],
-  ["Teeth reshaping and smile design", "Reshaping, bonding, veneers and teeth whitening to improve the look of your smile."],
   ["Children's dentistry", "Gentle first visits, fillings, pulp treatment for milk teeth and space maintainers."],
   ["Bite problems, jaw pain and sensitivity", "Digital bite analysis with the Teeth Tracer for jaw-joint (TMJ) pain, headaches, teeth grinding and wear; night guards; sensitive teeth and bad breath."],
+  ["Teeth whitening and smile design", "Whitening, reshaping and bonding to improve the look of your smile."],
   ["Dental emergencies", "Tooth pain, swelling, broken or knocked-out teeth. Call us for the earliest appointment."],
 ];
+
 
 /* Technology we use, grouped by the treatment it is used for.
    `what` = what it is, `why` = what it changes for you. */
@@ -218,6 +223,17 @@ export const technology = [
     ],
   },
   {
+    treatment: "Gum treatment and laser",
+    items: [
+      {
+        name: "Dental laser",
+        art: "laser",
+        what: "A dental laser that works as a fine beam of light: at higher power for gum treatment, at low power for laser therapy.",
+        why: "Laser gum treatment removes infected tissue with less bleeding, and low-level laser therapy helps ulcers, sensitivity and soreness after surgery heal more comfortably.",
+      },
+    ],
+  },
+  {
     treatment: "Bite, jaw joint and tooth wear",
     items: [
       {
@@ -243,10 +259,13 @@ export const technology = [
   },
 ];
 
-/* Protocols — these really are sequences, so they are shown as numbered steps. */
+/* Treatment protocols — real sequences, so they are shown as numbered steps.
+   `group` sorts them in the list; `uses` names the equipment used (shown as tags). */
 export const protocols = [
   {
+    group: "Before any treatment",
     title: "Sterilisation of every instrument",
+    uses: [],
     steps: [
       "Used instruments are soaked in disinfectant and cleaned.",
       "They are packed in sealed sterilisation pouches with an indicator strip.",
@@ -256,50 +275,234 @@ export const protocols = [
     ],
   },
   {
+    group: "Before any treatment",
     title: "Your first visit",
+    uses: ["Intra-oral camera", "DrOroscope", "Digital X-ray (RVG)"],
     steps: [
       "Medical history, allergies and current medicines are recorded.",
-      "Examination of teeth, gums, tongue and jaw joint, with intra-oral camera photos.",
+      "Examination of teeth, gums, tongue and jaw joint, with intra-oral camera photos you can see on the screen.",
       "Screening of the lining of the mouth with the DrOroscope.",
-      "Digital X-rays, and an OPG or CBCT scan only if it is needed for a diagnosis.",
+      "Digital X-rays where needed; an OPG or CBCT scan at an imaging centre only if it is needed for a diagnosis.",
       "We explain what we found, the treatment options and the cost before starting anything.",
-      "A written prescription and a date for the next visit.",
+      "A written prescription where needed, and a date for the next visit.",
     ],
   },
+
   {
+    group: "Saving your teeth",
     title: "Root canal treatment",
+    uses: ["Digital X-ray (RVG)", "Anaesthesia booster", "Apex locator", "Endo motor", "Obturation pen", "Cicada DT Fill", "Runyes scanner", "Micro-blaster", "Teeth Tracer"],
     steps: [
-      "Digital X-ray to see the root shape and the infection.",
-      "Local anaesthesia with the anaesthesia booster, and isolation of the tooth to keep it clean and dry.",
-      "Cleaning and shaping of the canals with rotary files on the endo motor; the length is checked with the apex locator.",
-      "Disinfection of the canals with irrigating solutions.",
-      "Three-dimensional sealing with warm gutta-percha (obturation pen and Cicada DT Fill).",
-      "Post-treatment X-ray and, where advised, a crown made from a digital scan to protect the tooth.",
+      "Digital X-ray (RVG) to see the root shape, the number of canals and the infection.",
+      "Local anaesthesia given slowly with the anaesthesia booster; the tooth is isolated to keep it clean and dry.",
+      "The canals are opened and their exact length is measured with the apex locator, confirmed on an X-ray.",
+      "Cleaning and shaping with nickel-titanium rotary files on the endo motor, with disinfecting rinses between files.",
+      "Three-dimensional sealing: the obturation pen packs warm gutta-percha at the root tip, and the Cicada DT Fill fills the rest of the canal.",
+      "A final X-ray to check the seal, and a filling to close the tooth.",
+      "Where advised, a crown: a digital scan with the Runyes scanner, the crown cleaned with the micro-blaster before cementing, and the bite checked with the Teeth Tracer.",
     ],
   },
   {
+    group: "Saving your teeth",
     title: "Crowns and bridges",
+    uses: ["Anaesthesia booster", "Runyes scanner", "Intra-oral camera", "Micro-blaster", "Teeth Tracer"],
     steps: [
-      "The tooth is shaped under local anaesthesia.",
-      "A 3-D digital scan with the Runyes 3DS intra-oral scanner (no impression trays).",
-      "A temporary crown while the lab makes the final crown.",
+      "The tooth is checked on an X-ray and, if needed, treated first (filling or root canal).",
+      "The tooth is shaped under local anaesthesia, given with the anaesthesia booster.",
+      "A 3-D digital scan with the Runyes intra-oral scanner (no impression trays), and the shade is matched with photos.",
+      "A temporary crown protects the tooth while the lab makes the final crown or bridge.",
       "Try-in to check fit, bite and shade.",
-      "The inside of the crown is cleaned with the aluminium-oxide micro-blaster.",
+      "The inside of the crown is cleaned with the aluminium-oxide micro-blaster so the cement holds firmly.",
       "The crown is cemented and the bite is checked with the Teeth Tracer.",
     ],
   },
+
   {
-    title: "Dental implant with a surgical guide",
+    group: "Gum treatment and laser",
+    title: "Oral prophylaxis (scaling and polishing)",
+    uses: ["DrOroscope", "Intra-oral camera"],
     steps: [
-      "Examination, a CBCT scan at an imaging centre and a digital scan of your teeth.",
-      "Digital planning of implant size and position, and a 3-D printed surgical guide.",
-      "Implant placement through the guide under local anaesthesia, with PRF or a graft from your own tooth (Tooth Titan) where it helps healing.",
-      "Healing period of about 3 months while the implant joins the bone.",
-      "A digital scan of the implant and fitting of the crown.",
+      "Examination of teeth and gums, and screening of the lining of the mouth with the DrOroscope.",
+      "Ultrasonic scaling removes tartar and stains above and just below the gum line.",
+      "Hand instruments clean the areas the ultrasonic tip cannot reach.",
+      "Polishing makes the tooth surfaces smooth, so plaque collects less.",
+      "Fluoride application where advised, especially for children and sensitive teeth.",
+      "Brushing and flossing advice for your teeth, with photos to show the problem areas.",
+      "A recall visit, usually every 6 months.",
+    ],
+  },
+  {
+    group: "Gum treatment and laser",
+    title: "Curettage (deep cleaning of gum pockets)",
+    uses: ["Digital X-ray (RVG)", "Anaesthesia booster", "Dental laser"],
+    steps: [
+      "Gum pockets are measured and recorded, with X-rays to check the bone.",
+      "Scaling and root planing first, to clean the root surfaces.",
+      "Local anaesthesia with the anaesthesia booster.",
+      "The infected inner lining of the gum pocket is gently removed, by hand or with the dental laser.",
+      "The pocket is rinsed clean and the gum pressed back against the tooth.",
+      "Mouthwash and home-care instructions; a review visit to re-measure the pockets.",
+    ],
+  },
+  {
+    group: "Gum treatment and laser",
+    title: "Flap surgery",
+    uses: ["Digital X-ray (RVG)", "Anaesthesia booster", "PRFuge", "Tooth Titan"],
+    steps: [
+      "Gum pockets are measured and X-rays taken; scaling and root planing are done first, and the gums re-checked after a few weeks.",
+      "If deep pockets remain, surgery is planned under local anaesthesia, given with the anaesthesia booster.",
+      "The gum is gently lifted (a flap) so the roots and bone can be seen and cleaned thoroughly.",
+      "Infected tissue is removed and the bone is smoothed.",
+      "Where bone has been lost, a bone graft with PRF (made from your own blood with the PRFuge) helps it heal; graft from your own tooth (Tooth Titan) is used when a tooth is being removed.",
+      "The gum is stitched back in place.",
+      "Medicines and care instructions; stitches removed after 7–10 days; gum maintenance every 3–6 months.",
+    ],
+  },
+  {
+    group: "Gum treatment and laser",
+    title: "Flap surgery with laser",
+    uses: ["Digital X-ray (RVG)", "Anaesthesia booster", "Dental laser", "PRFuge"],
+    steps: [
+      "The same assessment as for flap surgery: pocket measurements, X-rays and scaling first.",
+      "Local anaesthesia with the anaesthesia booster.",
+      "The dental laser removes the infected lining of the pocket and reduces bacteria on the gum and root surfaces.",
+      "The roots are cleaned and smoothed; bone grafting with PRF where needed.",
+      "The gum is placed back and stitched where needed; the laser also helps control bleeding.",
+      "Low-level laser therapy after surgery may be used for comfort and healing.",
+      "Care instructions, a review visit and regular gum maintenance.",
+    ],
+  },
+  {
+    group: "Gum treatment and laser",
+    title: "Low-level laser therapy (LLLT)",
+    uses: ["Dental laser"],
+    steps: [
+      "Used for painful mouth ulcers, soreness after extraction or surgery, sensitive teeth, jaw-joint (TMJ) pain and pain from braces.",
+      "The cause is diagnosed first; laser therapy supports other treatment rather than replacing it.",
+      "You and the team wear protective glasses.",
+      "The laser is used at a low power over the area for a short time. It does not cut or heat the tissue.",
+      "Several short sessions may be needed, a few days apart.",
+      "The area is reviewed at each visit to see how it is healing.",
+    ],
+  },
+
+  {
+    group: "Replacing missing teeth",
+    title: "Dental implant with a surgical guide",
+    uses: ["Runyes scanner", "Surgical guide", "Anaesthesia booster", "PRFuge", "Tooth Titan", "Implant systems", "Micro-blaster", "Teeth Tracer"],
+    steps: [
+      "Examination, medical history, a CBCT scan at an imaging centre and a digital scan of your teeth with the Runyes scanner.",
+      "Digital planning of implant size, position and angle, and a 3-D printed surgical guide.",
+      "The implant system is chosen for your bone and budget (Straumann, Nobel Biocare, Osstem, DIO, Neo Biotech, Noris, Adin or Alpha-Bio).",
+      "Local anaesthesia with the anaesthesia booster, and the implant placed through the guide.",
+      "Where bone is thin, a graft from your own extracted tooth (Tooth Titan) and PRF from your own blood (PRFuge) help healing.",
+      "Healing period of about 3 months while the implant joins the bone (longer if grafted).",
+      "A digital scan of the implant, then the abutment and crown are fitted; the crown is cleaned with the micro-blaster before cementing and the bite is checked with the Teeth Tracer.",
       "Review visits and cleaning to keep the implant healthy.",
     ],
   },
+  {
+    group: "Replacing missing teeth",
+    title: "Complete dentures",
+    uses: ["DrOroscope", "Teeth Tracer"],
+    steps: [
+      "Examination of the gums and jaw ridges, and screening of the lining of the mouth with the DrOroscope.",
+      "First impressions, from which custom trays are made for your mouth.",
+      "Final impressions that record the edges of the denture accurately, for a better fit.",
+      "Bite record: the height and position of your jaws are measured so the dentures look natural and you chew comfortably.",
+      "Tooth shade and shape are chosen with you.",
+      "Wax try-in: you see and check the teeth before the denture is finished.",
+      "The finished dentures are fitted, sore spots adjusted and the bite balanced.",
+      "Review visits for adjustments, and advice on cleaning and night-time care. Implant-supported dentures are an option for a firmer hold.",
+    ],
+  },
+  {
+    group: "Replacing missing teeth",
+    title: "Partial dentures",
+    uses: ["Digital X-ray (RVG)", "Runyes scanner", "Teeth Tracer"],
+    steps: [
+      "The remaining teeth and gums are checked with X-rays; decay and gum problems are treated first.",
+      "The type is chosen with you: cast metal, flexible or acrylic.",
+      "Impressions or a digital scan with the Runyes scanner, and the design (clasps and rests) planned with the lab.",
+      "For a cast partial denture, the metal framework is tried in first.",
+      "Teeth try-in to check look, fit and bite.",
+      "The denture is fitted and adjusted; the bite is checked with the Teeth Tracer.",
+      "Review visits, and advice on cleaning the denture and the teeth that hold it.",
+    ],
+  },
+
+  {
+    group: "Smile and alignment",
+    title: "Veneers and laminates",
+    uses: ["Intra-oral camera", "Runyes scanner", "Anaesthesia booster", "Micro-blaster", "Teeth Tracer"],
+    steps: [
+      "Smile assessment with photos, and a check that teeth and gums are healthy.",
+      "Shade and shape are planned with you; a trial smile (mock-up) shows the result before any tooth is touched.",
+      "Minimal shaping of the front surface of the teeth, often within the enamel; laminates need very little or no shaping.",
+      "A digital scan with the Runyes scanner is sent to the lab; temporaries are placed if needed.",
+      "Try-in to check colour and fit with you.",
+      "The inside of each veneer is prepared, the tooth surface is conditioned, and the veneers are bonded in place.",
+      "The bite is checked with the Teeth Tracer and the edges polished; a night guard is advised if you grind your teeth.",
+    ],
+  },
+  {
+    group: "Smile and alignment",
+    title: "Braces and clear aligners",
+    uses: ["Intra-oral camera", "Runyes scanner", "Teeth Tracer"],
+    steps: [
+      "Consultation with face and teeth photos, and X-rays (OPG and cephalogram at an imaging centre).",
+      "A digital scan with the Runyes scanner; the treatment plan and expected time are explained.",
+      "Cleaning and treatment of any decay or gum problems before starting.",
+      "Braces: brackets are bonded to the teeth and wires fitted, with adjustments about every 4–6 weeks.",
+      "Clear aligners: a digital plan from your scan, and a series of aligners changed every 1–2 weeks, with regular check-ups.",
+      "When the teeth are in place, the bite is checked with the Teeth Tracer.",
+      "Retainers keep the teeth from moving back; regular review visits.",
+    ],
+  },
+
+  {
+    group: "Oral surgery",
+    title: "Tooth extraction",
+    uses: ["Digital X-ray (RVG)", "Anaesthesia booster", "Tooth Titan", "PRFuge"],
+    steps: [
+      "X-ray of the tooth, and a check of your medical history and medicines (for example, blood thinners or diabetes).",
+      "Local anaesthesia with the anaesthesia booster.",
+      "The tooth is loosened and removed gently, keeping the surrounding bone.",
+      "If an implant is planned, the socket can be filled with graft made from the same tooth (Tooth Titan) and PRF from your own blood (PRFuge).",
+      "Gauze pressure to stop bleeding, with written care instructions and medicines.",
+      "A review visit if needed.",
+    ],
+  },
+  {
+    group: "Oral surgery",
+    title: "Wisdom tooth removal",
+    uses: ["Digital X-ray (RVG)", "Anaesthesia booster", "PRFuge", "Tooth Titan"],
+    steps: [
+      "X-ray or OPG to see the position of the tooth; a CBCT scan at an imaging centre if the roots are close to the nerve.",
+      "Local anaesthesia with the anaesthesia booster.",
+      "A small opening in the gum; some bone may be removed and the tooth divided into pieces to take it out gently.",
+      "The socket is cleaned; PRF (PRFuge) is placed to support healing, and graft from the tooth (Tooth Titan) where bone needs rebuilding.",
+      "Stitches, care instructions and medicines for pain and swelling.",
+      "Review and stitch removal after about 7 days.",
+    ],
+  },
+
+  {
+    group: "Oral medicine",
+    title: "Oral lesions (patches, ulcers and lumps)",
+    uses: ["DrOroscope", "Intra-oral camera", "Dental laser"],
+    steps: [
+      "History of the lesion and of habits such as tobacco, gutka, pan or alcohol.",
+      "Examination of the whole mouth, tongue and neck.",
+      "DrOroscope screening under white, blue and green-amber light; photos record the size and site.",
+      "Possible causes are removed: a sharp tooth smoothed, an ill-fitting denture adjusted, habit counselling.",
+      "A review in about 2 weeks to see whether the lesion is healing.",
+      "If it persists or looks suspicious, a biopsy of the exact spot is advised to confirm the diagnosis.",
+      "Treatment for the diagnosis (medicines, low-level laser therapy for painful ulcers, or referral), and follow-up photos compared at each visit.",
+    ],
+  },
 ];
+
 
 
 export const portalSteps = [

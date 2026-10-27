@@ -203,6 +203,44 @@ const ART = {
       <path d="M80 36 l4 4 l8 -8" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
     </>
   ),
+  toothTitan: (
+    <>
+      <Floor />
+      <rect x="28" y="40" width="64" height="54" rx="10" fill="url(#ta-body)" stroke="#9fbcb8" />
+      <rect x="34" y="78" width="52" height="10" rx="3" fill="url(#ta-screen)" />
+      <circle cx="44" cy="83" r="2.4" fill="#5fe0b0" /><circle cx="52" cy="83" r="2.4" fill="url(#ta-gum)" />
+      <ellipse cx="60" cy="40" rx="30" ry="9" fill="#f6fbfa" stroke="#9fbcb8" />
+      <path d="M34 40 v-10 a26 9 0 0 1 52 0 v10" fill="#dff1ff" fillOpacity=".6" stroke="#7cc9ff" />
+      <ellipse cx="60" cy="22" rx="26" ry="8" fill="url(#ta-ink)" />
+      <Tooth x="50" y="27" s=".62" />
+      {[[40, 60], [48, 66], [72, 62], [80, 68], [60, 70]].map(([x, y], i) => <circle key={i} cx={x} cy={y} r={1.6 + (i % 3) * .7} fill="#efe6d2" stroke="#c9b48a" strokeWidth=".6" />)}
+    </>
+  ),
+  teethTracer: (
+    <>
+      <Floor />
+      <rect x="62" y="20" width="48" height="34" rx="4" fill="url(#ta-screen)" />
+      {[[70, 28, "#5fe0b0"], [80, 26, "#e8b84d"], [90, 28, "#e85d5d"], [100, 32, "#5fe0b0"], [74, 40, "#e8b84d"], [86, 42, "#5fe0b0"], [98, 44, "#e85d5d"]].map(([x, y, c], i) => <circle key={i} cx={x} cy={y} r="3.4" fill={c} opacity=".9" />)}
+      <path d="M14 82 q34 -46 68 0" fill="none" stroke="#0f3d3e" strokeWidth="9" strokeLinecap="round" />
+      <path d="M14 82 q34 -46 68 0" fill="none" stroke="#7cc9ff" strokeWidth="6" strokeLinecap="round" strokeDasharray="5 3" />
+      <rect x="42" y="84" width="12" height="16" rx="3" fill="url(#ta-ink)" />
+      <path d="M54 92 q30 4 40 -38" fill="none" stroke="#0f3d3e" strokeWidth="2.2" />
+    </>
+  ),
+  laser: (
+    <>
+      <Floor />
+      <rect x="40" y="24" width="56" height="44" rx="8" fill="url(#ta-body)" stroke="#9fbcb8" />
+      <rect x="47" y="31" width="30" height="16" rx="2" fill="url(#ta-screen)" />
+      <path d="M50 42 h6 l3 -6 l4 10 l3 -4 h8" fill="none" stroke="#5fe0b0" strokeWidth="1.6" />
+      <circle cx="86" cy="36" r="4" fill="url(#ta-gum)" /><circle cx="86" cy="52" r="3" fill="#2c7a76" />
+      <path d="M68 68 q-6 14 -24 16" fill="none" stroke="#0f3d3e" strokeWidth="2.4" />
+      <rect x="14" y="78" width="40" height="10" rx="5" fill="url(#ta-ink)" transform="rotate(-22 34 83)" />
+      <rect x="8" y="90" width="12" height="6" rx="2" fill="url(#ta-metal)" transform="rotate(-22 14 93)" />
+      <path d="M8 96 L0 104" stroke="#e85d5d" strokeWidth="2.4" strokeLinecap="round" />
+      <circle cx="2" cy="103" r="5" fill="#e85d5d" opacity=".3" />
+    </>
+  ),
 };
 
 export default function TechArt({ name, photo, label }) {

@@ -46,19 +46,20 @@ function HeroBook() {
 /* ── treatments: the first 9, then the rest on request ── */
 function Treatments() {
   const [all, setAll] = useState(false);
-  const list = all ? services : services.slice(0, 9);
+  const list = all ? services : services.slice(0, 12);
   return (
     <>
       <div className="t-grid">
-        {list.map(([t, d]) => (
+        {list.map(([t, d, proto]) => (
           <article className="t-card" key={t}>
             <span className="t-ico"><Icon n="tooth" size={22} /></span>
             <h3>{t}</h3>
             <p>{d}</p>
+            {proto && <button type="button" className="t-more" onClick={() => showProtocol(proto)}>See the steps <Icon n="arrow" size={16} /></button>}
           </article>
         ))}
       </div>
-      {services.length > 9 && (
+      {services.length > 12 && (
         <div className="center">
           <button type="button" className="btn ghost" onClick={() => setAll((x) => !x)} aria-expanded={all}>
             {all ? "Show fewer treatments" : `Show all ${services.length} treatments`}
@@ -98,21 +99,57 @@ function Technology() {
   );
 }
 
+/* Treatment cards can open their protocol ("See the steps"). */
+const showProtocol = (title) => window.dispatchEvent(new CustomEvent("show-protocol", { detail: title }));
+
 function Protocols() {
   const [i, setI] = useState(0);
+  useEffect(() => {
+    const on = (e) => {
+      const k = protocols.findIndex((x) => x.title === e.detail);
+      if (k >= 0) { setI(k); document.getElementById("protocols")?.scrollIntoView({ behavior: "smooth", block: "start" }); }
+    };
+    window.addEventListener("show-protocol", on);
+    return () => window.removeEventListener("show-protocol", on);
+  }, []);
   const p = protocols[i];
+  const groups = [...new Set(protocols.map((x) => x.group))];
   return (
     <div className="proto">
-      <div className="proto-tabs" role="tablist" aria-label="Protocols">
-        {protocols.map((x, k) => (
-          <button key={x.title} role="tab" id={`pt-${k}`} aria-selected={k === i} aria-controls="pt-panel" onClick={() => setI(k)}>
-            {x.title}<span>{x.steps.length} steps</span>
-          </button>
-        ))}
+      <div className="proto-nav">
+        <label className="proto-select">Choose a treatment
+          <select value={i} onChange={(e) => setI(Number(e.target.value))}>
+            {groups.map((g) => (
+              <optgroup key={g} label={g}>
+                {protocols.map((x, k) => x.group === g && <option key={x.title} value={k}>{x.title}</option>)}
+              </optgroup>
+            ))}
+          </select>
+        </label>
+        <div className="proto-tabs" role="tablist" aria-label="Treatment protocols">
+          {groups.map((g) => (
+            <div className="proto-group" key={g}>
+              <span className="proto-gh">{g}</span>
+              {protocols.map((x, k) => x.group === g && (
+                <button key={x.title} role="tab" id={`pt-${k}`} aria-selected={k === i} aria-controls="pt-panel" onClick={() => setI(k)}>
+                  {x.title}<span>{x.steps.length} steps</span>
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
       <div className="proto-panel" role="tabpanel" id="pt-panel" aria-labelledby={`pt-${i}`} key={i}>
+        <span className="proto-cat">{p.group}</span>
         <h3>{p.title}</h3>
+        {p.uses?.length > 0 && (
+          <div className="proto-uses"><b>Equipment used</b>{p.uses.map((u) => <span key={u}>{u}</span>)}</div>
+        )}
         <ol className="steps">{p.steps.map((s) => <li key={s}><span>{s}</span></li>)}</ol>
+        <div className="proto-cta">
+          <span>Questions about this treatment?</span>
+          <a className="btn small" href={waLink(`Hello, I have a question about ${p.title.toLowerCase()}.`)} target="_blank" rel="noreferrer"><Icon n="chat" size={16} />Ask on WhatsApp</a>
+        </div>
       </div>
     </div>
   );
@@ -347,7 +384,7 @@ export default function Home() {
           <div className="wrap">
             <header className="sec-head">
               <h2>How we work</h2>
-              <p>The steps we follow every time: from sterilising instruments to a root canal, a crown and a guided implant.</p>
+              <p>The steps we follow for each treatment, and the equipment we use at each step. Choose a treatment to see its protocol.</p>
             </header>
             <Protocols />
           </div>
