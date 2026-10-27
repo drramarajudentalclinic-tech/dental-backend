@@ -185,6 +185,20 @@ img { max-width: 100%; }
 .proto-uses { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
 .proto-uses b { font-size: 13.5px; color: var(--muted); margin-right: 4px; }
 .proto-uses span { background: var(--mint-2); color: var(--ink-2); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; font-size: 13px; font-weight: 600; }
+.proto-eq { margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.proto-eq-h { display: block; font-size: 13.5px; color: var(--muted); margin-bottom: 10px; }
+.proto-eq ul { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.proto-eq li { display: flex; gap: 12px; align-items: center; background: var(--mint-2); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px 8px 8px; }
+.pe-thumb { width: 52px; height: 46px; border-radius: 9px; background: #fff; overflow: hidden; flex-shrink: 0; display: grid; place-items: center; border: 1px solid var(--line); }
+.pe-thumb .tech-art { width: 100%; height: 100%; object-fit: cover; }
+.pe-thumb svg.tech-art { width: 44px; height: 40px; }
+.pe-text { display: grid; font-size: 13.5px; color: var(--muted); line-height: 1.35; }
+.pe-text b { color: var(--ink); font-size: 14.5px; }
+.pe-text em { font-style: normal; justify-self: start; font-size: 11.5px; font-weight: 700; color: var(--gum); background: var(--gum-soft); border-radius: 999px; padding: 0 8px; margin: 2px 0; }
+.tc-used { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.tc-used b { font-size: 13px; color: var(--muted); margin-right: 2px; }
+.tc-used button { border: 1px solid var(--line); background: var(--paper); color: var(--ink-2); border-radius: 999px; padding: 3px 10px; font: 600 12.5px var(--body); cursor: pointer; }
+.tc-used button:hover { border-color: var(--gum); color: var(--gum); }
 .proto-cta { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 24px; padding-top: 18px; border-top: 1px dashed var(--line); color: var(--muted); font-size: 15px; }
 .t-more { margin-top: 14px; display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; padding: 0; color: var(--ink-2); font: 700 14.5px var(--body); cursor: pointer; }
 .t-more:hover { color: var(--gum); }

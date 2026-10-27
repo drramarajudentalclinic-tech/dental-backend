@@ -71,6 +71,20 @@ function Treatments() {
 }
 
 /* ── technology: one tab per treatment, cards with photos ── */
+/* Treatment cards and equipment cards can open a protocol ("See the steps"). */
+const showProtocol = (title) => window.dispatchEvent(new CustomEvent("show-protocol", { detail: title }));
+
+/* ── equipment ↔ treatment links ── */
+const TECH_ITEMS = technology.flatMap((g) => g.items);
+const TECH_ALIAS = {
+  "Digital X-ray (RVG)": "Digital X-rays (RVG)", "Endo motor": "Endo motor and rotary files", "Cicada DT Fill": "Cicada DT Fill thermal obturator",
+  "Runyes scanner": "Runyes 3DS V3 Pro intra-oral scanner", "Micro-blaster": "Aluminium-oxide micro-blaster", "Surgical guide": "Surgical guide for implants",
+  "PRFuge": "PRFuge centrifuge (PRF)",
+};
+const techFor = (tag) => TECH_ITEMS.find((t) => t.name === (TECH_ALIAS[tag] || tag));
+/* treatments (protocol titles) that use a technology item */
+const usedIn = (item) => protocols.filter((p) => (p.uses || []).some(([tag]) => techFor(tag) === item)).map((p) => p.title);
+
 function Technology() {
   const [g, setG] = useState(0);
   const group = technology[g];
@@ -91,6 +105,11 @@ function Technology() {
               <h3>{t.name}</h3>
               <p className="tc-what">{t.what}</p>
               <p className="tc-why"><b>For you</b>{t.why}</p>
+              {usedIn(t).length > 0 && (
+                <div className="tc-used"><b>Used in</b>
+                  {usedIn(t).map((title) => <button type="button" key={title} onClick={() => showProtocol(title)}>{title}</button>)}
+                </div>
+              )}
             </div>
           </article>
         ))}
@@ -99,8 +118,6 @@ function Technology() {
   );
 }
 
-/* Treatment cards can open their protocol ("See the steps"). */
-const showProtocol = (title) => window.dispatchEvent(new CustomEvent("show-protocol", { detail: title }));
 
 function Protocols() {
   const [i, setI] = useState(0);
@@ -143,7 +160,20 @@ function Protocols() {
         <span className="proto-cat">{p.group}</span>
         <h3>{p.title}</h3>
         {p.uses?.length > 0 && (
-          <div className="proto-uses"><b>Equipment used</b>{p.uses.map((u) => <span key={u}>{u}</span>)}</div>
+          <div className="proto-eq">
+            <b className="proto-eq-h">Equipment used in this treatment</b>
+            <ul>
+              {p.uses.map(([tag, purpose, onlyWhere]) => {
+                const item = techFor(tag);
+                return (
+                  <li key={tag}>
+                    <span className="pe-thumb">{item ? <TechArt name={item.art} photo={item.photo} label={tag} /> : null}</span>
+                    <span className="pe-text"><b>{tag}</b>{onlyWhere && <em>where needed</em>}<span>{purpose}</span></span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         )}
         <ol className="steps">{p.steps.map((s) => <li key={s}><span>{s}</span></li>)}</ol>
         <div className="proto-cta">

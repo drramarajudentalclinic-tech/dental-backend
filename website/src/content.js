@@ -260,7 +260,8 @@ export const technology = [
 ];
 
 /* Treatment protocols — real sequences, so they are shown as numbered steps.
-   `group` sorts them in the list; `uses` names the equipment used (shown as tags). */
+   `group` sorts them in the list.
+   `uses`: [equipment, what it is used for in this treatment, true = only where needed]. */
 export const protocols = [
   {
     group: "Before any treatment",
@@ -277,7 +278,11 @@ export const protocols = [
   {
     group: "Before any treatment",
     title: "Your first visit",
-    uses: ["Intra-oral camera", "DrOroscope", "Digital X-ray (RVG)"],
+    uses: [
+      ["Intra-oral camera", "Photos of your teeth on the screen, so you see what the doctor sees"],
+      ["Digital X-ray (RVG)", "X-rays where needed, with low radiation"],
+      ["DrOroscope", "Oral cancer screening if you have a risk factor or a suspicious area", true],
+    ],
     steps: [
       "Medical history, allergies and current medicines are recorded.",
       "Examination of teeth, gums, tongue and jaw joint, with intra-oral camera photos you can see on the screen.",
@@ -291,7 +296,16 @@ export const protocols = [
   {
     group: "Saving your teeth",
     title: "Root canal treatment",
-    uses: ["Digital X-ray (RVG)", "Anaesthesia booster", "Apex locator", "Endo motor", "Obturation pen", "Cicada DT Fill", "Runyes scanner", "Micro-blaster"],
+    uses: [
+      ["Digital X-ray (RVG)", "Shows the root shape and infection; checks the length and the final seal"],
+      ["Anaesthesia booster", "Gives the numbing injection slowly and steadily"],
+      ["Apex locator", "Measures the exact length of each canal"],
+      ["Endo motor", "Turns the rotary files that clean and shape the canals"],
+      ["Obturation pen", "Packs warm gutta-percha at the root tip"],
+      ["Cicada DT Fill", "Fills the rest of the canal with warm gutta-percha"],
+      ["Runyes scanner", "Digital scan for the crown, where a crown is advised", true],
+      ["Micro-blaster", "Cleans the inside of the crown before cementing", true],
+    ],
     steps: [
       "Digital X-ray (RVG) to see the root shape, the number of canals and the infection.",
       "Local anaesthesia given slowly with the anaesthesia booster; the tooth is isolated to keep it clean and dry.",
@@ -305,7 +319,12 @@ export const protocols = [
   {
     group: "Saving your teeth",
     title: "Crowns and bridges",
-    uses: ["Anaesthesia booster", "Runyes scanner", "Intra-oral camera", "Micro-blaster"],
+    uses: [
+      ["Intra-oral camera", "Photos to match the shade"],
+      ["Anaesthesia booster", "Numbing before the tooth is shaped"],
+      ["Runyes scanner", "3-D digital scan instead of an impression tray"],
+      ["Micro-blaster", "Cleans and roughens the inside of the crown so the cement holds firmly"],
+    ],
     steps: [
       "The tooth is checked on an X-ray and, if needed, treated first (filling or root canal).",
       "The tooth is shaped under local anaesthesia, given with the anaesthesia booster.",
@@ -320,7 +339,11 @@ export const protocols = [
   {
     group: "Saving your teeth",
     title: "Composite (tooth-coloured) fillings",
-    uses: ["Intra-oral camera", "Digital X-ray (RVG)", "Anaesthesia booster"],
+    uses: [
+      ["Intra-oral camera", "Photos of the decay and of the finished filling"],
+      ["Digital X-ray (RVG)", "Shows how deep the decay goes", true],
+      ["Anaesthesia booster", "Numbing for deeper cavities", true],
+    ],
     steps: [
       "The tooth is examined with intra-oral camera photos and, where needed, a digital X-ray to see how deep the decay goes.",
       "The shade is matched to your tooth before treatment starts.",
@@ -334,7 +357,10 @@ export const protocols = [
   {
     group: "Saving your teeth",
     title: "Glass-ionomer (GIC) fillings",
-    uses: ["Intra-oral camera", "Digital X-ray (RVG)"],
+    uses: [
+      ["Intra-oral camera", "Photos of the tooth before and after"],
+      ["Digital X-ray (RVG)", "Shows how deep the decay goes", true],
+    ],
     steps: [
       "Used for milk teeth, cavities near the gum line or on the roots, as a base under other fillings, and as a temporary filling.",
       "The tooth is examined, with a digital X-ray where needed.",
@@ -348,7 +374,9 @@ export const protocols = [
   {
     group: "Gum treatment and laser",
     title: "Oral prophylaxis (scaling and polishing)",
-    uses: ["Intra-oral camera"],
+    uses: [
+      ["Intra-oral camera", "Shows you the tartar and the areas to brush better"],
+    ],
     steps: [
       "Examination of teeth, gums and the lining of the mouth.",
       "Ultrasonic scaling removes tartar and stains above and just below the gum line.",
@@ -362,7 +390,11 @@ export const protocols = [
   {
     group: "Gum treatment and laser",
     title: "Curettage (deep cleaning of gum pockets)",
-    uses: ["Digital X-ray (RVG)", "Anaesthesia booster", "Dental laser"],
+    uses: [
+      ["Digital X-ray (RVG)", "Checks the bone around the teeth"],
+      ["Anaesthesia booster", "Numbing before cleaning the pockets"],
+      ["Dental laser", "Removes the infected lining of the pocket", true],
+    ],
     steps: [
       "Gum pockets are measured and recorded, with X-rays to check the bone.",
       "Scaling and root planing first, to clean the root surfaces.",
@@ -375,7 +407,12 @@ export const protocols = [
   {
     group: "Gum treatment and laser",
     title: "Flap surgery",
-    uses: ["Digital X-ray (RVG)", "Anaesthesia booster", "PRFuge", "Tooth Titan"],
+    uses: [
+      ["Digital X-ray (RVG)", "Checks the bone loss before and after"],
+      ["Anaesthesia booster", "Numbing before surgery"],
+      ["PRFuge", "PRF from your own blood to support healing and grafts", true],
+      ["Tooth Titan", "Graft from your own tooth, when a tooth is being removed", true],
+    ],
     steps: [
       "Gum pockets are measured and X-rays taken; scaling and root planing are done first, and the gums re-checked after a few weeks.",
       "If deep pockets remain, surgery is planned under local anaesthesia, given with the anaesthesia booster.",
@@ -389,7 +426,12 @@ export const protocols = [
   {
     group: "Gum treatment and laser",
     title: "Flap surgery with laser",
-    uses: ["Digital X-ray (RVG)", "Anaesthesia booster", "Dental laser", "PRFuge"],
+    uses: [
+      ["Digital X-ray (RVG)", "Checks the bone loss before and after"],
+      ["Anaesthesia booster", "Numbing before surgery"],
+      ["Dental laser", "Removes infected tissue, reduces bacteria and helps control bleeding"],
+      ["PRFuge", "PRF from your own blood with bone grafts", true],
+    ],
     steps: [
       "The same assessment as for flap surgery: pocket measurements, X-rays and scaling first.",
       "Local anaesthesia with the anaesthesia booster.",
@@ -403,7 +445,9 @@ export const protocols = [
   {
     group: "Gum treatment and laser",
     title: "Low-level laser therapy (LLLT)",
-    uses: ["Dental laser"],
+    uses: [
+      ["Dental laser", "Low-power light that supports healing and eases pain, without cutting"],
+    ],
     steps: [
       "Used for painful mouth ulcers, soreness after extraction or surgery, sensitive teeth, jaw-joint (TMJ) pain and pain from braces.",
       "The cause is diagnosed first; laser therapy supports other treatment rather than replacing it.",
@@ -417,7 +461,16 @@ export const protocols = [
   {
     group: "Replacing missing teeth",
     title: "Dental implant with a surgical guide",
-    uses: ["Runyes scanner", "Surgical guide", "Anaesthesia booster", "Implant systems", "PRFuge (where needed)", "Tooth Titan (where needed)", "Micro-blaster (cemented crowns)", "Teeth Tracer (where needed)"],
+    uses: [
+      ["Runyes scanner", "Digital scan for planning, and later for the crown"],
+      ["Surgical guide", "Places the implant in the planned position, depth and angle"],
+      ["Implant systems", "The implant chosen for your bone and budget"],
+      ["Anaesthesia booster", "Numbing before the implant is placed"],
+      ["PRFuge", "PRF from your own blood to support healing", true],
+      ["Tooth Titan", "Graft from your own extracted tooth where bone is thin", true],
+      ["Micro-blaster", "Cleans the inside of a cemented crown (not needed for screw-retained crowns)", true],
+      ["Teeth Tracer", "Fine-tunes the bite on the implant crown", true],
+    ],
     steps: [
       "Examination, medical history, a CBCT scan at an imaging centre and a digital scan of your teeth with the Runyes scanner.",
       "Digital planning of implant size, position and angle, and a 3-D printed surgical guide.",
@@ -447,7 +500,10 @@ export const protocols = [
   {
     group: "Replacing missing teeth",
     title: "Partial dentures",
-    uses: ["Digital X-ray (RVG)", "Runyes scanner"],
+    uses: [
+      ["Digital X-ray (RVG)", "Checks the teeth that will hold the denture"],
+      ["Runyes scanner", "Digital scan for the denture design", true],
+    ],
     steps: [
       "The remaining teeth and gums are checked with X-rays; decay and gum problems are treated first.",
       "The type is chosen with you: cast metal, flexible or acrylic.",
@@ -462,7 +518,11 @@ export const protocols = [
   {
     group: "Smile and alignment",
     title: "Veneers and laminates",
-    uses: ["Intra-oral camera", "Runyes scanner", "Anaesthesia booster", "Micro-blaster"],
+    uses: [
+      ["Intra-oral camera", "Smile photos for planning and shade"],
+      ["Runyes scanner", "Digital scan sent to the lab"],
+      ["Anaesthesia booster", "Numbing if the teeth need shaping", true],
+    ],
     steps: [
       "Smile assessment with photos, and a check that teeth and gums are healthy.",
       "Shade and shape are planned with you; a trial smile (mock-up) shows the result before any tooth is touched.",
@@ -476,7 +536,10 @@ export const protocols = [
   {
     group: "Smile and alignment",
     title: "Braces and clear aligners",
-    uses: ["Intra-oral camera", "Runyes scanner"],
+    uses: [
+      ["Intra-oral camera", "Photos to plan and follow progress"],
+      ["Runyes scanner", "Digital scan for the treatment plan and the aligners"],
+    ],
     steps: [
       "Consultation with face and teeth photos, and X-rays (OPG and cephalogram at an imaging centre).",
       "A digital scan with the Runyes scanner; the treatment plan and expected time are explained.",
@@ -491,7 +554,12 @@ export const protocols = [
   {
     group: "Oral surgery",
     title: "Tooth extraction",
-    uses: ["Digital X-ray (RVG)", "Anaesthesia booster", "Tooth Titan (where needed)", "PRFuge (where needed)"],
+    uses: [
+      ["Digital X-ray (RVG)", "Shows the roots and nearby structures"],
+      ["Anaesthesia booster", "Numbing before removal"],
+      ["Tooth Titan", "Graft from the same tooth to preserve bone for a future implant", true],
+      ["PRFuge", "PRF from your own blood to support healing", true],
+    ],
     steps: [
       "X-ray of the tooth, and a check of your medical history and medicines (for example, blood thinners or diabetes).",
       "Local anaesthesia with the anaesthesia booster.",
@@ -504,7 +572,12 @@ export const protocols = [
   {
     group: "Oral surgery",
     title: "Wisdom tooth removal",
-    uses: ["Digital X-ray (RVG)", "Anaesthesia booster", "PRFuge (where needed)", "Tooth Titan (where needed)"],
+    uses: [
+      ["Digital X-ray (RVG)", "Shows the position of the tooth and its roots"],
+      ["Anaesthesia booster", "Numbing before surgery"],
+      ["PRFuge", "PRF from your own blood to support healing", true],
+      ["Tooth Titan", "Graft from the tooth where bone needs rebuilding", true],
+    ],
     steps: [
       "X-ray or OPG to see the position of the tooth; a CBCT scan at an imaging centre if the roots are close to the nerve.",
       "Local anaesthesia with the anaesthesia booster.",
@@ -518,7 +591,11 @@ export const protocols = [
   {
     group: "Oral medicine",
     title: "Oral lesions (patches, ulcers and lumps)",
-    uses: ["DrOroscope", "Intra-oral camera", "Dental laser"],
+    uses: [
+      ["DrOroscope", "Fluorescence screening and photos of the lesion"],
+      ["Intra-oral camera", "Photos to compare at follow-up visits"],
+      ["Dental laser", "Low-level laser therapy for painful ulcers", true],
+    ],
     steps: [
       "History of the lesion and of habits such as tobacco, gutka, pan or alcohol.",
       "Examination of the whole mouth, tongue and neck.",
