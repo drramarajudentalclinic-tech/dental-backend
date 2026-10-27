@@ -281,7 +281,7 @@ export const protocols = [
     steps: [
       "Medical history, allergies and current medicines are recorded.",
       "Examination of teeth, gums, tongue and jaw joint, with intra-oral camera photos you can see on the screen.",
-      "Screening of the lining of the mouth with the DrOroscope.",
+      "Where needed (for example, if you use tobacco or have a patch or ulcer), oral cancer screening with the DrOroscope.",
       "Digital X-rays where needed; an OPG or CBCT scan at an imaging centre only if it is needed for a diagnosis.",
       "We explain what we found, the treatment options and the cost before starting anything.",
       "A written prescription where needed, and a date for the next visit.",
@@ -348,9 +348,9 @@ export const protocols = [
   {
     group: "Gum treatment and laser",
     title: "Oral prophylaxis (scaling and polishing)",
-    uses: ["DrOroscope", "Intra-oral camera"],
+    uses: ["Intra-oral camera"],
     steps: [
-      "Examination of teeth and gums, and screening of the lining of the mouth with the DrOroscope.",
+      "Examination of teeth, gums and the lining of the mouth.",
       "Ultrasonic scaling removes tartar and stains above and just below the gum line.",
       "Hand instruments clean the areas the ultrasonic tip cannot reach.",
       "Polishing makes the tooth surfaces smooth, so plaque collects less.",
@@ -542,14 +542,14 @@ export const portalSteps = [
 /* Oral cancer screening with the DrOroscope — facts from the published studies. */
 export const screening = {
   title: "Oral cancer screening with the DrOroscope",
-  lead: "Oral cancer often starts as a painless white or red patch. Found early, these changes can be treated before they become cancer. At our clinic, the lining of your mouth is checked with the DrOroscope, a hand-held fluorescence camera made in India, as part of the examination.",
+  lead: "Oral cancer often starts as a painless white or red patch. Found early, these changes can be treated before they become cancer. Not every patient needs this test: when you have a risk factor or a suspicious area, the lining of your mouth is checked with the DrOroscope, a hand-held fluorescence camera made in India.",
   who: [
     "You use or have used tobacco, gutka, khaini, pan or betel nut, or you smoke",
     "You drink alcohol regularly",
     "A white or red patch, a lump, or a rough area in the mouth",
     "An ulcer or sore that has not healed in 2 weeks",
     "Burning in the mouth with spicy food, or the mouth opening less widely than before",
-    "A routine check-up, especially after the age of 40",
+    "You are over 40 and would like a screening (ask at your visit)",
   ],
   how: [
     "A normal photo of each area of the mouth with the 5-megapixel camera, under white light.",
@@ -560,7 +560,7 @@ export const screening = {
     "The photos are saved in your record, so the same area is compared at your next visit.",
   ],
   benefits: [
-    ["No pain, no cutting", "Light and a camera only. It takes a few minutes during your check-up."],
+    ["No pain, no cutting", "Light and a camera only. It takes a few minutes."],
     ["Earlier detection", "Changes in the lining show up before they are easy to see by eye."],
     ["The right spot for a biopsy", "When a biopsy is needed, the screening shows which area to test."],
     ["A record you can follow", "Photos from each visit are compared, so slow changes are not missed."],
@@ -587,7 +587,7 @@ export const faqs = [
   ["Do I need an appointment?", "Yes. The clinic works by appointment only, Monday to Saturday, 11 am to 7 pm. Call or WhatsApp +91 99088 94449 to book a time. Sunday is a holiday."],
   ["Is root canal treatment painful?", "The tooth is numbed with local anaesthesia before treatment, so you should feel pressure but not pain. Some soreness for a day or two afterwards is common, and the doctor prescribes medicine for it."],
   ["How long does a dental implant take?", "The implant is placed in one sitting under local anaesthesia. It then needs about 3 months to join the bone before the crown is fitted. If a bone graft is needed, healing can take longer; the doctor explains the timeline for your case."],
-  ["Is the oral cancer screening painful?", "No. The DrOroscope only shines light and takes photos of the inside of your mouth. It takes a few minutes during your check-up."],
+  ["Is the oral cancer screening painful?", "No. The DrOroscope only shines light and takes photos of the inside of your mouth. It takes a few minutes, and is done when the doctor advises it or you ask for it."],
   ["What should I bring to my first visit?", "A list of the medicines you take, any medical reports, and any old dental X-rays or scans. If you have diabetes, blood pressure or heart problems, or are pregnant, please tell the doctor."],
   ["Can I see my X-rays and prescriptions later?", "Yes. When the doctor switches on your patient portal and shares them, you can see your visit summaries, prescriptions, X-rays and receipts on your phone."],
   ["How are instruments kept clean?", "Instruments are cleaned, sealed in sterilisation pouches and steam-autoclaved. The pouch is opened in front of you, and needles, gloves and suction tips are used once and thrown away."],
