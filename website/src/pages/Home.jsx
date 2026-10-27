@@ -5,6 +5,7 @@ import * as photos from "../photos";
 import logoSrc from "../logo";
 import { Bar, Footer, DraftNote, waLink } from "../components/Chrome";
 import TechArt from "../components/TechArt";
+import ChatBot from "../components/ChatBot";
 
 const tel = (n) => `tel:${String(n).replace(/[^\d+]/g, "")}`;
 
@@ -495,10 +496,12 @@ export default function Home() {
         <a href={tel(clinic.phone)}><Icon n="phone" size={20} />Call</a>
         <a href={waLink()} target="_blank" rel="noreferrer"><Icon n="chat" size={20} />WhatsApp</a>
         <a href="#book"><Icon n="clock" size={20} />Book</a>
+        <button type="button" onClick={() => window.dispatchEvent(new Event("open-chat"))}><Icon n="chat" size={20} />Ask us</button>
       </nav>
       <a className={`wa-float${scrolled ? " show" : ""}`} href={waLink()} target="_blank" rel="noreferrer" aria-label="Book an appointment on WhatsApp">
         <Icon n="chat" size={24} /><span>Book on WhatsApp</span>
       </a>
+      <ChatBot />
     </>
   );
 }

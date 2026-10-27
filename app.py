@@ -37,6 +37,7 @@ from routes.auth           import auth_bp, run_auth_migrations
 from routes.cbct_backend import cbct_bp, run_cbct_migrations
 from routes.billing_ledger import billing_ledger_bp, run_billing_ledger_migrations, backfill_legacy_visit_charges
 from routes.portal         import portal_bp, ensure_portal_tables
+from routes.chatbot        import chatbot_bp
 
 # ---------------------------
 # Single source of truth for allowed origins
@@ -101,6 +102,8 @@ def protect_all_routes():
         # patient portal: asking for / checking the SMS code happens before login
         "/api/portal/otp/request",
         "/api/portal/otp/verify",
+        "/api/chatbot",
+        "/api/chatbot/status",
     ]
 
     if request.path in public_paths:
@@ -432,6 +435,7 @@ other_blueprints = [
     other_expenses_bp,
     billing_ledger_bp,
     portal_bp,
+    chatbot_bp,
 ]
 
 for bp in other_blueprints:
