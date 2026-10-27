@@ -6,6 +6,7 @@ import logoSrc from "../logo";
 import { Bar, Footer, DraftNote, waLink } from "../components/Chrome";
 import TechArt from "../components/TechArt";
 import ChatBot from "../components/ChatBot";
+import { useMotion } from "../motion";
 
 const tel = (n) => `tel:${String(n).replace(/[^\d+]/g, "")}`;
 
@@ -204,6 +205,7 @@ function Doctor({ d }) {
         </div>
       </aside>
       <div className="doc-body">
+        <span className="kicker">Your dentist</span>
         <h2>About the doctor</h2>
         {d.about.map((p) => <p key={p.slice(0, 20)} className="measure">{p}</p>)}
         <h3>Areas of care</h3>
@@ -226,6 +228,7 @@ function Screening() {
       <div className="scr-top">
         <figure className="scr-photo"><img src={photos.oroscope} alt="DrOroscope hand-held oral screening camera" /></figure>
         <div>
+          <span className="kicker">Early detection</span>
           <h2>{s.title}</h2>
           <p className="scr-lead">{s.lead}</p>
           <ul className="scr-tech">{s.tech.map((t) => <li key={t}><Icon n="spark" size={18} />{t}</li>)}</ul>
@@ -345,15 +348,18 @@ export default function Home() {
     on(); window.addEventListener("scroll", on, { passive: true });
     return () => window.removeEventListener("scroll", on);
   }, []);
+  useMotion();
   const d0 = doctors[0];
   return (
     <>
+      <div className="scroll-progress" aria-hidden="true" />
       <DraftNote />
       <Bar />
       <main id="top">
         {/* ── HERO ── */}
         <section className="hero">
           <div className="hero-glow" aria-hidden="true" />
+          <div className="hero-orb o1" aria-hidden="true" /><div className="hero-orb o2" aria-hidden="true" />
           <div className="wrap hero-grid">
             <div className="hero-copy">
               <p className="hero-place"><Icon n="pin" size={16} />Chaitanyapuri, near Dilsukhnagar, Hyderabad</p>
@@ -387,6 +393,7 @@ export default function Home() {
         <section className="sec" id="treatments">
           <div className="wrap">
             <header className="sec-head">
+              <span className="kicker">What we do</span>
               <h2>Treatments</h2>
               <p>Everything from a check-up to implants and full-mouth rehabilitation. The doctor explains the options and the cost before any treatment starts.</p>
             </header>
@@ -398,6 +405,7 @@ export default function Home() {
         <section className="sec sec-tint" id="technology">
           <div className="wrap">
             <header className="sec-head">
+              <span className="kicker">Equipment</span>
               <h2>Technology we use every day</h2>
               <p>Choose a treatment to see the equipment we use for it: what each one is, and what it changes for you.</p>
             </header>
@@ -414,6 +422,7 @@ export default function Home() {
         <section className="sec sec-tint" id="protocols">
           <div className="wrap">
             <header className="sec-head">
+              <span className="kicker">Treatment protocols</span>
               <h2>How we work</h2>
               <p>The steps we follow for each treatment, and the equipment we use at each step. Choose a treatment to see its protocol.</p>
             </header>
@@ -430,6 +439,7 @@ export default function Home() {
         <section className="sec portal-band" id="portal">
           <div className="wrap portal-grid">
             <div>
+              <span className="kicker light">Patient portal</span>
               <h2>Your dental records, on your phone</h2>
               <p className="pb-lead">Visit summaries, prescriptions, X-rays, scans and receipts, available when the doctor shares them with you.</p>
               <ol className="portal-steps">
@@ -445,6 +455,7 @@ export default function Home() {
         <section className="sec" id="book">
           <div className="wrap book-grid">
             <div>
+              <span className="kicker">Appointments</span>
               <h2>Book an appointment</h2>
               <p className="book-lead">Tell us when suits you and what you need. The clinic will confirm a time on WhatsApp.</p>
               <ul className="book-points">
@@ -460,7 +471,7 @@ export default function Home() {
         {/* ── FAQ ── */}
         <section className="sec sec-tint" id="faq">
           <div className="wrap faq-grid">
-            <header className="sec-head"><h2>Common questions</h2><p>Short answers to what patients ask most. For anything else, call or WhatsApp the clinic.</p></header>
+            <header className="sec-head"><span className="kicker">FAQ</span><h2>Common questions</h2><p>Short answers to what patients ask most. For anything else, call or WhatsApp the clinic.</p></header>
             <Faq />
           </div>
         </section>
@@ -468,7 +479,7 @@ export default function Home() {
         {/* ── VISIT ── */}
         <section className="sec" id="visit">
           <div className="wrap">
-            <header className="sec-head"><h2>Visit us</h2><p>{clinic.hoursNote}</p></header>
+            <header className="sec-head"><span className="kicker">Find us</span><h2>Visit us</h2><p>{clinic.hoursNote}</p></header>
             <div className="visit">
               {clinic.mapQuery && (
                 <iframe className="map" title="Clinic location on the map" loading="lazy" referrerPolicy="no-referrer-when-downgrade"
