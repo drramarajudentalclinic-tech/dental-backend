@@ -4,7 +4,7 @@ import { portal, getSession, setSession } from "../api";
 import { Bar, Footer } from "../components/Chrome";
 
 const IMAGE_NAMES = { IOPA: "IOPA X-ray", OPG: "OPG (full-mouth X-ray)", INTRAORAL: "Mouth photo", EXTRAORAL: "Face photo",
-  CEPH: "Ceph X-ray", BITEWING: "Bitewing X-ray", RVG: "X-ray" };
+  CEPH: "Ceph X-ray", BITEWING: "Bitewing X-ray", RVG: "X-ray", CBCT: "CBCT picture", IMPLANT: "Implant details" };
 const imgName = (t) => IMAGE_NAMES[String(t || "").toUpperCase()] || String(t || "Picture");
 const money = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

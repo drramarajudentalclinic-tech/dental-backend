@@ -42,6 +42,7 @@ images_bp = Blueprint("images", __name__)
 #                           patients/<case no.>/xrays/<date>_v<visit>_<name>.jpg   (IOPA, OPG)
 #                           patients/<case no.>/photos/...                        (intra-oral)
 #                           patients/<case no.>/cbct/...                          (CBCT pictures)
+#                           patients/<case no.>/implants/...                      (implant box / sticker)
 #                         so every file of a patient is in one place.
 #
 #  CLOUDFLARE R2 - settings in Render -> dental-backend -> Environment:
@@ -85,7 +86,8 @@ images_bp = Blueprint("images", __name__)
 #  bucket) as well as the database.
 # ═════════════════════════════════════════════════════════════════════════════
 
-ALLOWED_TYPES = ["IOPA", "OPG", "CBCT", "INTRAORAL"]
+# IMPLANT = photo of the implant box / sticker; its system, size and torque are in the description
+ALLOWED_TYPES = ["IOPA", "OPG", "CBCT", "INTRAORAL", "IMPLANT"]
 ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "webp", "gif", "bmp", "pdf"}
 
 FLASK_ROOT  = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -248,7 +250,7 @@ def _safe_part(text, fallback):
     return cleaned or fallback
 
 
-FOLDER_FOR_TYPE = {"IOPA": "xrays", "OPG": "xrays", "CBCT": "cbct", "INTRAORAL": "photos"}
+FOLDER_FOR_TYPE = {"IOPA": "xrays", "OPG": "xrays", "CBCT": "cbct", "INTRAORAL": "photos", "IMPLANT": "implants"}
 
 
 def _patient_key(visit_id, filename, image_type=None, image_date=None):
@@ -483,6 +485,21 @@ def run_image_migrations(app):
                     run("ALTER TABLE images ALTER COLUMN image_path TYPE VARCHAR(500)", "image_path -> VARCHAR(500)")
                 elif dialect == "mysql":
                     run("ALTER TABLE images MODIFY COLUMN image_path VARCHAR(500) NOT NULL", "image_path -> VARCHAR(500)")
+
+        if dialect == "postgresql":
+            # an old CHECK rule may allow only IOPA/OPG/CBCT/INTRAORAL - remove it so "IMPLANT" can be saved
+            # (the server itself still checks the kind against ALLOWED_TYPES)
+            try:
+                with db.engine.connect() as conn:
+                    names = [r[0] for r in conn.execute(text(
+                        "SELECT conname FROM pg_constraint WHERE conrelid = 'images'::regclass AND contype = 'c' "
+                        "AND pg_get_constraintdef(oid) ILIKE '%image_type%' "
+                        "AND pg_get_constraintdef(oid) NOT ILIKE '%IMPLANT%'")).fetchall()]
+            except Exception as e:
+                names = []
+                print(f"[images migration] could not read image_type rules: {type(e).__name__}")
+            for name in names:
+                run(f'ALTER TABLE images DROP CONSTRAINT "{name}"', f"Removed old image_type rule {name} (allows IMPLANT)")
 
         if "image_date" not in cols:
             run("ALTER TABLE images ADD COLUMN image_date DATE", "Added image_date")
@@ -1253,7 +1270,7 @@ def _ist(dt, fmt):
 
 def _file_counts(visit_ids):
     """{visit_id: {IOPA, OPG, INTRAORAL, CBCT, scans, total, last}}"""
-    out = {vid: {"IOPA": 0, "OPG": 0, "INTRAORAL": 0, "CBCT": 0, "scans": 0, "total": 0, "last": None}
+    out = {vid: {"IOPA": 0, "OPG": 0, "INTRAORAL": 0, "CBCT": 0, "IMPLANT": 0, "scans": 0, "total": 0, "last": None}
            for vid in visit_ids}
     if not visit_ids:
         return out
@@ -1284,7 +1301,7 @@ def _file_counts(visit_ids):
 
 
 def _imaging_item(row, visit, patient, counts):
-    c = dict(counts.get(visit.id) or {"IOPA": 0, "OPG": 0, "INTRAORAL": 0, "CBCT": 0, "scans": 0, "total": 0, "last": None})
+    c = dict(counts.get(visit.id) or {"IOPA": 0, "OPG": 0, "INTRAORAL": 0, "CBCT": 0, "IMPLANT": 0, "scans": 0, "total": 0, "last": None})
     last = c.pop("last", None)
     now = datetime.utcnow()
     status = row.status if row is not None else None
