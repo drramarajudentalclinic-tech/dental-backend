@@ -14,6 +14,11 @@
 
 import * as photos from "./photos";
 
+/* Years in practice, counted from the year the clinic opened, so the number
+   goes up by itself every year (1999 → 27 years in 2026). */
+export const SINCE = 1999;
+export const YEARS = Math.max(1, new Date().getFullYear() - SINCE);
+
 export const clinic = {
   name: "Sri Satya Sai Oral Health Center & Dental Clinic",
   shortName: "Sri Satya Sai Dental",
@@ -21,8 +26,8 @@ export const clinic = {
   // shown under the motto on the home page
   quote: "No two smiles are the same, so no two treatment plans should be. We listen first, then plan your care around you.",
   quoteBy: "Personalised dentistry",
-  tagline: "Complete dental care in Chaitanyapuri, Hyderabad, since 1999, led by Dr. D. Rama Raju with 25 years of experience. Every treatment is explained before we begin.",
-  since: "1999",
+  tagline: `Complete dental care in Chaitanyapuri, Hyderabad, since ${SINCE}, led by Dr. D. Rama Raju with ${YEARS} years of experience. Every treatment is explained before we begin.`,
+  since: String(SINCE),
   phone: "+91 99088 94449",
   whatsapp: "+91 99088 94449",
   email: "drramarajudentalclinic@gmail.com",
@@ -50,12 +55,12 @@ export const doctors = [
     qualification: "BDS, MDS",
     title: "Dentist, Chaitanyapuri, Hyderabad",
     stats: [
-      ["25", "years in practice"],
+      [String(YEARS), "years in practice"],
       ["MDS", "Master of Dental Surgery"],
       ["IDA", "Member, Indian Dental Association"],
     ],
     about: [
-      "Dr. D. Rama Raju (BDS, MDS) has practised dentistry for 25 years. He runs Sri Satya Sai Oral Health Center & Dental Clinic in Chaitanyapuri, near Dilsukhnagar, Hyderabad, which has been caring for patients since 1999.",
+      `Dr. D. Rama Raju (BDS, MDS) has practised dentistry for ${YEARS} years. He runs Sri Satya Sai Oral Health Center & Dental Clinic in Chaitanyapuri, near Dilsukhnagar, Hyderabad, which has been caring for patients since ${SINCE}.`,
       "Patients see him for everything from check-ups, fillings and root canals to extractions, implants, dentures, braces and full-mouth rehabilitation. Every treatment starts with a clear diagnosis, and the options and the cost are explained before anything begins.",
     ],
     focus: [
@@ -69,7 +74,7 @@ export const doctors = [
     timeline: [
       ["BDS", "Osmania Medical College, Hyderabad"],
       ["MDS", "Osmania Medical College, Hyderabad"],
-      ["Sri Satya Sai Oral Health Center & Dental Clinic", "Chaitanyapuri, Hyderabad · running since 1999 · 25 years in practice"],
+      ["Sri Satya Sai Oral Health Center & Dental Clinic", `Chaitanyapuri, Hyderabad · running since ${SINCE} · ${YEARS} years in practice`],
     ],
   },
 ];

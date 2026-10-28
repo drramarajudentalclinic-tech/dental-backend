@@ -1,3 +1,4 @@
+import { YEARS, SINCE } from "./content";
 /* ═══════════════════════════════════════════════════════════════════
    CHAT ASSISTANT — ready answers in English, Telugu and Hindi.
    These work instantly and without any AI key. When the AI is switched on
@@ -86,9 +87,9 @@ export const TOPICS = [
     title: { en: "About the doctor", te: "డాక్టర్ గురించి", hi: "डॉक्टर के बारे में" },
     keys: ["doctor", "dentist", "rama raju", "qualification", "mds", "డాక్టర్", "రామరాజు", "डॉक्टर", "रामराजू"],
     a: {
-      en: ["Dr. D. Rama Raju — BDS, MDS, Osmania Medical College, Hyderabad.", "• 25 years of experience · clinic running since 1999", "• Dental Council Reg. No. A-1096", "• Member, Indian Dental Association"],
-      te: ["డా. డి. రామరాజు — BDS, MDS, ఉస్మానియా మెడికల్ కాలేజ్, హైదరాబాద్.", "• 25 సంవత్సరాల అనుభవం · 1999 నుండి క్లినిక్ సేవలు", "• డెంటల్ కౌన్సిల్ రిజిస్ట్రేషన్ నం. A-1096", "• ఇండియన్ డెంటల్ అసోసియేషన్ సభ్యులు"],
-      hi: ["डॉ. डी. रामराजू — BDS, MDS, उस्मानिया मेडिकल कॉलेज, हैदराबाद।", "• 25 साल का अनुभव · 1999 से क्लिनिक सेवा में", "• डेंटल काउंसिल रजिस्ट्रेशन नं. A-1096", "• इंडियन डेंटल एसोसिएशन के सदस्य"],
+      en: ["Dr. D. Rama Raju — BDS, MDS, Osmania Medical College, Hyderabad.", `• ${YEARS} years of experience · clinic running since ${SINCE}`, "• Dental Council Reg. No. A-1096", "• Member, Indian Dental Association"],
+      te: ["డా. డి. రామరాజు — BDS, MDS, ఉస్మానియా మెడికల్ కాలేజ్, హైదరాబాద్.", `• ${YEARS} సంవత్సరాల అనుభవం · ${SINCE} నుండి క్లినిక్ సేవలు`, "• డెంటల్ కౌన్సిల్ రిజిస్ట్రేషన్ నం. A-1096", "• ఇండియన్ డెంటల్ అసోసియేషన్ సభ్యులు"],
+      hi: ["डॉ. डी. रामराजू — BDS, MDS, उस्मानिया मेडिकल कॉलेज, हैदराबाद।", `• ${YEARS} साल का अनुभव · ${SINCE} से क्लिनिक सेवा में`, "• डेंटल काउंसिल रजिस्ट्रेशन नं. A-1096", "• इंडियन डेंटल एसोसिएशन के सदस्य"],
     },
   },
   {

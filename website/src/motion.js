@@ -1,6 +1,6 @@
 /* Page movement for the home page — kept calm and professional:
    • sections and cards fade up as they scroll into view (one after another)
-   • numbers count up (25 years, study figures, doctor stats)
+   • numbers count up (years in practice, study figures, doctor stats)
    • the top bar gets a shadow when scrolling; a thin progress line shows how far you are
    • the menu highlights the section you are reading
    • the booking card in the hero tilts slightly with the mouse (computers only)

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { clinic, doctors, services, technology, protocols, portalSteps, screening, faqs } from "../content";
+import { clinic, doctors, services, technology, protocols, portalSteps, screening, faqs, YEARS } from "../content";
 import * as photos from "../photos";
 import logoSrc from "../logo";
 import { Bar, Footer, DraftNote, waLink } from "../components/Chrome";
@@ -429,7 +429,7 @@ export default function Home() {
         {/* ── TRUST STRIP ── */}
         <div className="wrap">
           <dl className="trust trust-3">
-            <div><span className="tr-ico"><Icon n="award" /></span><dt>25 years</dt><dd>of dental practice</dd></div>
+            <div><span className="tr-ico"><Icon n="award" /></span><dt>{YEARS} years</dt><dd>of dental practice</dd></div>
             <div><span className="tr-ico"><Icon n="tooth" /></span><dt>MDS</dt><dd>Master of Dental Surgery</dd></div>
             <div><span className="tr-ico"><Icon n="shield" /></span><dt>Since {clinic.since || "1999"}</dt><dd>caring for patients in Chaitanyapuri</dd></div>
           </dl>
