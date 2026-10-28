@@ -257,6 +257,7 @@ export const technology = [
     items: [
       {
         name: "Surgical guide for implants",
+        photo: photos.guide,
         art: "guide",
         what: "A 3-D printed guide made from your CBCT scan and digital scan, which fits over your teeth during surgery.",
         why: "The implant goes in the planned position, depth and angle, away from nerves and the sinus, often with a smaller cut.",
