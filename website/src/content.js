@@ -257,7 +257,6 @@ export const technology = [
     items: [
       {
         name: "Surgical guide for implants",
-        photo: photos.guide,
         art: "guide",
         what: "A 3-D printed guide made from your CBCT scan and digital scan, which fits over your teeth during surgery.",
         why: "The implant goes in the planned position, depth and angle, away from nerves and the sinus, often with a smaller cut.",
@@ -306,6 +305,12 @@ export const technology = [
         art: "electrosurgery",
         what: "A solid-state unit that passes a high-frequency current through a fine electrode tip to cut gum tissue and seal small blood vessels at the same time. Used for reshaping gums (gingivectomy), crown lengthening, freeing a tight lip or tongue tie (frenectomy), uncovering teeth and implants, draining an abscess, small biopsies, and moving the gum back before a crown scan.",
         why: "Clean, precise cuts with very little bleeding, so the area stays clear and often needs no stitches. Please tell us if you have a pacemaker or another implanted device: then a different method is used.",
+      },
+      {
+        name: "Dental laser (soft-tissue)",
+        art: "laser",
+        what: "A dental laser that uses a fine beam of light to cut and remove soft tissue, such as the infected lining of gum pockets, while sealing small blood vessels.",
+        why: "Infected tissue is removed with less bleeding, bacteria on the gum and root surfaces are reduced, and the area is often more comfortable afterwards.",
       },
       {
         name: "Advanced laser therapy unit",
@@ -532,12 +537,13 @@ export const protocols = [
     uses: [
       ["Digital X-ray (RVG)", "Checks the bone around the teeth"],
       ["Anaesthesia booster", "Numbing before cleaning the pockets"],
+      ["Dental laser", "Removes the infected lining of the pocket", true],
     ],
     steps: [
       "Gum pockets are measured and recorded, with X-rays to check the bone.",
       "Scaling and root planing first, to clean the root surfaces.",
       "Local anaesthesia with the anaesthesia booster.",
-      "The infected inner lining of the gum pocket is gently removed with fine hand instruments.",
+      "The infected inner lining of the gum pocket is gently removed with fine hand instruments or the dental laser.",
       "The pocket is rinsed clean and the gum pressed back against the tooth.",
       "Mouthwash and home-care instructions; a review visit to re-measure the pockets.",
     ],
@@ -568,6 +574,7 @@ export const protocols = [
     uses: [
       ["Digital X-ray (RVG)", "Checks the bone loss before and after"],
       ["Anaesthesia booster", "Numbing before surgery"],
+      ["Dental laser", "Removes infected tissue, reduces bacteria and helps control bleeding"],
       ["PRFuge", "PRF from your own blood with bone grafts", true],
       ["PRF & GRF box", "Shapes the PRF into membranes and plugs", true],
       ["Laser therapy unit", "Low-level laser therapy after surgery for comfort and healing", true],

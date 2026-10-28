@@ -82,7 +82,7 @@ const TECH_ALIAS = {
   "Digital X-ray (RVG)": "Digital X-rays (RVG)", "Endo motor": "Endo motor and rotary files", "Cicada DT Fill": "Cicada DT Fill thermal obturator",
   "Runyes scanner": "Runyes 3DS V3 Pro intra-oral scanner", "Micro-blaster": "Aluminium-oxide micro-blaster", "Surgical guide": "Surgical guide for implants",
   "PRFuge": "PRFuge centrifuge (PRF)", "Ivoclean": "Ivoclean cleaning paste (Ivoclar)", "3-D printer": "ELEGOO Saturn 4 Ultra 16K 3-D printer",
-  "Laser therapy unit": "Advanced laser therapy unit", "BioActive RCS": "SafeEndo BioActive RCS (bioceramic sealer)",
+  "Laser therapy unit": "Advanced laser therapy unit", "Dental laser": "Dental laser (soft-tissue)", "BioActive RCS": "SafeEndo BioActive RCS (bioceramic sealer)",
   "Electrosurgery unit": "Solid-state electrosurgery unit",
   "Germicidal UV lamp": "Germicidal UV-C lamp",
 };
@@ -108,7 +108,6 @@ function TechCard({ t }) {
     <article className={`tc${cur.photo ? " tc-photo" : ""}${pages.length > 1 ? " tc-slides" : ""}${pages.length > 1 && hold ? " paused" : ""}`}
       onMouseEnter={() => setHold(true)} onMouseLeave={() => setHold(false)} onFocus={() => setHold(true)} onBlur={() => setHold(false)}>
       <div className="tc-media">
-        {cur.inventor && <span className="tc-inventor" title="Dr. D. Rama Raju is the founder and patent holder of this device">🏅 Founder &amp; patent holder: Dr. D. Rama Raju</span>}
         {pages.map((pg, k) => (
           <div key={pg.name} className={`tc-slide${k === i ? " on" : ""}`} aria-hidden={k !== i}>
             <TechArt name={pg.art} photo={pg.photo} label={pg.name} />
@@ -293,8 +292,7 @@ function Screening() {
   return (
     <>
       <div className="scr-top">
-        <figure className="scr-photo"><img src={photos.oroscope} alt="DrOroscope hand-held oral screening camera" />
-          <figcaption className="scr-inventor">🏅 Invented by Dr. D. Rama Raju · founder &amp; patent holder</figcaption></figure>
+        <figure className="scr-photo"><img src={photos.oroscope} alt="DrOroscope hand-held oral screening camera" /></figure>
         <div>
           <span className="kicker">Early detection</span>
           <h2>{s.title}</h2>
