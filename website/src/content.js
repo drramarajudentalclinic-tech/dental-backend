@@ -44,7 +44,7 @@ export const clinic = {
     ["Monday – Saturday", "11:00 am – 7:00 pm"],
     ["Sunday", "Holiday"],
   ],
-  hoursNote: "By appointment only. Please call or WhatsApp before you come.",
+  hoursNote: "By appointment only. Please call or WhatsApp one day before for an appointment.",
   registration: "A-1096",      // Dental Council registration no. (footer and doctor card)
 };
 

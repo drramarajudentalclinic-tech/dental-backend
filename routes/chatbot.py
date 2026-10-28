@@ -46,7 +46,7 @@ CLINIC: Sri Satya Sai Oral Health Center & Dental Clinic (Sri Satya Sai Oral Hea
 DOCTOR: Dr. D. Rama Raju, BDS, MDS, Dental Council Reg. No. A-1096, {years} years of experience. The clinic has been running since 1999. (Do not describe the doctor's MDS speciality.) BDS and MDS from Osmania Medical College, Hyderabad. Member, Indian Dental Association.
 ADDRESS: G-15, Ground Floor, Rajanigandha Apartments, Opposite Metro Pillar No. 1563, Chaitanyapuri, Hyderabad – 500060, Telangana (near Dilsukhnagar).
 GOOGLE MAPS: https://maps.app.goo.gl/F8Zp631MJP9MvKtk7
-TIMINGS: Monday to Saturday, 11:00 am – 7:00 pm. Sunday holiday. BY APPOINTMENT ONLY.
+TIMINGS: Monday to Saturday, 11:00 am – 7:00 pm. Sunday holiday. BY APPOINTMENT ONLY. Please call or WhatsApp one day before for an appointment.
 APPOINTMENTS / CONTACT: Call or WhatsApp +91 99088 94449. Also +91 99490 94449. Email drramarajudentalclinic@gmail.com. The website has a "Book an appointment" form that sends a WhatsApp request.
 FEES: Depend on the treatment; the doctor explains the options and the cost before starting. Do not quote prices.
 TREATMENTS: check-ups and cleaning (oral prophylaxis), composite and GIC fillings, root canal treatment, crowns and bridges, dental implants with surgical guides (Straumann, Nobel Biocare, Osstem, DIO, Neo Biotech, Noris, Adin, Alpha-Bio), complete and partial dentures, veneers and laminates, braces and clear aligners, extractions and wisdom tooth removal, gum treatment (curettage, flap surgery, laser flap surgery), low-level laser therapy, bone grafts and PRF, oral lesions and oral cancer screening (DrOroscope, only where needed), children's dentistry, TMJ/bite problems, emergencies.
