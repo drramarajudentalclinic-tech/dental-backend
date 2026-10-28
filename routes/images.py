@@ -22,7 +22,19 @@ except Exception:                       # pragma: no cover
 images_bp = Blueprint("images", __name__)
 
 # ═════════════════════════════════════════════════════════════════════════════
-#  CLINICAL IMAGES  (X-rays, OPGs, intra-oral photos)
+#  CLINICAL IMAGES  (X-rays, OPGs, intra-oral photos, implant details)
+#
+#  ANY FILE TYPE CAN BE UPLOADED (up to IMAGE_MAX_MB):
+#    shown on screen      JPG, PNG, WEBP, GIF, BMP, AVIF, PDF
+#    shown as a preview   iPhone HEIC/HEIF, TIFF (RVG sensors), DICOM X-rays (.dcm)
+#                         - a JPG preview is made by the server the first time the
+#                           file is opened and kept next to it; the original is kept
+#                           unchanged and is what "Download" gives.
+#                           Needs in requirements.txt:  Pillow  pillow-heif  pydicom  numpy
+#                           (without them the file is still saved and can be downloaded)
+#    downloaded to open   STL/PLY/OBJ scans, Word, Excel, ZIP, text ... anything else
+#    refused              programs and web pages (.exe, .bat, .js, .html, .svg ...)
+#                         because opening them could harm the computer
 #
 #  HOW PICTURES ARE STORED
 #  -----------------------
@@ -88,7 +100,12 @@ images_bp = Blueprint("images", __name__)
 
 # IMPLANT = photo of the implant box / sticker; its system, size and torque are in the description
 ALLOWED_TYPES = ["IOPA", "OPG", "CBCT", "INTRAORAL", "IMPLANT"]
-ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "webp", "gif", "bmp", "pdf"}
+ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "webp", "gif", "bmp", "pdf"}   # old /images/file/ links only
+
+# programs / web pages: never stored (they could run when opened)
+BLOCKED_EXTENSIONS = {"exe", "msi", "bat", "cmd", "com", "scr", "pif", "cpl", "ps1", "psm1", "vbs", "vbe", "wsf",
+                      "js", "mjs", "jse", "jar", "sh", "bash", "php", "py", "pl", "rb", "html", "htm", "xhtml",
+                      "shtml", "svg", "svgz", "hta", "dll", "sys", "lnk", "reg", "apk", "app", "dmg", "iso"}
 
 FLASK_ROOT  = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 UPLOAD_ROOT = os.path.abspath(os.environ.get("IMAGE_UPLOAD_ROOT") or os.path.join(FLASK_ROOT, "uploads", "images"))
@@ -101,7 +118,26 @@ MIME_MAP = {
     "pdf": "application/pdf",
 }
 EXT_FOR_MIME = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp",
-                "image/gif": "gif", "image/bmp": "bmp", "application/pdf": "pdf"}
+                "image/gif": "gif", "image/bmp": "bmp", "application/pdf": "pdf",
+                "image/avif": "avif", "image/tiff": "tif", "image/heic": "heic", "image/heif": "heif",
+                "application/dicom": "dcm"}
+
+# by file name, for files whose first bytes do not say what they are
+MIME_FOR_EXT = {
+    "stl": "model/stl", "ply": "model/ply", "obj": "model/obj", "3mf": "model/3mf", "dcm": "application/dicom",
+    "dicom": "application/dicom", "zip": "application/zip", "rar": "application/vnd.rar", "7z": "application/x-7z-compressed",
+    "doc": "application/msword", "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "xls": "application/vnd.ms-excel", "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "ppt": "application/vnd.ms-powerpoint", "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "odt": "application/vnd.oasis.opendocument.text", "rtf": "application/rtf", "txt": "text/plain", "csv": "text/csv",
+    "mp4": "video/mp4", "mov": "video/quicktime", "mp3": "audio/mpeg", "wav": "audio/wav",
+    "jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp", "gif": "image/gif",
+    "bmp": "image/bmp", "pdf": "application/pdf", "avif": "image/avif", "tif": "image/tiff", "tiff": "image/tiff",
+    "heic": "image/heic", "heif": "image/heif",
+}
+
+BROWSER_SHOWS = {"image/jpeg", "image/png", "image/webp", "image/gif", "image/bmp", "image/avif", "application/pdf"}
+PREVIEW_MIMES = {"image/heic", "image/heif", "image/tiff", "application/dicom"}   # a JPG preview is made
 
 IST_OFFSET = timedelta(hours=5, minutes=30)
 
@@ -145,15 +181,64 @@ def sniff_mime(head):
     return None
 
 
-def _unsupported_reason(head):
-    if head[4:8] == b"ftyp" and head[8:12] in (b"heic", b"heix", b"hevc", b"mif1", b"msf1", b"heim", b"heis"):
-        return ("This is an iPhone HEIC photo, which browsers cannot display. "
-                "Please save or export it as JPG and upload that.")
-    if head[:4] in (b"II*\x00", b"MM\x00*"):
-        return "TIFF pictures cannot be displayed in the browser. Please save it as JPG or PNG and upload that."
-    if head[128:132] == b"DICM":
-        return "This is a DICOM file. Please use the CBCT Volumes tab for DICOM, or export the X-ray as JPG."
-    return None
+def _ext_of(filename):
+    name = os.path.basename(str(filename or "").replace("\\", "/"))
+    return name.rsplit(".", 1)[1].lower()[:10] if "." in name else ""
+
+
+def detect_type(head, filename):
+    """(mime type, file extension) for any file - from its first bytes, else from its name.
+    Raises ImageError for programs / web pages, which are never stored."""
+    ext = _ext_of(filename)
+    if ext in BLOCKED_EXTENSIONS:
+        raise ImageError(f"“.{ext}” files cannot be uploaded (programs and web pages could harm the computer). "
+                         "Pictures, PDFs, scans and documents are fine.", 400)
+    head = bytes(head or b"")
+    if head[:2] == b"MZ" or head[:4] == b"\x7fELF":
+        raise ImageError("This file is a program, and programs cannot be uploaded.", 400)
+    low = head[:64].lstrip().lower()
+    if low.startswith((b"<!doctype html", b"<html", b"<svg", b"<?xml", b"<script")) and ext not in ("txt", "csv"):
+        raise ImageError("Web pages and SVG drawings cannot be uploaded. Please save it as PNG or PDF.", 400)
+
+    mime = sniff_mime(head)
+    if mime is None:
+        if head[4:8] == b"ftyp":
+            brand = head[8:12]
+            if brand in (b"avif", b"avis"):
+                mime = "image/avif"
+            elif brand in (b"heic", b"heix", b"hevc", b"heim", b"heis", b"hevx"):
+                mime = "image/heic"
+            elif brand in (b"mif1", b"msf1"):
+                mime = "image/heif"
+            elif brand in (b"qt  ",):
+                mime = "video/quicktime"
+            else:
+                mime = MIME_FOR_EXT.get(ext) or "video/mp4"
+        elif head[:4] in (b"II*\x00", b"MM\x00*"):
+            mime = "image/tiff"
+        elif head[128:132] == b"DICM":
+            mime = "application/dicom"
+    if mime is None:
+        mime = MIME_FOR_EXT.get(ext)
+    if mime is None:
+        import mimetypes
+        guessed = mimetypes.guess_type("x." + ext)[0] if ext else None
+        mime = guessed if guessed and not guessed.startswith(("text/html", "application/javascript", "image/svg")) else "application/octet-stream"
+    out_ext = EXT_FOR_MIME.get(mime) or (ext if ext and ext.isalnum() else "") or "bin"
+    if mime == "image/jpeg" and ext in ("jpeg", "jpg"):
+        out_ext = ext
+    return mime[:120], out_ext
+
+
+def file_kind(mime):
+    """image (shown as it is) | pdf | preview (shown through a JPG preview) | file (downloaded)"""
+    if mime == "application/pdf":
+        return "pdf"
+    if mime in BROWSER_SHOWS:
+        return "image"
+    if mime in PREVIEW_MIMES:
+        return "preview"
+    return "file"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -506,16 +591,23 @@ def run_image_migrations(app):
         if "image_data" not in cols:
             run("ALTER TABLE images ADD COLUMN image_data TEXT", "Added image_data (only read for old base64 pictures)")
         if "mime_type" not in cols:
-            run("ALTER TABLE images ADD COLUMN mime_type VARCHAR(50)", "Added mime_type")
+            run("ALTER TABLE images ADD COLUMN mime_type VARCHAR(120)", "Added mime_type")
+        else:
+            length = getattr(cols["mime_type"]["type"], "length", None)
+            if length is not None and length < 120 and dialect in ("postgresql", "mysql"):
+                # Word / Excel types are longer than 50 letters
+                sql = ("ALTER TABLE images ALTER COLUMN mime_type TYPE VARCHAR(120)" if dialect == "postgresql"
+                       else "ALTER TABLE images MODIFY COLUMN mime_type VARCHAR(120)")
+                run(sql, "mime_type -> VARCHAR(120)")
     _ensure_imaging_table(app)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Old base64 pictures  ->  real files
 # ─────────────────────────────────────────────────────────────────────────────
-def _store_bytes(visit_id, data, mime, original_name="image", image_type=None, image_date=None, store=None):
+def _store_bytes(visit_id, data, mime, original_name="image", image_type=None, image_date=None, store=None, ext=None):
     """Save bytes with the active storage. Returns the locator to keep in images.image_path."""
-    ext = EXT_FOR_MIME.get(mime, "jpg")
+    ext = ext or EXT_FOR_MIME.get(mime) or _ext_of(original_name) or "bin"
     store = store or active_storage()
     locator = store.new_locator(visit_id, _unique_filename(original_name, ext), image_type, image_date)
     if store is _S3:
@@ -546,7 +638,7 @@ def _convert_row(img):
     if not has_file:
         if data is None:
             return "bad"
-        mime = sniff_mime(data[:16]) or getattr(img, "mime_type", None) or "image/jpeg"
+        mime = sniff_mime(data[:256]) or getattr(img, "mime_type", None) or "image/jpeg"
         original = os.path.basename(str(img.image_path or "").replace("\\", "/")) or "image"
         img.image_path = _store_bytes(img.visit_id, data, mime, original,
                                       img.image_type, getattr(img, "image_date", None))
@@ -642,7 +734,7 @@ def upload_image(visit_id):
         return jsonify({"error": f"Invalid image type. Must be one of: {', '.join(ALLOWED_TYPES)}"}), 400
 
     if not file or not file.filename:
-        return jsonify({"error": "Please choose a picture to upload."}), 400
+        return jsonify({"error": "Please choose a file to upload."}), 400
 
     if Visit is not None and db.session.get(Visit, visit_id) is None:
         return jsonify({"error": "This visit no longer exists."}), 404
@@ -653,20 +745,16 @@ def upload_image(visit_id):
     size = stream.tell()
     stream.seek(0)
     if size == 0:
-        return jsonify({"error": "This file is empty (0 bytes). Please choose the picture again."}), 400
+        return jsonify({"error": "This file is empty (0 bytes). Please choose it again."}), 400
     limit = _max_bytes()
     if size > limit:
-        return jsonify({"error": "This picture is too large (%.1f MB). The limit is %d MB."
+        return jsonify({"error": "This file is too large (%.1f MB). The limit is %d MB."
                                  % (size / 1048576.0, limit // 1048576)}), 413
 
-    # ── what it really is (first bytes), not what it is called ──
-    head = stream.read(256)
+    # ── what it really is (first bytes, then the name); programs are refused ──
+    head = stream.read(512)
     stream.seek(0)
-    mime_type = sniff_mime(head)
-    if mime_type is None:
-        reason = _unsupported_reason(head) or "File type not allowed. Use JPG, PNG, WEBP, or PDF"
-        return jsonify({"error": reason}), 400
-    ext = EXT_FOR_MIME[mime_type]
+    mime_type, ext = detect_type(head, file.filename)
 
     parsed_date = (datetime.utcnow() + IST_OFFSET).date()
     if image_date:
@@ -685,7 +773,7 @@ def upload_image(visit_id):
             raise
         except Exception as exc:
             print("[images] cloud upload failed:", type(exc).__name__, str(exc)[:200])
-            raise ImageError("The picture could not be saved in cloud storage (" + _s3_problem(exc) + "). "
+            raise ImageError("The file could not be saved in cloud storage (" + _s3_problem(exc) + "). "
                              "Nothing was saved - please try again in a minute.", 502)
     else:
         store.save(locator, stream)
@@ -734,7 +822,7 @@ def list_images(visit_id):
 #  GET /api/images/<id>/data?download=1 -> same, offered as a download
 # ─────────────────────────────────────────────────────────────────────────────
 def _download_name(img, mime):
-    ext = EXT_FOR_MIME.get(mime, "jpg")
+    ext = EXT_FOR_MIME.get(mime) or _ext_of(img.image_path) or "bin"
     date = img.image_date.strftime("%Y-%m-%d") if getattr(img, "image_date", None) else "undated"
     return f"{img.image_type or 'image'}_{date}_{img.id}.{ext}"
 
@@ -754,8 +842,9 @@ def serve_image_data(id):
         path = _LOCAL.path_for(img.image_path)
         if path and os.path.isfile(path):
             resp = send_file(path, mimetype=mime, conditional=True, max_age=3600,
-                             as_attachment=as_download, download_name=name)
+                             as_attachment=as_download or file_kind(mime) == "file", download_name=name)
             resp.headers["Cache-Control"] = "private, max-age=3600"
+            resp.headers["X-Content-Type-Options"] = "nosniff"
             return resp
 
     # 2) An object in object storage
@@ -771,10 +860,10 @@ def serve_image_data(id):
                         body.close()
                     except Exception:
                         pass
-            headers = {"Cache-Control": "private, max-age=3600"}
+            headers = {"Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff"}
             if length is not None:
                 headers["Content-Length"] = str(length)
-            if as_download:
+            if as_download or file_kind(mime) == "file":
                 headers["Content-Disposition"] = f'attachment; filename="{name}"'
             return Response(stream_with_context(chunks()), mimetype=mime, headers=headers)
 
@@ -824,6 +913,125 @@ def image_link(id):
     except Exception as exc:                 # the screen then loads it through /data
         print(f"[images] could not make a link for picture {id}:", type(exc).__name__, str(exc)[:200])
         return jsonify({"url": None, "mime_type": mime})
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  PREVIEW for files the browser cannot show (HEIC, TIFF, DICOM)
+#  GET /api/images/<id>/preview  -> a JPG made from the file (made once, then kept
+#  next to it as "<file>.preview.jpg"). The original file is never changed.
+# ─────────────────────────────────────────────────────────────────────────────
+PREVIEW_MAX_SIDE = 2400
+
+
+def _preview_locator(locator):
+    return f"{locator}.preview.jpg"
+
+
+def _to_8bit(arr, invert=False):
+    """numpy array of any depth -> 0..255 bytes, using the 0.5 % - 99.5 % range (good for X-rays)."""
+    import numpy as np
+    a = np.asarray(arr, dtype="float32")
+    finite = a[np.isfinite(a)]
+    if finite.size == 0:
+        return np.zeros(a.shape, dtype="uint8")
+    lo, hi = np.percentile(finite, [0.5, 99.5])
+    if hi <= lo:
+        lo, hi = float(finite.min()), float(finite.max()) or 1.0
+    a = np.clip((a - lo) / max(hi - lo, 1e-6), 0, 1) * 255.0
+    if invert:
+        a = 255.0 - a
+    return a.astype("uint8")
+
+
+def make_preview(data, mime):
+    """JPG bytes of a HEIC / TIFF / DICOM file. Raises ImageError with a plain reason."""
+    try:
+        from PIL import Image as PILImage, ImageOps
+    except ImportError:
+        raise ImageError("The server cannot make previews yet (add Pillow to requirements.txt). "
+                         "Use Download to open the file.", 501)
+    try:
+        if mime == "application/dicom":
+            try:
+                import pydicom
+                import numpy as np  # noqa: F401
+            except ImportError:
+                raise ImageError("The server cannot show DICOM files yet (add pydicom and numpy to requirements.txt). "
+                                 "Use Download to open the file.", 501)
+            ds = pydicom.dcmread(io.BytesIO(data), force=True)
+            arr = ds.pixel_array
+            if getattr(ds, "NumberOfFrames", 1) and int(getattr(ds, "NumberOfFrames", 1) or 1) > 1:
+                arr = arr[len(arr) // 2]                       # several frames: the middle one
+            if arr.ndim == 3 and arr.shape[-1] in (3, 4):
+                pic = PILImage.fromarray(arr.astype("uint8")).convert("RGB")
+            else:
+                slope = float(getattr(ds, "RescaleSlope", 1) or 1)
+                intercept = float(getattr(ds, "RescaleIntercept", 0) or 0)
+                invert = str(getattr(ds, "PhotometricInterpretation", "")).upper() == "MONOCHROME1"
+                pic = PILImage.fromarray(_to_8bit(arr * slope + intercept, invert))
+        else:
+            if mime in ("image/heic", "image/heif"):
+                try:
+                    from pillow_heif import register_heif_opener
+                    register_heif_opener()
+                except ImportError:
+                    raise ImageError("The server cannot show iPhone HEIC photos yet (add pillow-heif to requirements.txt). "
+                                     "Use Download to open the file.", 501)
+            pic = PILImage.open(io.BytesIO(data))
+            try:
+                pic.seek(0)                                  # multi-page TIFF: the first page
+            except Exception:
+                pass
+            pic = ImageOps.exif_transpose(pic)
+            if pic.mode in ("I;16", "I;16B", "I;16L", "I", "F"):  # 16-bit X-ray sensors
+                import numpy as np
+                pic = PILImage.fromarray(_to_8bit(np.array(pic)))
+        if pic.mode not in ("RGB", "L"):
+            pic = pic.convert("RGB")
+        pic.thumbnail((PREVIEW_MAX_SIDE, PREVIEW_MAX_SIDE))
+        out = io.BytesIO()
+        pic.save(out, "JPEG", quality=88)
+        return out.getvalue()
+    except ImageError:
+        raise
+    except Exception as exc:
+        print("[images] preview failed:", type(exc).__name__, str(exc)[:200])
+        raise ImageError("A preview could not be made from this file (it may be compressed in a way the server "
+                         "cannot read). Use Download to open it.", 422)
+
+
+@images_bp.route("/images/<int:id>/preview", methods=["GET"])
+@_guard
+def image_preview(id):
+    img  = Image.query.get_or_404(id)
+    mime = getattr(img, "mime_type", None) or "image/jpeg"
+    if file_kind(mime) in ("image", "pdf"):
+        return serve_image_data(id)
+    if mime not in PREVIEW_MIMES:
+        raise ImageError("This kind of file cannot be shown here. Use Download to open it.", 415)
+    store = storage_for(img.image_path)
+    ploc = _preview_locator(img.image_path)
+    jpg = None
+    try:
+        jpg = store.read(ploc) if (store is _LOCAL or store.exists(ploc)) else None
+    except ImageError:
+        raise
+    except Exception:
+        jpg = None
+    if not jpg:
+        original = store.read(img.image_path) or _decode_base64(_base64_of(img))
+        if not original:
+            raise ImageError("The file for this picture is missing on the server.", 404)
+        jpg = make_preview(original, mime)
+        try:                                              # keep it, so it is made only once
+            if store is _S3:
+                store.save(ploc, io.BytesIO(jpg), "image/jpeg")
+            else:
+                store.save(ploc, io.BytesIO(jpg))
+        except Exception as exc:
+            print(f"[images] could not keep the preview of {id}:", type(exc).__name__)
+    return Response(jpg, mimetype="image/jpeg",
+                    headers={"Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff"})
 
 
 # Kept for old links. Only files inside the uploads folder can be fetched this way.
@@ -883,6 +1091,10 @@ def delete_image(id):
 
     try:
         storage_for(locator).delete(locator)
+        try:
+            storage_for(locator).delete(_preview_locator(locator))   # its preview, if one was made
+        except Exception:
+            pass
     except Exception as e:
         # The record is gone; a leftover file is harmless and must not make the delete look failed.
         print(f"[images] could not remove file for deleted picture {id}: {type(e).__name__}")
@@ -1006,9 +1218,10 @@ def _move_one(image_id):
         data = _decode_base64(_base64_of(img))
     if not data:
         return "missing"
-    mime = sniff_mime(data[:16]) or getattr(img, "mime_type", None) or "image/jpeg"
+    mime = sniff_mime(data[:256]) or getattr(img, "mime_type", None) or "image/jpeg"
     locator = _store_bytes(img.visit_id, data, mime, _strip_old_id(old_path), img.image_type,
-                           getattr(img, "image_date", None), store=_S3)
+                           getattr(img, "image_date", None), store=_S3,
+                           ext=EXT_FOR_MIME.get(mime) or _ext_of(old_path) or None)
     try:
         if _S3.read(locator) != data:                      # byte-for-byte check before anything is freed
             raise ImageError("the copy in the bucket did not match", 502)
@@ -1473,6 +1686,11 @@ def _serialize(img):
         "path":        img.image_path,
         "url":         url,
         "mime_type":   mime,
+        # how the screen shows it: image | pdf | preview (use preview_url) | file (download only)
+        "kind":        file_kind(mime),
+        "preview_url": f"/api/images/{img.id}/preview" if mime in PREVIEW_MIMES else None,
+        "ext":         EXT_FOR_MIME.get(mime) or _ext_of(img.image_path) or "",
+        "file_name":   _download_name(img, mime),
         "description": img.description,
         "uploaded_by": img.uploaded_by,
         "image_date":  img.image_date.strftime("%Y-%m-%d") if getattr(img, "image_date", None) else None,
