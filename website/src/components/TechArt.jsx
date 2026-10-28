@@ -227,6 +227,31 @@ const ART = {
       <path d="M54 92 q30 4 40 -38" fill="none" stroke="#0f3d3e" strokeWidth="2.2" />
     </>
   ),
+  gutta: (
+    <>
+      <Floor />
+      <rect x="18" y="70" width="84" height="26" rx="5" fill="url(#ta-body)" stroke="#9fbcb8" />
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <g key={i} transform={`translate(${26 + i * 13} 0)`}>
+          <path d={`M0 ${78 - i} L3.2 ${22 + i * 2} L6.4 ${78 - i} Z`} fill="#f08a6b" stroke="#c75b3e" strokeWidth=".8" />
+          <rect x="-0.6" y={78 - i} width="7.6" height="4" rx="1" fill={["#ffffff", "#f5d90a", "#e74c3c", "#3b82f6", "#22c55e", "#111827"][i]} stroke="#9aa7ab" strokeWidth=".5" />
+        </g>
+      ))}
+      <path d="M24 90 h72" stroke="#9fbcb8" strokeWidth="1" />
+    </>
+  ),
+  sealer: (
+    <>
+      <Floor />
+      <rect x="16" y="50" width="62" height="18" rx="4" fill="url(#ta-body)" stroke="#9fbcb8" transform="rotate(-18 47 59)" />
+      <rect x="22" y="52" width="30" height="12" rx="2" fill="#efe9da" transform="rotate(-18 47 59)" />
+      <rect x="74" y="34" width="20" height="10" rx="3" fill="url(#ta-ink)" transform="rotate(-18 84 39)" />
+      <path d="M93 33 l14 -6" stroke="url(#ta-metal)" strokeWidth="3" strokeLinecap="round" />
+      <path d="M106 27 q4 -1 5 3" stroke="#e9e3d0" strokeWidth="3" fill="none" strokeLinecap="round" />
+      <rect x="6" y="64" width="16" height="10" rx="3" fill="url(#ta-gum)" transform="rotate(-18 14 69)" />
+      <path d="M40 92 q8 -14 20 -6 q10 8 22 -2" fill="none" stroke="#e9e3d0" strokeWidth="5" strokeLinecap="round" />
+    </>
+  ),
   printer3d: (
     <>
       <Floor rx="44" />

@@ -77,16 +77,68 @@ function Treatments() {
 const showProtocol = (title) => window.dispatchEvent(new CustomEvent("show-protocol", { detail: title }));
 
 /* ── equipment ↔ treatment links ── */
-const TECH_ITEMS = technology.flatMap((g) => g.items);
+const TECH_ITEMS = technology.flatMap((g) => g.items.flatMap((it) => [it, ...(it.slides || [])]));
 const TECH_ALIAS = {
   "Digital X-ray (RVG)": "Digital X-rays (RVG)", "Endo motor": "Endo motor and rotary files", "Cicada DT Fill": "Cicada DT Fill thermal obturator",
   "Runyes scanner": "Runyes 3DS V3 Pro intra-oral scanner", "Micro-blaster": "Aluminium-oxide micro-blaster", "Surgical guide": "Surgical guide for implants",
   "PRFuge": "PRFuge centrifuge (PRF)", "Ivoclean": "Ivoclean cleaning paste (Ivoclar)", "3-D printer": "ELEGOO Saturn 4 Ultra 16K 3-D printer",
+  "Laser therapy unit": "Advanced laser therapy unit", "Bioactive RCS": "Bioactive root canal sealer (RCS)",
 };
 const techFor = (tag) => TECH_ITEMS.find((t) => t.name === (TECH_ALIAS[tag] || tag));
 /* treatments (protocol titles) that use a technology item */
 const sameItem = (a, b) => !!a && !!b && (a === b || a.photo && a.photo === b.photo);   // e.g. RVG shown in two groups
 const usedIn = (item) => protocols.filter((p) => (p.uses || []).some(([tag]) => sameItem(techFor(tag), item))).map((p) => p.title);
+
+/* one equipment card; an item with `slides` shows them one after another (PRFuge → PRF & GRF box) */
+function TechCard({ t }) {
+  const pages = [t, ...(t.slides || [])];
+  const [i, setI] = useState(0);
+  const [hold, setHold] = useState(false);
+  useEffect(() => {
+    if (pages.length < 2 || hold) return undefined;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return undefined;
+    const id = setInterval(() => setI((x) => (x + 1) % pages.length), 6000);
+    return () => clearInterval(id);
+  }, [pages.length, hold]);
+  const cur = pages[i];
+  const used = usedIn(cur);
+  return (
+    <article className={`tc${cur.photo ? " tc-photo" : ""}${pages.length > 1 ? " tc-slides" : ""}`}
+      onMouseEnter={() => setHold(true)} onMouseLeave={() => setHold(false)} onFocus={() => setHold(true)} onBlur={() => setHold(false)}>
+      <div className="tc-media">
+        {pages.map((pg, k) => (
+          <div key={pg.name} className={`tc-slide${k === i ? " on" : ""}`} aria-hidden={k !== i}>
+            <TechArt name={pg.art} photo={pg.photo} label={pg.name} />
+          </div>
+        ))}
+        {pages.length > 1 && (
+          <div className="tc-dots" role="tablist" aria-label={`${t.name}: pictures`}>
+            {pages.map((pg, k) => (
+              <button key={pg.name} type="button" role="tab" aria-selected={k === i} aria-label={pg.name} onClick={() => setI(k)} />
+            ))}
+          </div>
+        )}
+        {pages.length > 1 && (
+          <>
+            <button type="button" className="tc-arrow prev" aria-label="Previous" onClick={() => setI((x) => (x - 1 + pages.length) % pages.length)}>‹</button>
+            <button type="button" className="tc-arrow next" aria-label="Next" onClick={() => setI((x) => (x + 1) % pages.length)}>›</button>
+          </>
+        )}
+      </div>
+      <div className="tc-body" key={cur.name}>
+        {pages.length > 1 && <span className="tc-step">{i + 1} of {pages.length}</span>}
+        <h3>{cur.name}</h3>
+        <p className="tc-what">{cur.what}</p>
+        <p className="tc-why"><b>For you</b>{cur.why}</p>
+        {used.length > 0 && (
+          <div className="tc-used"><b>Used in</b>
+            {used.map((title) => <button type="button" key={title} onClick={() => showProtocol(title)}>{title}</button>)}
+          </div>
+        )}
+      </div>
+    </article>
+  );
+}
 
 function Technology() {
   const [g, setG] = useState(0);
@@ -101,21 +153,7 @@ function Technology() {
         ))}
       </div>
       <div className="tech-grid" role="tabpanel" id="tech-panel" aria-labelledby={`tg-${g}`} key={g}>
-        {group.items.map((t) => (
-          <article className={`tc${t.photo ? " tc-photo" : ""}`} key={t.name}>
-            <div className="tc-media"><TechArt name={t.art} photo={t.photo} label={t.name} /></div>
-            <div className="tc-body">
-              <h3>{t.name}</h3>
-              <p className="tc-what">{t.what}</p>
-              <p className="tc-why"><b>For you</b>{t.why}</p>
-              {usedIn(t).length > 0 && (
-                <div className="tc-used"><b>Used in</b>
-                  {usedIn(t).map((title) => <button type="button" key={title} onClick={() => showProtocol(title)}>{title}</button>)}
-                </div>
-              )}
-            </div>
-          </article>
-        ))}
+        {group.items.map((t) => <TechCard key={t.name} t={t} />)}
       </div>
     </>
   );

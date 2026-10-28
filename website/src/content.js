@@ -174,6 +174,18 @@ export const technology = [
         what: "A cordless gun that fills the rest of the canal with warm, flowing gutta-percha (gutta-percha backfill).",
         why: "A dense, gap-free seal from the tip of the root to the top, which helps keep bacteria out.",
       },
+      {
+        name: "Gutta-percha points",
+        art: "gutta",
+        what: "Gutta-percha is a natural, rubber-like root filling material, made as fine tapered points (cones) in the same size and taper as the last file used in the canal. The master point is fitted to the full length of the canal and checked on an X-ray, then warmed and packed with the obturation pen and the Cicada.",
+        why: "A point matched to your canal fills it closely from the tip of the root to the top, so bacteria cannot get back in. It is well tolerated by the body, and it can be removed if the tooth ever needs re-treatment.",
+      },
+      {
+        name: "Bioactive root canal sealer (RCS)",
+        art: "sealer",
+        what: "A bioceramic (calcium-silicate) root canal sealer that is placed in the canal with the gutta-percha. It sets in the natural moisture of the canal and is bioactive: it releases calcium and helps a mineral layer form where it meets the root wall.",
+        why: "It fills the tiny gaps between the gutta-percha and the root wall with a tight, stable seal, does not shrink as it sets, and is gentle on the tissues around the root tip, which supports healing of an infection there.",
+      },
     ],
   },
   {
@@ -214,6 +226,7 @@ export const technology = [
       },
       {
         name: "ELEGOO Saturn 4 Ultra 16K 3-D printer",
+        photo: photos.printer3d,
         art: "printer3d",
         what: "A high-resolution resin 3-D printer (16K screen, 14 × 19 micrometre detail) in the clinic. It prints inlays and onlays, models and surgical guides from the digital scan of your teeth.",
         why: "Inlays and onlays are designed on the computer from your scan and made in the clinic, with fine detail at the edges for a close fit, instead of waiting for an outside lab.",
@@ -236,6 +249,16 @@ export const technology = [
         art: "centrifuge",
         what: "A centrifuge made in India by Raamah Biocare that spins a small sample of your own blood at a fixed force (about 400 g) and a fixed 33° tube angle, to make platelet-rich fibrin (PRF).",
         why: "The same standard spin every time gives a consistent PRF clot, which is placed in extraction sockets, around implants and with bone grafts to support healing. Nothing artificial is added.",
+        // shown as slides in one card: the centrifuge, then the box the PRF is shaped in
+        slides: [
+          {
+            name: "PRF & GRF box",
+            photo: photos.prfBox,
+            art: "centrifuge",
+            what: "A sterilisable stainless-steel box used straight after the PRFuge spin. The PRF and GRF (growth-factor-rich fibrin) clots are laid on its perforated tray and gently pressed under the lid into membranes of even thickness, or into small plugs for sockets.",
+            why: "The membranes and plugs keep their own growth-factor-rich fluid, which is used to wet bone grafts, so the PRF is ready in the right shape for the socket, implant or gum graft — clean, moist and handled without touching.",
+          },
+        ],
       },
       {
         name: "Tooth Titan",
@@ -257,10 +280,17 @@ export const technology = [
     treatment: "Gum treatment and laser",
     items: [
       {
+        name: "Advanced laser therapy unit",
+        photo: photos.laserTherapy,
+        art: "laser",
+        what: "A low-level laser therapy (LLLT) unit with a fine probe for inside the mouth and a larger cluster head for the jaw and face. It gives low-power light for a few minutes at a time, without cutting or heating the tissue.",
+        why: "Helps painful ulcers, sensitive teeth, jaw-joint (TMJ) pain and soreness after extractions, implants and gum surgery settle and heal more comfortably, as part of the treatment of the cause.",
+      },
+      {
         name: "Dental laser",
         art: "laser",
-        what: "A dental laser that works as a fine beam of light: at higher power for gum treatment, at low power for laser therapy.",
-        why: "Laser gum treatment removes infected tissue with less bleeding, and low-level laser therapy helps ulcers, sensitivity and soreness after surgery heal more comfortably.",
+        what: "A dental laser used as a fine beam of light for gum treatment, to remove the infected lining of gum pockets.",
+        why: "Infected tissue is removed with less bleeding, and bacteria on the gum and root surfaces are reduced.",
       },
     ],
   },
@@ -333,6 +363,8 @@ export const protocols = [
       ["Apex locator", "Measures the exact length of each canal"],
       ["Endo motor", "Turns the rotary files that clean and shape the canals"],
       ["Endo activator", "Activates the disinfecting solution inside the canals"],
+      ["Gutta-percha points", "The master point matched to the canal size and taper"],
+      ["Bioactive RCS", "Bioceramic sealer that seals the gaps and supports healing"],
       ["Obturation pen", "Packs warm gutta-percha at the root tip"],
       ["Cicada DT Fill", "Fills the rest of the canal with warm gutta-percha"],
       ["Runyes scanner", "Digital scan for the crown, where a crown is advised", true],
@@ -345,6 +377,7 @@ export const protocols = [
       "The canals are opened and their exact length is measured with the apex locator, confirmed on an X-ray.",
       "A glide path with fine hand files, then cleaning and shaping with nickel-titanium rotary or reciprocating files on the endo motor (the file system chosen for your canals), with disinfecting rinses between files.",
       "The disinfecting solution is activated inside each canal with the endo activator, to reach side branches the files cannot touch.",
+      "A gutta-percha master point matched to the canal is fitted and checked; it is coated with a bioactive (bioceramic) root canal sealer.",
       "Three-dimensional sealing: the obturation pen packs warm gutta-percha at the root tip, and the Cicada DT Fill fills the rest of the canal.",
       "A final X-ray to check the seal, and a filling to close the tooth.",
       "Where advised, a crown: a digital scan with the Runyes scanner; before cementing, the inside of the crown is cleaned with the micro-blaster and, after try-in, with Ivoclean.",
@@ -468,6 +501,7 @@ export const protocols = [
       ["Digital X-ray (RVG)", "Checks the bone loss before and after"],
       ["Anaesthesia booster", "Numbing before surgery"],
       ["PRFuge", "PRF from your own blood to support healing and grafts", true],
+      ["PRF & GRF box", "Shapes the PRF into membranes and plugs", true],
       ["Tooth Titan", "Graft from your own tooth, when a tooth is being removed", true],
     ],
     steps: [
@@ -488,6 +522,8 @@ export const protocols = [
       ["Anaesthesia booster", "Numbing before surgery"],
       ["Dental laser", "Removes infected tissue, reduces bacteria and helps control bleeding"],
       ["PRFuge", "PRF from your own blood with bone grafts", true],
+      ["PRF & GRF box", "Shapes the PRF into membranes and plugs", true],
+      ["Laser therapy unit", "Low-level laser therapy after surgery for comfort and healing", true],
     ],
     steps: [
       "The same assessment as for flap surgery: pocket measurements, X-rays and scaling first.",
@@ -495,7 +531,7 @@ export const protocols = [
       "The dental laser removes the infected lining of the pocket and reduces bacteria on the gum and root surfaces.",
       "The roots are cleaned and smoothed; bone grafting with PRF where needed.",
       "The gum is placed back and stitched where needed; the laser also helps control bleeding.",
-      "Low-level laser therapy after surgery may be used for comfort and healing.",
+      "Low-level laser therapy after surgery (with the laser therapy unit) may be used for comfort and healing.",
       "Care instructions, a review visit and regular gum maintenance.",
     ],
   },
@@ -503,7 +539,7 @@ export const protocols = [
     group: "Gum treatment and laser",
     title: "Low-level laser therapy (LLLT)",
     uses: [
-      ["Dental laser", "Low-power light that supports healing and eases pain, without cutting"],
+      ["Laser therapy unit", "Low-power light that supports healing and eases pain, without cutting"],
     ],
     steps: [
       "Used for painful mouth ulcers, soreness after extraction or surgery, sensitive teeth, jaw-joint (TMJ) pain and pain from braces.",
@@ -524,6 +560,7 @@ export const protocols = [
       ["Implant systems", "The implant chosen for your bone and budget"],
       ["Anaesthesia booster", "Numbing before the implant is placed"],
       ["PRFuge", "PRF from your own blood to support healing", true],
+      ["PRF & GRF box", "Shapes the PRF into membranes and plugs", true],
       ["Tooth Titan", "Graft from your own extracted tooth where bone is thin", true],
       ["Micro-blaster", "Cleans the inside of a cemented crown (not needed for screw-retained crowns)", true],
       ["Teeth Tracer", "Fine-tunes the bite on the implant crown", true],
@@ -616,6 +653,7 @@ export const protocols = [
       ["Anaesthesia booster", "Numbing before removal"],
       ["Tooth Titan", "Graft from the same tooth to preserve bone for a future implant", true],
       ["PRFuge", "PRF from your own blood to support healing", true],
+      ["PRF & GRF box", "Shapes the PRF into membranes and plugs", true],
     ],
     steps: [
       "X-ray of the tooth, and a check of your medical history and medicines (for example, blood thinners or diabetes).",
@@ -633,6 +671,7 @@ export const protocols = [
       ["Digital X-ray (RVG)", "Shows the position of the tooth and its roots"],
       ["Anaesthesia booster", "Numbing before surgery"],
       ["PRFuge", "PRF from your own blood to support healing", true],
+      ["PRF & GRF box", "Shapes the PRF into membranes and plugs", true],
       ["Tooth Titan", "Graft from the tooth where bone needs rebuilding", true],
     ],
     steps: [
