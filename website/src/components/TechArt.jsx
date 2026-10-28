@@ -252,6 +252,20 @@ const ART = {
       <path d="M40 92 q8 -14 20 -6 q10 8 22 -2" fill="none" stroke="#e9e3d0" strokeWidth="5" strokeLinecap="round" />
     </>
   ),
+  electrosurgery: (
+    <>
+      <Floor />
+      <rect x="44" y="30" width="62" height="46" rx="8" fill="url(#ta-body)" stroke="#9fbcb8" />
+      <rect x="51" y="37" width="30" height="14" rx="2" fill="url(#ta-screen)" />
+      <text x="66" y="47.5" textAnchor="middle" fontSize="8" fontFamily="monospace" fill="#5fe0b0">CUT</text>
+      <circle cx="92" cy="42" r="5" fill="url(#ta-metal-v)" stroke="#7d8a8f" />
+      <circle cx="56" cy="64" r="3" fill="#f5c542" /><circle cx="66" cy="64" r="3" fill="#3b82f6" /><circle cx="76" cy="64" r="3" fill="url(#ta-gum)" />
+      <path d="M48 70 q-18 8 -20 20" fill="none" stroke="#0f3d3e" strokeWidth="2.2" />
+      <rect x="6" y="84" width="36" height="9" rx="4.5" fill="url(#ta-ink)" transform="rotate(-24 24 88)" />
+      <path d="M8 98 L1 104" stroke="url(#ta-metal)" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="2" cy="103" r="4" fill="#7cc9ff" opacity=".45" />
+    </>
+  ),
   printer3d: (
     <>
       <Floor rx="44" />

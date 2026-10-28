@@ -82,7 +82,8 @@ const TECH_ALIAS = {
   "Digital X-ray (RVG)": "Digital X-rays (RVG)", "Endo motor": "Endo motor and rotary files", "Cicada DT Fill": "Cicada DT Fill thermal obturator",
   "Runyes scanner": "Runyes 3DS V3 Pro intra-oral scanner", "Micro-blaster": "Aluminium-oxide micro-blaster", "Surgical guide": "Surgical guide for implants",
   "PRFuge": "PRFuge centrifuge (PRF)", "Ivoclean": "Ivoclean cleaning paste (Ivoclar)", "3-D printer": "ELEGOO Saturn 4 Ultra 16K 3-D printer",
-  "Laser therapy unit": "Advanced laser therapy unit", "Bioactive RCS": "Bioactive root canal sealer (RCS)",
+  "Laser therapy unit": "Advanced laser therapy unit", "BioActive RCS": "SafeEndo BioActive RCS (bioceramic sealer)",
+  "Electrosurgery unit": "Solid-state electrosurgery unit",
 };
 const techFor = (tag) => TECH_ITEMS.find((t) => t.name === (TECH_ALIAS[tag] || tag));
 /* treatments (protocol titles) that use a technology item */
@@ -97,13 +98,13 @@ function TechCard({ t }) {
   useEffect(() => {
     if (pages.length < 2 || hold) return undefined;
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return undefined;
-    const id = setInterval(() => setI((x) => (x + 1) % pages.length), 6000);
+    const id = setInterval(() => setI((x) => (x + 1) % pages.length), 2800);   // quick; pauses while the pointer is on the card
     return () => clearInterval(id);
   }, [pages.length, hold]);
   const cur = pages[i];
   const used = usedIn(cur);
   return (
-    <article className={`tc${cur.photo ? " tc-photo" : ""}${pages.length > 1 ? " tc-slides" : ""}`}
+    <article className={`tc${cur.photo ? " tc-photo" : ""}${pages.length > 1 ? " tc-slides" : ""}${pages.length > 1 && hold ? " paused" : ""}`}
       onMouseEnter={() => setHold(true)} onMouseLeave={() => setHold(false)} onFocus={() => setHold(true)} onBlur={() => setHold(false)}>
       <div className="tc-media">
         {pages.map((pg, k) => (

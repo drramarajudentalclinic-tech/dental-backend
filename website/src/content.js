@@ -181,9 +181,10 @@ export const technology = [
         why: "A point matched to your canal fills it closely from the tip of the root to the top, so bacteria cannot get back in. It is well tolerated by the body, and it can be removed if the tooth ever needs re-treatment.",
       },
       {
-        name: "Bioactive root canal sealer (RCS)",
+        name: "SafeEndo BioActive RCS (bioceramic sealer)",
+        photo: photos.bioactiveRcs,
         art: "sealer",
-        what: "A bioceramic (calcium-silicate) root canal sealer that is placed in the canal with the gutta-percha. It sets in the natural moisture of the canal and is bioactive: it releases calcium and helps a mineral layer form where it meets the root wall.",
+        what: "A ready-mixed bioceramic root canal sealer in a syringe with fine tips, placed in the canal with the gutta-percha. Made of calcium silicates, calcium aluminate and calcium hydroxide, with zirconium oxide so it shows on the X-ray. It sets in the natural moisture of the canal and is bioactive: it releases calcium and helps a mineral layer form where it meets the root wall.",
         why: "It fills the tiny gaps between the gutta-percha and the root wall with a tight, stable seal, does not shrink as it sets, and is gentle on the tissues around the root tip, which supports healing of an infection there.",
       },
     ],
@@ -280,6 +281,12 @@ export const technology = [
     treatment: "Gum treatment and laser",
     items: [
       {
+        name: "Solid-state electrosurgery unit",
+        art: "electrosurgery",
+        what: "A solid-state unit that passes a high-frequency current through a fine electrode tip to cut gum tissue and seal small blood vessels at the same time. Used for reshaping gums (gingivectomy), crown lengthening, freeing a tight lip or tongue tie (frenectomy), uncovering teeth and implants, draining an abscess, small biopsies, and moving the gum back before a crown scan.",
+        why: "Clean, precise cuts with very little bleeding, so the area stays clear and often needs no stitches. Please tell us if you have a pacemaker or another implanted device: then a different method is used.",
+      },
+      {
         name: "Advanced laser therapy unit",
         photo: photos.laserTherapy,
         art: "laser",
@@ -358,7 +365,7 @@ export const protocols = [
       ["Endo motor", "Turns the rotary files that clean and shape the canals"],
       ["Endo activator", "Activates the disinfecting solution inside the canals"],
       ["Gutta-percha points", "The master point matched to the canal size and taper"],
-      ["Bioactive RCS", "Bioceramic sealer that seals the gaps and supports healing"],
+      ["BioActive RCS", "Bioceramic sealer that seals the gaps and supports healing"],
       ["Obturation pen", "Packs warm gutta-percha at the root tip"],
       ["Cicada DT Fill", "Fills the rest of the canal with warm gutta-percha"],
       ["Runyes scanner", "Digital scan for the crown, where a crown is advised", true],
@@ -386,10 +393,12 @@ export const protocols = [
       ["Runyes scanner", "3-D digital scan instead of an impression tray"],
       ["Micro-blaster", "Cleans and roughens the inside of the crown so the cement holds firmly"],
       ["Ivoclean", "Removes saliva left on the crown's bonding surface after try-in"],
+      ["Electrosurgery unit", "Moves the gum back from the edge of the tooth before the scan", true],
     ],
     steps: [
       "The tooth is checked on an X-ray and, if needed, treated first (filling or root canal).",
       "The tooth is shaped under local anaesthesia, given with the anaesthesia booster.",
+      "Where the gum covers the edge of the shaped tooth, it is gently moved back (with the electrosurgery unit where needed) so the scan picks up the edge exactly.",
       "A 3-D digital scan with the Runyes intra-oral scanner (no impression trays), and the shade is matched with photos.",
       "A temporary crown protects the tooth while the lab makes the final crown or bridge.",
       "The inside of the crown is cleaned and slightly roughened with the aluminium-oxide micro-blaster.",
@@ -680,6 +689,7 @@ export const protocols = [
     group: "Oral medicine",
     title: "Oral lesions (patches, ulcers and lumps)",
     uses: [
+      ["Electrosurgery unit", "Small biopsies with less bleeding, where suitable", true],
       ["DrOroscope", "Fluorescence screening and photos of the lesion"],
       ["Intra-oral camera", "Photos to compare at follow-up visits"],
     ],

@@ -749,7 +749,7 @@ img { max-width: 100%; }
 /* equipment card with slides (PRFuge → PRF & GRF box) */
 .tc-slides .tc-media { background: #fff; }
 .tc-slide { position: absolute; inset: 0; display: grid; place-items: center; opacity: 0; transform: translateX(8%) scale(.98);
-  transition: opacity .7s ease, transform .7s cubic-bezier(.22,1,.36,1); pointer-events: none; }
+  transition: opacity .45s ease, transform .45s cubic-bezier(.22,1,.36,1); pointer-events: none; }
 .tc-slide.on { opacity: 1; transform: none; }
 .tc-slide svg.tech-art { width: 58%; height: auto; }
 .tc-slide img.tech-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
@@ -762,6 +762,7 @@ img { max-width: 100%; }
 .tc-arrow.prev { left: 10px; } .tc-arrow.next { right: 10px; }
 .tc-slides:hover .tc-arrow, .tc-arrow:focus-visible { opacity: 1; }
 @media (hover: none) { .tc-arrow { opacity: .85; } }
-.tc-slides .tc-body { animation: tc-fade .5s ease both; }
+.tc-slides .tc-body { animation: tc-fade .35s ease both; }
+.tc-slides.paused .tc-dots::after { content: "❚❚"; position: absolute; right: 12px; bottom: -2px; font-size: 10px; color: rgba(13,54,55,.55); }
 @keyframes tc-fade { from { opacity: 0; translate: 0 8px; } to { opacity: 1; translate: 0 0; } }
 .tc-step { align-self: flex-start; font: 700 11px var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--gum); background: var(--gum-soft); border-radius: 999px; padding: 2px 9px; }
