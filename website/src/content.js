@@ -286,12 +286,6 @@ export const technology = [
         what: "A low-level laser therapy (LLLT) unit with a fine probe for inside the mouth and a larger cluster head for the jaw and face. It gives low-power light for a few minutes at a time, without cutting or heating the tissue.",
         why: "Helps painful ulcers, sensitive teeth, jaw-joint (TMJ) pain and soreness after extractions, implants and gum surgery settle and heal more comfortably, as part of the treatment of the cause.",
       },
-      {
-        name: "Dental laser",
-        art: "laser",
-        what: "A dental laser used as a fine beam of light for gum treatment, to remove the infected lining of gum pockets.",
-        why: "Infected tissue is removed with less bleeding, and bacteria on the gum and root surfaces are reduced.",
-      },
     ],
   },
   {
@@ -483,13 +477,12 @@ export const protocols = [
     uses: [
       ["Digital X-ray (RVG)", "Checks the bone around the teeth"],
       ["Anaesthesia booster", "Numbing before cleaning the pockets"],
-      ["Dental laser", "Removes the infected lining of the pocket", true],
     ],
     steps: [
       "Gum pockets are measured and recorded, with X-rays to check the bone.",
       "Scaling and root planing first, to clean the root surfaces.",
       "Local anaesthesia with the anaesthesia booster.",
-      "The infected inner lining of the gum pocket is gently removed, by hand or with the dental laser.",
+      "The infected inner lining of the gum pocket is gently removed with fine hand instruments.",
       "The pocket is rinsed clean and the gum pressed back against the tooth.",
       "Mouthwash and home-care instructions; a review visit to re-measure the pockets.",
     ],
@@ -520,7 +513,6 @@ export const protocols = [
     uses: [
       ["Digital X-ray (RVG)", "Checks the bone loss before and after"],
       ["Anaesthesia booster", "Numbing before surgery"],
-      ["Dental laser", "Removes infected tissue, reduces bacteria and helps control bleeding"],
       ["PRFuge", "PRF from your own blood with bone grafts", true],
       ["PRF & GRF box", "Shapes the PRF into membranes and plugs", true],
       ["Laser therapy unit", "Low-level laser therapy after surgery for comfort and healing", true],
@@ -690,7 +682,6 @@ export const protocols = [
     uses: [
       ["DrOroscope", "Fluorescence screening and photos of the lesion"],
       ["Intra-oral camera", "Photos to compare at follow-up visits"],
-      ["Dental laser", "Low-level laser therapy for painful ulcers", true],
     ],
     steps: [
       "History of the lesion and of habits such as tobacco, gutka, pan or alcohol.",
