@@ -771,3 +771,36 @@ img { max-width: 100%; }
 .doc-time li { grid-template-columns: 1fr; }
 .trust.trust-3 { grid-template-columns: repeat(3, 1fr); max-width: 980px; }
 @media (max-width: 760px) { .trust.trust-3 { grid-template-columns: 1fr; } .trust.trust-3 > div + div { border-left: none; border-top: 1px solid var(--line); } }
+
+/* hero: two personalised points (replace the quote) */
+.hero-pillars { list-style: none; margin: -2px 0 24px; padding: 0; display: grid; gap: 10px; max-width: 52ch; }
+.hero-pillars li { display: grid; grid-template-columns: 36px 1fr; gap: 12px; align-items: start; padding: 10px 14px 10px 10px;
+  border-radius: 14px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); transition: background .25s, transform .25s; }
+.hero-pillars li:hover { background: rgba(255,255,255,.1); transform: translateX(3px); }
+.hp-ico { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: rgba(232,121,145,.18); color: var(--gum-2); }
+.hero-pillars b { display: block; color: #fff; font: 700 1.02rem/1.35 var(--display); }
+.hero-pillars small { display: block; color: #b9d6d0; font-size: 13.5px; line-height: 1.45; margin-top: 2px; }
+.hero-doc small { display: block; color: #f3c7d1; font-size: 12px; margin-top: 2px; }
+
+/* founder & patent holder marks */
+.tc-inventor { position: absolute; z-index: 3; top: 10px; left: 10px; right: 10px; width: max-content; max-width: calc(100% - 20px);
+  background: linear-gradient(90deg, #7a1d33, #b23a53); color: #fff; font: 700 11.5px/1.3 var(--body); padding: 5px 10px; border-radius: 999px;
+  box-shadow: 0 6px 16px -8px rgba(122,29,51,.7); }
+.tc-inv-line { margin: -2px 0 0; font-size: 13.5px; font-weight: 600; color: #9b2b45; }
+.scr-photo { position: relative; }
+.scr-inventor { position: absolute; left: 12px; bottom: 12px; right: 12px; width: max-content; max-width: calc(100% - 24px);
+  background: rgba(122,29,51,.92); color: #fff; font: 700 12.5px/1.3 var(--body); padding: 6px 12px; border-radius: 999px; }
+.doc-inv-chip { margin-top: 10px; display: inline-block; background: #fdeef1; color: #8c2440; border: 1px solid #f5c7d2; font: 700 12.5px var(--body); padding: 5px 12px; border-radius: 999px; }
+.doc-inv-lead { margin: -4px 0 12px; font-size: 15px; }
+.doc-inv { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 28px; }
+.doc-inv-card { position: relative; display: grid; gap: 4px; justify-items: start; text-align: left; padding: 10px 10px 12px; border-radius: 14px;
+  border: 1px solid var(--line); background: var(--paper); cursor: pointer; font-family: inherit; color: var(--ink);
+  transition: transform .25s cubic-bezier(.22,1,.36,1), box-shadow .25s, border-color .25s; }
+.doc-inv-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-2); border-color: #f0b8c5; }
+.dic-img { width: 100%; aspect-ratio: 4 / 3; border-radius: 10px; overflow: hidden; background: #fff; margin-bottom: 4px; }
+.dic-img img { width: 100%; height: 100%; object-fit: cover; transition: transform .5s; }
+.doc-inv-card:hover .dic-img img { transform: scale(1.06); }
+.doc-inv-card b { font: 700 15px var(--display); }
+.doc-inv-card small { color: var(--muted); font-size: 12.5px; line-height: 1.35; }
+.dic-badge { position: absolute; top: 16px; left: 16px; background: rgba(122,29,51,.9); color: #fff; font: 700 10.5px var(--body); padding: 3px 8px; border-radius: 999px; }
+@media (max-width: 900px) { .doc-inv { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

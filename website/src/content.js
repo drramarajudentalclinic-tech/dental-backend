@@ -24,8 +24,10 @@ export const clinic = {
   shortName: "Sri Satya Sai Dental",
   motto: "Oral health for healthy life",
   // shown under the motto on the home page
-  quote: "No two smiles are the same, so no two treatment plans should be. We listen first, then plan your care around you.",
-  quoteBy: "Personalised dentistry",
+  pillars: [
+    ["Personalised treatment planning and execution", "A plan made for your teeth, your health and your budget, explained first and carried out step by step."],
+    ["Personalised pharmacogenomic treatment", "Medicines chosen to suit your genetic make-up and how your body handles them."],
+  ],
   tagline: `Complete dental care in Chaitanyapuri, Hyderabad, since ${SINCE}, led by Dr. D. Rama Raju with ${YEARS} years of experience. Every treatment is explained before we begin.`,
   since: String(SINCE),
   phone: "+91 99088 94449",
@@ -61,6 +63,7 @@ export const doctors = [
     ],
     about: [
       `Dr. D. Rama Raju (BDS, MDS) has practised dentistry for ${YEARS} years. He runs Sri Satya Sai Oral Health Center & Dental Clinic in Chaitanyapuri, near Dilsukhnagar, Hyderabad, which has been caring for patients since ${SINCE}.`,
+      "He is the founder and patent holder of four dental devices made in India by Raamah Biocare: the DrOroscope for oral cancer screening, the PRFuge centrifuge for platelet-rich fibrin, the Tooth Titan that turns an extracted tooth into bone graft, and the Teeth Tracer digital bite analyser. All four are used at the clinic.",
       "Patients see him for everything from check-ups, fillings and root canals to extractions, implants, dentures, braces and full-mouth rehabilitation. Every treatment starts with a clear diagnosis, and the options and the cost are explained before anything begins.",
     ],
     focus: [
@@ -71,9 +74,17 @@ export const doctors = [
       "Extractions, including wisdom teeth",
       "Braces, aligners and smile design",
     ],
+    // devices he founded and holds the patents for (shown in the doctor section, linked to Technology)
+    inventions: [
+      { name: "DrOroscope", photo: photos.oroscope, line: "Oral cancer screening camera", tab: "Check-ups" },
+      { name: "PRFuge", photo: photos.prfuge, line: "Centrifuge for platelet-rich fibrin", tab: "Dental implants" },
+      { name: "Tooth Titan", photo: photos.toothTitan, line: "Your extracted tooth made into bone graft", tab: "Dental implants" },
+      { name: "Teeth Tracer", photo: photos.teethTracer, line: "Digital bite-force analyser", tab: "Bite" },
+    ],
     timeline: [
       ["BDS", "Osmania Medical College, Hyderabad"],
       ["MDS", "Osmania Medical College, Hyderabad"],
+      ["Founder and patent holder", "DrOroscope, PRFuge, Tooth Titan and Teeth Tracer · made in India by Raamah Biocare"],
       ["Sri Satya Sai Oral Health Center & Dental Clinic", `Chaitanyapuri, Hyderabad · running since ${SINCE} · ${YEARS} years in practice`],
     ],
   },
@@ -114,9 +125,10 @@ export const technology = [
     items: [
       {
         name: "DrOroscope",
+        inventor: true,   // Dr. D. Rama Raju is the founder and patent holder
         photo: photos.oroscope,
         art: "oroscope",
-        what: "A hand-held oral screening camera made in India by Raamah Biocare. A slim head with a 5-megapixel camera reaches the back of the mouth and photographs each area under white, blue and fluorescence light; the pictures appear on a tablet.",
+        what: "A hand-held oral screening camera invented by Dr. D. Rama Raju, the founder and patent holder of the DrOroscope, and made in India by Raamah Biocare. A slim head with a 5-megapixel camera reaches the back of the mouth and photographs each area under white, blue and fluorescence light; the pictures appear on a tablet.",
         why: "Healthy lining glows green while suspicious areas look darker, so early changes in patches, ulcers and lumps are found without cutting, and it helps decide which areas need a biopsy. The photos are kept in your record to compare at the next visit.",
       },
       {
@@ -252,9 +264,10 @@ export const technology = [
       },
       {
         name: "PRFuge centrifuge (PRF)",
+        inventor: true,   // Dr. D. Rama Raju is the founder and patent holder
         photo: photos.prfuge,
         art: "centrifuge",
-        what: "A centrifuge made in India by Raamah Biocare that spins a small sample of your own blood at a fixed force (about 400 g) and a fixed 33° tube angle, to make platelet-rich fibrin (PRF).",
+        what: "A centrifuge invented by Dr. D. Rama Raju, the founder and patent holder of the PRFuge, and made in India by Raamah Biocare. It spins a small sample of your own blood at a fixed force (about 400 g) and a fixed 33° tube angle, to make platelet-rich fibrin (PRF).",
         why: "The same standard spin every time gives a consistent PRF clot, which is placed in extraction sockets, around implants and with bone grafts to support healing. Nothing artificial is added.",
         // shown as slides in one card: the centrifuge, then the box the PRF is shaped in
         slides: [
@@ -269,9 +282,10 @@ export const technology = [
       },
       {
         name: "Tooth Titan",
+        inventor: true,   // Dr. D. Rama Raju is the founder and patent holder
         photo: photos.toothTitan,
         art: "toothTitan",
-        what: "A chairside machine made in India by Raamah Biocare that grinds and filters a tooth that has just been taken out into graft particles of three sizes, in a sealed chamber.",
+        what: "A chairside machine invented by Dr. D. Rama Raju, the founder and patent holder of the Tooth Titan, and made in India by Raamah Biocare. It grinds and filters a tooth that has just been taken out into graft particles of three sizes, in a sealed chamber.",
         why: "Your own tooth becomes the bone-graft material for the socket or the implant site in the same appointment: no donor bone, and nothing foreign to your body.",
       },
       {
@@ -307,9 +321,10 @@ export const technology = [
     items: [
       {
         name: "Teeth Tracer",
+        inventor: true,   // Dr. D. Rama Raju is the founder and patent holder
         photo: photos.teethTracer,
         art: "teethTracer",
-        what: "A digital bite-force analyser made in India by Raamah Biocare. You bite on a wafer-thin sensor strip, and a computer shows where, how hard and in what order your teeth touch.",
+        what: "A digital bite-force analyser invented by Dr. D. Rama Raju, the founder and patent holder of the Teeth Tracer, and made in India by Raamah Biocare. You bite on a wafer-thin sensor strip, and a computer shows where, how hard and in what order your teeth touch.",
         why: "Used where needed: teeth that hit too hard show up on the screen, which helps find causes of jaw-joint (TMJ) pain, headaches and tooth wear, and fine-tune the bite in complex cases.",
       },
     ],
@@ -747,7 +762,7 @@ export const portalSteps = [
 /* Oral cancer screening with the DrOroscope — facts from the published studies. */
 export const screening = {
   title: "Oral cancer screening with the DrOroscope",
-  lead: "Oral cancer often starts as a painless white or red patch. Found early, these changes can be treated before they become cancer. Not every patient needs this test: when you have a risk factor or a suspicious area, the lining of your mouth is checked with the DrOroscope, a hand-held fluorescence camera made in India.",
+  lead: "Oral cancer often starts as a painless white or red patch. Found early, these changes can be treated before they become cancer. Not every patient needs this test: when you have a risk factor or a suspicious area, the lining of your mouth is checked with the DrOroscope, a hand-held fluorescence camera invented by Dr. D. Rama Raju, its founder and patent holder, and made in India.",
   who: [
     "You use or have used tobacco, gutka, khaini, pan or betel nut, or you smoke",
     "You drink alcohol regularly",
@@ -774,7 +789,7 @@ export const screening = {
     "Autofluorescence imaging with three light modes (white, blue, and green-amber)",
     "Slim 5-megapixel intra-oral camera that reaches the back of the mouth",
     "Tablet software with artificial-intelligence features, reports and stored records",
-    "Made in India by Raamah Biocare, with a granted design patent",
+    "Made in India by Raamah Biocare. Dr. D. Rama Raju is the founder and patent holder of the DrOroscope",
   ],
   study: {
     stats: [["100%", "of the dysplasia confirmed by biopsy was picked up"], ["90%", "overall accuracy compared with biopsy"], ["40", "patients with red and white oral lesions, Hyderabad"]],

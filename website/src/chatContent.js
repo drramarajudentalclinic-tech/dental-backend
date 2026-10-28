@@ -87,9 +87,9 @@ export const TOPICS = [
     title: { en: "About the doctor", te: "డాక్టర్ గురించి", hi: "डॉक्टर के बारे में" },
     keys: ["doctor", "dentist", "rama raju", "qualification", "mds", "డాక్టర్", "రామరాజు", "डॉक्टर", "रामराजू"],
     a: {
-      en: ["Dr. D. Rama Raju — BDS, MDS, Osmania Medical College, Hyderabad.", `• ${YEARS} years of experience · clinic running since ${SINCE}`, "• Dental Council Reg. No. A-1096", "• Member, Indian Dental Association"],
-      te: ["డా. డి. రామరాజు — BDS, MDS, ఉస్మానియా మెడికల్ కాలేజ్, హైదరాబాద్.", `• ${YEARS} సంవత్సరాల అనుభవం · ${SINCE} నుండి క్లినిక్ సేవలు`, "• డెంటల్ కౌన్సిల్ రిజిస్ట్రేషన్ నం. A-1096", "• ఇండియన్ డెంటల్ అసోసియేషన్ సభ్యులు"],
-      hi: ["डॉ. डी. रामराजू — BDS, MDS, उस्मानिया मेडिकल कॉलेज, हैदराबाद।", `• ${YEARS} साल का अनुभव · ${SINCE} से क्लिनिक सेवा में`, "• डेंटल काउंसिल रजिस्ट्रेशन नं. A-1096", "• इंडियन डेंटल एसोसिएशन के सदस्य"],
+      en: ["Dr. D. Rama Raju — BDS, MDS, Osmania Medical College, Hyderabad.", `• ${YEARS} years of experience · clinic running since ${SINCE}`, "• Dental Council Reg. No. A-1096", "• Founder and patent holder of the DrOroscope, PRFuge, Tooth Titan and Teeth Tracer (made in India by Raamah Biocare)", "• Member, Indian Dental Association"],
+      te: ["డా. డి. రామరాజు — BDS, MDS, ఉస్మానియా మెడికల్ కాలేజ్, హైదరాబాద్.", `• ${YEARS} సంవత్సరాల అనుభవం · ${SINCE} నుండి క్లినిక్ సేవలు`, "• డెంటల్ కౌన్సిల్ రిజిస్ట్రేషన్ నం. A-1096", "• DrOroscope, PRFuge, Tooth Titan, Teeth Tracer పరికరాల వ్యవస్థాపకులు, పేటెంట్ హోల్డర్ (రామా బయోకేర్, భారతదేశంలో తయారీ)", "• ఇండియన్ డెంటల్ అసోసియేషన్ సభ్యులు"],
+      hi: ["डॉ. डी. रामराजू — BDS, MDS, उस्मानिया मेडिकल कॉलेज, हैदराबाद।", `• ${YEARS} साल का अनुभव · ${SINCE} से क्लिनिक सेवा में`, "• डेंटल काउंसिल रजिस्ट्रेशन नं. A-1096", "• DrOroscope, PRFuge, Tooth Titan और Teeth Tracer उपकरणों के संस्थापक और पेटेंट धारक (रामा बायोकेयर, भारत में निर्मित)", "• इंडियन डेंटल एसोसिएशन के सदस्य"],
     },
   },
   {

@@ -108,6 +108,7 @@ function TechCard({ t }) {
     <article className={`tc${cur.photo ? " tc-photo" : ""}${pages.length > 1 ? " tc-slides" : ""}${pages.length > 1 && hold ? " paused" : ""}`}
       onMouseEnter={() => setHold(true)} onMouseLeave={() => setHold(false)} onFocus={() => setHold(true)} onBlur={() => setHold(false)}>
       <div className="tc-media">
+        {cur.inventor && <span className="tc-inventor" title="Dr. D. Rama Raju is the founder and patent holder of this device">🏅 Founder &amp; patent holder: Dr. D. Rama Raju</span>}
         {pages.map((pg, k) => (
           <div key={pg.name} className={`tc-slide${k === i ? " on" : ""}`} aria-hidden={k !== i}>
             <TechArt name={pg.art} photo={pg.photo} label={pg.name} />
@@ -144,6 +145,14 @@ function TechCard({ t }) {
 
 function Technology() {
   const [g, setG] = useState(0);
+  useEffect(() => {
+    const on = (e) => {
+      const k = technology.findIndex((x) => x.treatment.startsWith(e.detail));
+      if (k >= 0) { setG(k); document.getElementById("technology")?.scrollIntoView({ behavior: "smooth", block: "start" }); }
+    };
+    window.addEventListener("show-tech", on);
+    return () => window.removeEventListener("show-tech", on);
+  }, []);
   const group = technology[g];
   return (
     <>
@@ -237,6 +246,7 @@ function Doctor({ d }) {
         <div className="doc-q">{d.qualification}</div>
         <div className="doc-title">{d.title}</div>
         {clinic.registration && <div className="doc-reg">Dental Council Reg. No. {clinic.registration}</div>}
+        {d.inventions?.length > 0 && <div className="doc-inv-chip">🏅 Founder &amp; patent holder of {d.inventions.length} dental devices</div>}
         <dl className="doc-stats">
           {d.stats.map(([big, small]) => <div key={small}><dt>{big}</dt><dd>{small}</dd></div>)}
         </dl>
@@ -249,6 +259,22 @@ function Doctor({ d }) {
         <span className="kicker">Your dentist</span>
         <h2>About the doctor</h2>
         {d.about.map((p) => <p key={p.slice(0, 20)} className="measure">{p}</p>)}
+        {d.inventions?.length > 0 && (
+          <>
+            <h3>Founder and patent holder</h3>
+            <p className="muted doc-inv-lead">Devices invented by Dr. D. Rama Raju, made in India by Raamah Biocare, and used at the clinic.</p>
+            <div className="doc-inv">
+              {d.inventions.map((x) => (
+                <button key={x.name} type="button" className="doc-inv-card" onClick={() => window.dispatchEvent(new CustomEvent("show-tech", { detail: x.tab }))}>
+                  <span className="dic-img"><img src={x.photo} alt="" loading="lazy" /></span>
+                  <b>{x.name}</b>
+                  <small>{x.line}</small>
+                  <span className="dic-badge">Patent holder</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
         <h3>Areas of care</h3>
         <ul className="doc-focus">{d.focus.map((f) => <li key={f}><Icon n="check" size={18} />{f}</li>)}</ul>
         <h3>Education and practice</h3>
@@ -267,7 +293,8 @@ function Screening() {
   return (
     <>
       <div className="scr-top">
-        <figure className="scr-photo"><img src={photos.oroscope} alt="DrOroscope hand-held oral screening camera" /></figure>
+        <figure className="scr-photo"><img src={photos.oroscope} alt="DrOroscope hand-held oral screening camera" />
+          <figcaption className="scr-inventor">🏅 Invented by Dr. D. Rama Raju · founder &amp; patent holder</figcaption></figure>
         <div>
           <span className="kicker">Early detection</span>
           <h2>{s.title}</h2>
@@ -406,16 +433,20 @@ export default function Home() {
               <p className="hero-place"><Icon n="pin" size={16} />Chaitanyapuri, near Dilsukhnagar, Hyderabad</p>
               <h1>{clinic.name}</h1>
               <p className="motto">{clinic.motto}</p>
-              {clinic.quote && (
-                <figure className="hero-quote">
-                  <blockquote>{clinic.quote}</blockquote>
-                  {clinic.quoteBy && <figcaption>{clinic.quoteBy}</figcaption>}
-                </figure>
+              {clinic.pillars?.length > 0 && (
+                <ul className="hero-pillars">
+                  {clinic.pillars.map(([t, d], k) => (
+                    <li key={t}>
+                      <span className="hp-ico" aria-hidden="true"><Icon n={k === 0 ? "spark" : "shield"} size={18} /></span>
+                      <span><b>{t}</b><small>{d}</small></span>
+                    </li>
+                  ))}
+                </ul>
               )}
               <p className="lead">{clinic.tagline}</p>
               <div className="hero-doc">
                 <span className="ed-mono" aria-hidden="true">{d0.initials}</span>
-                <span><b>{d0.name}</b></span>
+                <span><b>{d0.name}</b>{d0.inventions?.length > 0 && <small>Founder &amp; patent holder · DrOroscope, PRFuge, Tooth Titan, Teeth Tracer</small>}</span>
               </div>
               <div className="hero-actions">
                 <a className="btn light" href={tel(clinic.phone)}><Icon n="phone" size={18} />Call {clinic.phone}</a>
