@@ -227,6 +227,22 @@ const ART = {
       <path d="M54 92 q30 4 40 -38" fill="none" stroke="#0f3d3e" strokeWidth="2.2" />
     </>
   ),
+  printer3d: (
+    <>
+      <Floor rx="44" />
+      <rect x="22" y="76" width="76" height="22" rx="5" fill="url(#ta-body)" stroke="#9fbcb8" />
+      <rect x="30" y="82" width="20" height="10" rx="2" fill="url(#ta-screen)" />
+      <path d="M33 87 h5 l2 -3 l3 6 l2 -3 h3" fill="none" stroke="#5fe0b0" strokeWidth="1" />
+      <rect x="90" y="16" width="5" height="62" rx="2" fill="url(#ta-metal)" />
+      <path d="M26 24 h60 v52 h-60 z" fill="#f59e0b" fillOpacity=".28" stroke="#d97706" strokeWidth="1.2" />
+      <path d="M26 24 l8 -8 h60 l-8 8" fill="#f59e0b" fillOpacity=".18" stroke="#d97706" strokeWidth="1" />
+      <rect x="40" y="30" width="34" height="5" rx="1" fill="url(#ta-metal)" />
+      <rect x="54" y="35" width="6" height="8" fill="url(#ta-metal-v)" />
+      <path d="M48 43 q9 -4 18 0 q2 8 -2 12 h-14 q-4 -4 -2 -12z" fill="url(#ta-tooth)" stroke="#9fbcb8" />
+      <rect x="32" y="66" width="50" height="8" rx="2" fill="#dff1ff" fillOpacity=".8" stroke="#7cc9ff" />
+      <path d="M57 56 v10" stroke="#7cc9ff" strokeWidth="5" opacity=".35" />
+    </>
+  ),
   laser: (
     <>
       <Floor />

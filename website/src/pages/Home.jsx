@@ -81,11 +81,12 @@ const TECH_ITEMS = technology.flatMap((g) => g.items);
 const TECH_ALIAS = {
   "Digital X-ray (RVG)": "Digital X-rays (RVG)", "Endo motor": "Endo motor and rotary files", "Cicada DT Fill": "Cicada DT Fill thermal obturator",
   "Runyes scanner": "Runyes 3DS V3 Pro intra-oral scanner", "Micro-blaster": "Aluminium-oxide micro-blaster", "Surgical guide": "Surgical guide for implants",
-  "PRFuge": "PRFuge centrifuge (PRF)",
+  "PRFuge": "PRFuge centrifuge (PRF)", "Ivoclean": "Ivoclean cleaning paste (Ivoclar)", "3-D printer": "ELEGOO Saturn 4 Ultra 16K 3-D printer",
 };
 const techFor = (tag) => TECH_ITEMS.find((t) => t.name === (TECH_ALIAS[tag] || tag));
 /* treatments (protocol titles) that use a technology item */
-const usedIn = (item) => protocols.filter((p) => (p.uses || []).some(([tag]) => techFor(tag) === item)).map((p) => p.title);
+const sameItem = (a, b) => !!a && !!b && (a === b || a.photo && a.photo === b.photo);   // e.g. RVG shown in two groups
+const usedIn = (item) => protocols.filter((p) => (p.uses || []).some(([tag]) => sameItem(techFor(tag), item))).map((p) => p.title);
 
 function Technology() {
   const [g, setG] = useState(0);
@@ -365,10 +366,16 @@ export default function Home() {
               <p className="hero-place"><Icon n="pin" size={16} />Chaitanyapuri, near Dilsukhnagar, Hyderabad</p>
               <h1>{clinic.name}</h1>
               <p className="motto">{clinic.motto}</p>
+              {clinic.quote && (
+                <figure className="hero-quote">
+                  <blockquote>{clinic.quote}</blockquote>
+                  {clinic.quoteBy && <figcaption>{clinic.quoteBy}</figcaption>}
+                </figure>
+              )}
               <p className="lead">{clinic.tagline}</p>
               <div className="hero-doc">
                 <span className="ed-mono" aria-hidden="true">{d0.initials}</span>
-                <span><b>{d0.name}</b><small>{d0.qualification}{clinic.registration ? ` · Reg. No. ${clinic.registration}` : ""}</small></span>
+                <span><b>{d0.name}</b></span>
               </div>
               <div className="hero-actions">
                 <a className="btn light" href={tel(clinic.phone)}><Icon n="phone" size={18} />Call {clinic.phone}</a>
@@ -381,11 +388,9 @@ export default function Home() {
 
         {/* ── TRUST STRIP ── */}
         <div className="wrap">
-          <dl className="trust">
+          <dl className="trust trust-2">
             <div><span className="tr-ico"><Icon n="award" /></span><dt>25 years</dt><dd>of dental practice</dd></div>
             <div><span className="tr-ico"><Icon n="tooth" /></span><dt>MDS</dt><dd>Oral Medicine &amp; Radiology</dd></div>
-            <div><span className="tr-ico"><Icon n="spark" /></span><dt>Personalised dentistry</dt><dd>a plan made for you, explained first</dd></div>
-            <div><span className="tr-ico"><Icon n="shield" /></span><dt>Sealed &amp; sterilised</dt><dd>every instrument, every time</dd></div>
           </dl>
         </div>
 

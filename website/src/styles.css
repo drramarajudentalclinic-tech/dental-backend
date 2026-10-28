@@ -734,3 +734,14 @@ img { max-width: 100%; }
 .link-arrow:hover svg { transform: translateX(4px); }
 .foot a { transition: color .2s; }
 .foot a:hover { color: var(--gum-2); }
+
+/* hero: quote on personalised dentistry (under the motto) */
+.hero-quote { margin: -2px 0 22px; padding: 4px 0 4px 18px; border-left: 3px solid var(--gum-2); max-width: 46ch; }
+.hero-quote blockquote { margin: 0; font: italic 500 1.08rem/1.55 var(--display); color: #eaf5f2; }
+.hero-quote blockquote::before { content: "“"; color: var(--gum-2); font-size: 1.5em; line-height: 0; margin-right: 2px; vertical-align: -0.25em; }
+.hero-quote blockquote::after { content: "”"; color: var(--gum-2); font-size: 1.5em; line-height: 0; margin-left: 2px; vertical-align: -0.25em; }
+.hero-quote figcaption { margin-top: 6px; font-size: 12.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #a9cbc4; }
+.hero-doc { padding-right: 22px; }
+/* trust strip with two items */
+.trust.trust-2 { grid-template-columns: repeat(2, 1fr); max-width: 760px; }
+@media (max-width: 560px) { .trust.trust-2 { grid-template-columns: 1fr; } }
