@@ -282,6 +282,7 @@ export const technology = [
     items: [
       {
         name: "Solid-state electrosurgery unit",
+        photo: photos.electrosurgery,
         art: "electrosurgery",
         what: "A solid-state unit that passes a high-frequency current through a fine electrode tip to cut gum tissue and seal small blood vessels at the same time. Used for reshaping gums (gingivectomy), crown lengthening, freeing a tight lip or tongue tie (frenectomy), uncovering teeth and implants, draining an abscess, small biopsies, and moving the gum back before a crown scan.",
         why: "Clean, precise cuts with very little bleeding, so the area stays clear and often needs no stitches. Please tell us if you have a pacemaker or another implanted device: then a different method is used.",
@@ -308,6 +309,18 @@ export const technology = [
     ],
   },
   {
+    treatment: "Sterilisation and a clean clinic",
+    items: [
+      {
+        name: "Germicidal UV-C lamp",
+        photo: photos.uvLamp,
+        art: "uvLamp",
+        what: "A lamp that gives short-wave ultraviolet light (UV-C, 254 nm). This light inactivates bacteria and viruses in the air and on exposed surfaces of the treatment room. It runs on a timer, only when the room is empty.",
+        why: "An extra layer of disinfection on top of cleaning the surfaces and sterilising every instrument, so the room is ready and clean for you. Nobody is in the room while it is on, because UV-C light can harm the eyes and skin.",
+      },
+    ],
+  },
+  {
     treatment: "Your records",
     items: [
       {
@@ -328,13 +341,17 @@ export const protocols = [
   {
     group: "Before any treatment",
     title: "Sterilisation of every instrument",
-    uses: [],
+    uses: [
+      ["Germicidal UV lamp", "Disinfects the air and surfaces of the empty treatment room"],
+    ],
     steps: [
       "Used instruments are soaked in disinfectant and cleaned.",
       "They are packed in sealed sterilisation pouches with an indicator strip.",
       "The pouches go through a steam autoclave cycle.",
       "Pouches are opened in front of you, at the chair, for your treatment.",
       "Single-use items (needles, gloves, suction tips, cups) are used once and discarded.",
+      "Work surfaces and the dental chair are wiped with disinfectant after every patient.",
+      "When the room is empty (between sessions and at the end of the day), the germicidal UV-C lamp is switched on with a timer to disinfect the air and exposed surfaces. Nobody stays in the room while it is on.",
     ],
   },
   {
@@ -764,6 +781,6 @@ export const faqs = [
   ["Is the oral cancer screening painful?", "No. The DrOroscope only shines light and takes photos of the inside of your mouth. It takes a few minutes, and is done when the doctor advises it or you ask for it."],
   ["What should I bring to my first visit?", "A list of the medicines you take, any medical reports, and any old dental X-rays or scans. If you have diabetes, blood pressure or heart problems, or are pregnant, please tell the doctor."],
   ["Can I see my X-rays and prescriptions later?", "Yes. When the doctor switches on your patient portal and shares them, you can see your visit summaries, prescriptions, X-rays and receipts on your phone."],
-  ["How are instruments kept clean?", "Instruments are cleaned, sealed in sterilisation pouches and steam-autoclaved. The pouch is opened in front of you, and needles, gloves and suction tips are used once and thrown away."],
+  ["How are instruments kept clean?", "Instruments are cleaned, sealed in sterilisation pouches and steam-autoclaved. The pouch is opened in front of you, and needles, gloves and suction tips are used once and thrown away. Surfaces are disinfected after every patient, and a germicidal UV-C lamp disinfects the empty treatment room."],
   ["When should a child first see a dentist?", "By the first birthday, or when the first tooth comes in. Early visits help catch decay in milk teeth and get children comfortable at the dentist."],
 ];

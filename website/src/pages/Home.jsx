@@ -84,6 +84,7 @@ const TECH_ALIAS = {
   "PRFuge": "PRFuge centrifuge (PRF)", "Ivoclean": "Ivoclean cleaning paste (Ivoclar)", "3-D printer": "ELEGOO Saturn 4 Ultra 16K 3-D printer",
   "Laser therapy unit": "Advanced laser therapy unit", "BioActive RCS": "SafeEndo BioActive RCS (bioceramic sealer)",
   "Electrosurgery unit": "Solid-state electrosurgery unit",
+  "Germicidal UV lamp": "Germicidal UV-C lamp",
 };
 const techFor = (tag) => TECH_ITEMS.find((t) => t.name === (TECH_ALIAS[tag] || tag));
 /* treatments (protocol titles) that use a technology item */
