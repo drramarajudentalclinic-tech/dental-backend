@@ -312,6 +312,13 @@ export const technology = [
     treatment: "Sterilisation and a clean clinic",
     items: [
       {
+        name: "Sterilisation pouches",
+        photo: photos.pouches,
+        art: "records",
+        what: "Self-sealing pouches, paper on one side and clear film on the other, that each instrument set is sealed in before it goes into the steam autoclave. The steam passes through the paper, and an indicator on the pouch changes colour when the right sterilising conditions are reached.",
+        why: "Your instruments stay sterile inside the sealed pouch until it is opened in front of you at the chair, and the colour change shows the pouch has been through a full sterilisation cycle.",
+      },
+      {
         name: "Germicidal UV-C lamp",
         photo: photos.uvLamp,
         art: "uvLamp",
@@ -342,12 +349,13 @@ export const protocols = [
     group: "Before any treatment",
     title: "Sterilisation of every instrument",
     uses: [
+      ["Sterilisation pouches", "Instruments sealed and autoclaved; opened in front of you"],
       ["Germicidal UV lamp", "Disinfects the air and surfaces of the empty treatment room"],
     ],
     steps: [
       "Used instruments are soaked in disinfectant and cleaned.",
-      "They are packed in sealed sterilisation pouches with an indicator strip.",
-      "The pouches go through a steam autoclave cycle.",
+      "They are packed and sealed in sterilisation pouches with a colour-change indicator.",
+      "The pouches go through a steam autoclave cycle; the indicator changes colour to show the cycle was complete.",
       "Pouches are opened in front of you, at the chair, for your treatment.",
       "Single-use items (needles, gloves, suction tips, cups) are used once and discarded.",
       "Work surfaces and the dental chair are wiped with disinfectant after every patient.",
