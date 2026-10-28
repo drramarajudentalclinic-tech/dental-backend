@@ -253,7 +253,7 @@ function Doctor({ d }) {
         <ul className="doc-focus">{d.focus.map((f) => <li key={f}><Icon n="check" size={18} />{f}</li>)}</ul>
         <h3>Education and practice</h3>
         <ol className="doc-time">
-          {d.timeline.map(([y, t, w]) => <li key={y}><span className="yr">{y}</span><span><b>{t}</b><br /><span className="muted">{w}</span></span></li>)}
+          {d.timeline.map(([t, w]) => <li key={t}><span><b>{t}</b><br /><span className="muted">{w}</span></span></li>)}
         </ol>
       </div>
     </div>
@@ -428,9 +428,10 @@ export default function Home() {
 
         {/* ── TRUST STRIP ── */}
         <div className="wrap">
-          <dl className="trust trust-2">
+          <dl className="trust trust-3">
             <div><span className="tr-ico"><Icon n="award" /></span><dt>25 years</dt><dd>of dental practice</dd></div>
-            <div><span className="tr-ico"><Icon n="tooth" /></span><dt>MDS</dt><dd>Oral Medicine &amp; Radiology</dd></div>
+            <div><span className="tr-ico"><Icon n="tooth" /></span><dt>MDS</dt><dd>Master of Dental Surgery</dd></div>
+            <div><span className="tr-ico"><Icon n="shield" /></span><dt>Since {clinic.since || "1999"}</dt><dd>caring for patients in Chaitanyapuri</dd></div>
           </dl>
         </div>
 

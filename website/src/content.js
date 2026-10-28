@@ -21,7 +21,8 @@ export const clinic = {
   // shown under the motto on the home page
   quote: "No two smiles are the same, so no two treatment plans should be. We listen first, then plan your care around you.",
   quoteBy: "Personalised dentistry",
-  tagline: "Complete dental care in Chaitanyapuri, Hyderabad, led by a specialist in oral medicine and radiology with 25 years of experience. Every treatment is explained before we begin.",
+  tagline: "Complete dental care in Chaitanyapuri, Hyderabad, since 1999, led by Dr. D. Rama Raju with 25 years of experience. Every treatment is explained before we begin.",
+  since: "1999",
   phone: "+91 99088 94449",
   whatsapp: "+91 99088 94449",
   email: "drramarajudentalclinic@gmail.com",
@@ -46,15 +47,15 @@ export const doctors = [
   {
     name: "Dr. D. Rama Raju",
     initials: "RR",
-    qualification: "BDS, MDS (Oral Medicine & Radiology)",
-    title: "Dentist and specialist in Oral Medicine & Radiology",
+    qualification: "BDS, MDS",
+    title: "Dentist, Chaitanyapuri, Hyderabad",
     stats: [
       ["25", "years in practice"],
-      ["MDS", "Oral Medicine & Radiology"],
+      ["MDS", "Master of Dental Surgery"],
       ["IDA", "Member, Indian Dental Association"],
     ],
     about: [
-      "Dr. D. Rama Raju holds a master's degree in Oral Medicine and Radiology, the speciality that deals with diagnosing diseases of the mouth, jaws and face and with reading dental X-rays and scans. He has practised dentistry for 25 years and runs Sri Satya Sai Oral Health Center & Dental Clinic in Chaitanyapuri, near Dilsukhnagar, Hyderabad.",
+      "Dr. D. Rama Raju (BDS, MDS) has practised dentistry for 25 years. He runs Sri Satya Sai Oral Health Center & Dental Clinic in Chaitanyapuri, near Dilsukhnagar, Hyderabad, which has been caring for patients since 1999.",
       "Patients see him for everything from check-ups, fillings and root canals to extractions, implants, dentures, braces and full-mouth rehabilitation. Every treatment starts with a clear diagnosis, and the options and the cost are explained before anything begins.",
     ],
     focus: [
@@ -66,9 +67,9 @@ export const doctors = [
       "Braces, aligners and smile design",
     ],
     timeline: [
-      ["1996", "BDS", "Osmania Medical College, Hyderabad"],
-      ["2000", "MDS, Oral Medicine & Radiology", "Osmania Medical College, Hyderabad"],
-      ["Today", "25 years in practice", "Sri Satya Sai Oral Health Center & Dental Clinic, Chaitanyapuri"],
+      ["BDS", "Osmania Medical College, Hyderabad"],
+      ["MDS", "Osmania Medical College, Hyderabad"],
+      ["Sri Satya Sai Oral Health Center & Dental Clinic", "Chaitanyapuri, Hyderabad · running since 1999 · 25 years in practice"],
     ],
   },
 ];
@@ -92,7 +93,7 @@ export const services = [
   ["Oral lesions and oral cancer screening", "Check-ups for white or red patches, non-healing ulcers and lumps with the DrOroscope; burning mouth and facial pain.", "Oral lesions (patches, ulcers and lumps)"],
   ["Bone grafts and PRF", "Bone grafts made from your own extracted tooth (Tooth Titan) and platelet-rich fibrin (PRF) from your own blood, for sockets, implants and gum surgery."],
   ["Oral rehabilitation", "Full-mouth rehabilitation for worn, broken or missing teeth, restoring chewing and bite together."],
-  ["Dental X-rays and scans", "Digital X-rays at the clinic; OPG and CBCT scans at an imaging centre when needed, read and explained by the doctor, a specialist in oral radiology."],
+  ["Dental X-rays and scans", "Digital X-rays at the clinic; OPG and CBCT scans at an imaging centre when needed, read and explained to you by the doctor."],
   ["Children's dentistry", "Gentle first visits, fillings, pulp treatment for milk teeth and space maintainers."],
   ["Bite problems, jaw pain and sensitivity", "Digital bite analysis with the Teeth Tracer for jaw-joint (TMJ) pain, headaches, teeth grinding and wear; night guards; sensitive teeth and bad breath."],
   ["Teeth whitening and smile design", "Whitening, reshaping and bonding to improve the look of your smile."],
@@ -711,7 +712,7 @@ export const protocols = [
   },
 
   {
-    group: "Oral medicine",
+    group: "Mouth lesions and screening",
     title: "Oral lesions (patches, ulcers and lumps)",
     uses: [
       ["Electrosurgery unit", "Small biopsies with less bleeding, where suitable", true],
@@ -754,7 +755,7 @@ export const screening = {
     "A normal photo of each area of the mouth with the 5-megapixel camera, under white light.",
     "Blue light (400–460 nm) makes healthy lining glow green; areas with abnormal cells lose the glow and look dark.",
     "Green and amber light show the small blood vessels, which change in abnormal tissue.",
-    "The pictures appear on a tablet, where software with artificial-intelligence features helps assess them. The doctor, a specialist in oral medicine and radiology, reads them with you.",
+    "The pictures appear on a tablet, where software with artificial-intelligence features helps assess them. The doctor reads them with you.",
     "If an area looks suspicious, a biopsy of exactly that spot is advised to confirm it.",
     "The photos are saved in your record, so the same area is compared at your next visit.",
   ],

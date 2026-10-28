@@ -43,7 +43,7 @@ def _read(name):
 
 CLINIC_FACTS = """
 CLINIC: Sri Satya Sai Oral Health Center & Dental Clinic (Sri Satya Sai Oral Health Centre).
-DOCTOR: Dr. D. Rama Raju, BDS, MDS (Oral Medicine & Radiology), Dental Council Reg. No. A-1096, 25 years of experience. BDS and MDS from Osmania Medical College, Hyderabad. Member, Indian Dental Association.
+DOCTOR: Dr. D. Rama Raju, BDS, MDS, Dental Council Reg. No. A-1096, 25 years of experience. The clinic has been running since 1999. (Do not describe the doctor's MDS speciality.) BDS and MDS from Osmania Medical College, Hyderabad. Member, Indian Dental Association.
 ADDRESS: G-15, Ground Floor, Rajanigandha Apartments, Opposite Metro Pillar No. 1563, Chaitanyapuri, Hyderabad – 500060, Telangana (near Dilsukhnagar).
 GOOGLE MAPS: https://maps.app.goo.gl/F8Zp631MJP9MvKtk7
 TIMINGS: Monday to Saturday, 11:00 am – 7:00 pm. Sunday holiday. BY APPOINTMENT ONLY.
