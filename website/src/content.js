@@ -63,7 +63,7 @@ export const doctors = [
     ],
     about: [
       `Dr. D. Rama Raju (BDS, MDS) has practised dentistry for ${YEARS} years. He runs Sri Satya Sai Oral Health Center & Dental Clinic in Chaitanyapuri, near Dilsukhnagar, Hyderabad, which has been caring for patients since ${SINCE}.`,
-      "He is the founder and patent holder of four dental devices made in India by Raamah Biocare: the DrOroscope for oral cancer screening, the PRFuge centrifuge for platelet-rich fibrin, the Tooth Titan that turns an extracted tooth into bone graft, and the Teeth Tracer digital bite analyser. All four are used at the clinic.",
+      "He is the CEO of Raamah Biocare Pvt. Ltd., and the founder and patent holder of four dental devices the company makes in India: the DrOroscope for oral cancer screening, the PRFuge centrifuge for platelet-rich fibrin, the Tooth Titan that turns an extracted tooth into bone graft, and the Teeth Tracer digital bite analyser. All four are used at the clinic.",
       "Patients see him for everything from check-ups, fillings and root canals to extractions, implants, dentures, braces and full-mouth rehabilitation. Every treatment starts with a clear diagnosis, and the options and the cost are explained before anything begins.",
     ],
     focus: [
@@ -84,6 +84,7 @@ export const doctors = [
     timeline: [
       ["BDS", "Osmania Medical College, Hyderabad"],
       ["MDS", "Osmania Medical College, Hyderabad"],
+      ["CEO, Raamah Biocare Pvt. Ltd.", "Dental devices made in India"],
       ["Founder and patent holder", "DrOroscope, PRFuge, Tooth Titan and Teeth Tracer · made in India by Raamah Biocare"],
       ["Sri Satya Sai Oral Health Center & Dental Clinic", `Chaitanyapuri, Hyderabad · running since ${SINCE} · ${YEARS} years in practice`],
     ],

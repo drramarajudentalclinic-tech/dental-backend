@@ -246,6 +246,7 @@ function Doctor({ d }) {
         <div className="doc-title">{d.title}</div>
         {clinic.registration && <div className="doc-reg">Dental Council Reg. No. {clinic.registration}</div>}
         {d.inventions?.length > 0 && <div className="doc-inv-chip">🏅 Founder &amp; patent holder of {d.inventions.length} dental devices</div>}
+        <div className="doc-inv-chip doc-ceo-chip">CEO, Raamah Biocare Pvt. Ltd.</div>
         <dl className="doc-stats">
           {d.stats.map(([big, small]) => <div key={small}><dt>{big}</dt><dd>{small}</dd></div>)}
         </dl>
@@ -261,7 +262,7 @@ function Doctor({ d }) {
         {d.inventions?.length > 0 && (
           <>
             <h3>Founder and patent holder</h3>
-            <p className="muted doc-inv-lead">Devices invented by Dr. D. Rama Raju, made in India by Raamah Biocare, and used at the clinic.</p>
+            <p className="muted doc-inv-lead">Devices invented by Dr. D. Rama Raju, made in India by Raamah Biocare Pvt. Ltd. (where he is CEO), and used at the clinic.</p>
             <div className="doc-inv">
               {d.inventions.map((x) => (
                 <button key={x.name} type="button" className="doc-inv-card" onClick={() => window.dispatchEvent(new CustomEvent("show-tech", { detail: x.tab }))}>
