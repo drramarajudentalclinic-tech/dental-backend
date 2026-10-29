@@ -1,7 +1,8 @@
+from datetime import date, datetime, timedelta, timezone
 from functools import wraps
 
 from flask import Blueprint, request, jsonify
-from sqlalchemy import func
+from sqlalchemy import func, inspect, text
 from sqlalchemy.exc import IntegrityError
 
 from database import db
@@ -32,12 +33,97 @@ dental_bp = Blueprint("dental", __name__)
 #
 #  The response format is unchanged, so every screen that already reads
 #  the chart (visit page, diagnosis panel, patient history) keeps working.
+#
+#  CHART DATE
+#    Every finding has a date (chart_date). The chart fills in today's
+#    date; the doctor can pick any other day. When nothing is sent (for
+#    example from the Diagnosis panel) today's date in India is used.
+#    Findings saved before this change show the day they were recorded.
+#    The chart_date column is added to the table automatically the first
+#    time the dental chart is used - nothing has to be done by hand.
 # ══════════════════════════════════════════════════════════════
 
 SEVERITIES = ("mild", "moderate", "severe", "critical")
 SURFACE_ORDER = "MOIDBL"          # Mesial, Occlusal, Incisal, Distal, Buccal, Lingual
 MAX_LEN = {"tooth_number": 10, "condition": 100, "severity": 20,
            "other_text": 200, "custom_color": 20, "surface": 50}
+
+
+IST = timezone(timedelta(hours=5, minutes=30))     # India time, for "today"
+
+
+def _today():
+    return datetime.now(IST).date()
+
+
+# ── chart_date column: added once, automatically ─────────────────
+_date_column = {"checked": False, "ok": False}
+
+
+def _table():
+    return DentalChart.__table__.name
+
+
+def _ensure_date_column():
+    """Adds the chart_date column if the table does not have it yet.
+    Runs once per server start; if it cannot be added, the chart keeps
+    working exactly as before, just without chosen dates."""
+    if _date_column["checked"]:
+        return _date_column["ok"]
+    try:
+        cols = {c["name"] for c in inspect(db.engine).get_columns(_table())}
+        if "chart_date" not in cols:
+            with db.engine.begin() as conn:
+                if db.engine.dialect.name == "postgresql":
+                    conn.execute(text("SET LOCAL lock_timeout = '10s'"))
+                conn.execute(text(f"ALTER TABLE {_table()} ADD COLUMN chart_date DATE"))
+            print("[dental chart] Added chart_date column")
+        _date_column["ok"] = True
+    except Exception as exc:
+        print(f"[dental chart] chart_date column not available: {type(exc).__name__}")
+        _date_column["ok"] = False
+    _date_column["checked"] = True
+    return _date_column["ok"]
+
+
+@dental_bp.before_request
+def _before():
+    _ensure_date_column()
+
+
+def _parse_date(value):
+    """'2026-10-29' (or a full ISO date-time) -> date. Empty -> None."""
+    raw = _text(value)
+    if not raw:
+        return None
+    try:
+        day = date.fromisoformat(raw[:10])
+    except ValueError:
+        raise ChartError("The date is not valid. Please pick it again.")
+    if day.year < 1900 or day > _today() + timedelta(days=366):
+        raise ChartError("The date is not valid. Please pick it again.")
+    return day
+
+
+def _set_date(entry_id, day):
+    if _date_column["ok"] and day is not None:
+        db.session.execute(text(f"UPDATE {_table()} SET chart_date = :d WHERE id = :i"),
+                           {"d": day, "i": entry_id})
+
+
+def _dates_for(ids):
+    """{id: 'YYYY-MM-DD'} for the given findings."""
+    ids = [i for i in ids if i is not None]
+    if not ids or not _date_column["ok"]:
+        return {}
+    try:
+        rows = db.session.execute(
+            text(f"SELECT id, chart_date FROM {_table()} WHERE id IN ({','.join(str(int(i)) for i in ids)})")
+        ).fetchall()
+    except Exception:
+        db.session.rollback()
+        return {}
+    return {r[0]: (r[1].isoformat() if hasattr(r[1], "isoformat") else (str(r[1]) if r[1] else None)) for r in rows}
 
 
 class ChartError(Exception):
@@ -159,6 +245,7 @@ def add_dental(visit_id):
         return jsonify({"error": "tooth_number and condition are required"}), 400
 
     fields = _clean(data)
+    chosen = _parse_date(data.get("chart_date"))
 
     # Same tooth + same condition: update that finding (only what was sent).
     entry = _same_finding(visit_id, fields["tooth_number"], fields["condition"], fields["other_text"])
@@ -167,6 +254,7 @@ def add_dental(visit_id):
         for name, value in sent.items():
             if name not in ("tooth_number", "condition"):
                 setattr(entry, name, value or None)
+        _set_date(entry.id, chosen)
         db.session.commit()
         return jsonify(_serialize(entry)), 200
 
@@ -179,6 +267,8 @@ def add_dental(visit_id):
         **{k: (v or None) for k, v in fields.items() if k not in ("tooth_number", "condition")},
     )
     db.session.add(entry)
+    db.session.flush()                              # gives the new finding its id
+    _set_date(entry.id, chosen or _today())
     db.session.commit()
     return jsonify(_serialize(entry)), 201
 
@@ -193,7 +283,8 @@ def list_dental(visit_id):
                .filter_by(visit_id=visit_id)
                .order_by(DentalChart.id.asc())
                .all())
-    return jsonify([_serialize(e) for e in entries])
+    dates = _dates_for([e.id for e in entries])
+    return jsonify([_serialize(e, dates) for e in entries])
 
 
 # -----------------------------
@@ -209,6 +300,7 @@ def edit_dental(visit_id, id):
         return jsonify({"error": "No data provided"}), 400
 
     fields = _clean(data, partial=True)
+    chosen = _parse_date(data.get("chart_date")) if "chart_date" in data else None
 
     # Changing the tooth or the condition must not create a second copy of
     # a finding that is already on that tooth.
@@ -222,6 +314,7 @@ def edit_dental(visit_id, id):
     for name, value in fields.items():
         setattr(entry, name, value if name in ("tooth_number", "condition") else (value or None))
 
+    _set_date(entry.id, chosen)
     db.session.commit()
     return jsonify(_serialize(entry))
 
@@ -241,7 +334,10 @@ def delete_dental(visit_id, id):
 # -----------------------------
 # HELPER
 # -----------------------------
-def _serialize(e):
+def _serialize(e, dates=None):
+    if dates is None:
+        dates = _dates_for([e.id])
+    created = e.created_at
     return {
         "id":           e.id,
         "visit_id":     e.visit_id,
@@ -254,4 +350,6 @@ def _serialize(e):
         "custom_color": getattr(e, "custom_color", None),
         "created_at":   e.created_at.isoformat() if e.created_at else None,
         "updated_at":   e.updated_at.isoformat() if getattr(e, "updated_at", None) else None,
+        # chosen date; older findings fall back to the day they were recorded
+        "chart_date":   dates.get(e.id) or (created.date().isoformat() if created else None),
     }
