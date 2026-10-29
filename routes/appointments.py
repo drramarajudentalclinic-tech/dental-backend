@@ -34,8 +34,13 @@ Automatic updates (no screen has to remember to do it):
       MOVES (no second booking). Date removed → the booking is cancelled.
       Already booked that day (by anyone, also in the Appointments app) → the
       same booking is used (time updated), never a duplicate.
-    • The visit is closed → the patient's appointment of that day becomes
-      COMPLETED.
+    • The visit is closed → the patient's appointment becomes COMPLETED:
+      the appointment linked to that visit, and the one on the visit's own
+      date (also when the visit is closed a day later with the earlier date),
+      and today's.
+    • An appointment in the past that was never marked done, while the
+      patient had a closed visit on that same day, is marked COMPLETED the
+      next time any screen reads it (so older records correct themselves).
     • A booking made in the Appointments app is linked to the patient
       automatically by case number (or by mobile number + name).
 Answers keep the old shape (appt_id, name, date, time, mobile, case_number,
@@ -384,6 +389,7 @@ def _with_links(rows):
             sb_update(r["id"], ch)
         except ApptError as e:
             print("[appointments] could not save the patient link:", e.message)
+    _complete_attended(rows)
     state = _visit_state({r["patient_id"] for r in rows if r.get("patient_id")})
     return [_out(r, state) for r in rows]
 
@@ -454,19 +460,88 @@ def cancel_follow_up(patient, old_date, reason="Follow-up date removed by the do
     return len(rows)
 
 
+def _ist_day(dt):
+    """visits.visit_date (naive UTC) → its calendar day in India, 'YYYY-MM-DD'."""
+    if dt is None:
+        return None
+    if isinstance(dt, datetime):
+        return (dt + timedelta(hours=5, minutes=30)).date().isoformat()
+    return str(dt)[:10]
+
+
 def complete_today(patient, visit_id=None):
-    day = today_ist().isoformat()
-    rows = sb_select(patient_id=f"eq.{patient.id}", appointment_date=f"eq.{day}", status="eq.SCHEDULED")
-    if not rows:
-        cand = sb_select(appointment_date=f"eq.{day}", status="eq.SCHEDULED", patient_id="is.null")
-        found = _match_patients(cand)
-        rows = [r for r in cand if found.get(r["id"]) is not None and found[r["id"]].id == patient.id]
+    """The visit was closed: mark the patient's appointment COMPLETED.
+    Looks at today AND at the visit's own date (a visit opened yesterday and
+    closed today with yesterday's date still completes yesterday's
+    appointment), plus any appointment already linked to this visit."""
+    days = [today_ist().isoformat()]
+    if visit_id:
+        v = db.session.get(Visit, int(visit_id))
+        vday = _ist_day(getattr(v, "visit_date", None)) if v is not None else None
+        if vday and vday not in days:
+            days.append(vday)
+    rows, seen = [], set()
+
+    def add(found_rows):
+        for r in found_rows:
+            if r.get("id") not in seen:
+                seen.add(r.get("id"))
+                rows.append(r)
+
+    if visit_id:
+        add(sb_select(visit_id=f"eq.{int(visit_id)}", status="eq.SCHEDULED"))
+    for day in days:
+        own = sb_select(patient_id=f"eq.{patient.id}", appointment_date=f"eq.{day}", status="eq.SCHEDULED")
+        if not own:
+            cand = sb_select(appointment_date=f"eq.{day}", status="eq.SCHEDULED", patient_id="is.null")
+            found = _match_patients(cand)
+            own = [r for r in cand if found.get(r["id"]) is not None and found[r["id"]].id == patient.id]
+        add(own)
     for r in rows:
+        day = str(r.get("appointment_date") or "")[:10]
         ch = {"status": "COMPLETED", "patient_id": patient.id}
         if visit_id and (not r.get("visit_id") or _visit_of_day(r, day) is None):
             ch["visit_id"] = visit_id
         sb_update(r["id"], ch)
     return len(rows)
+
+
+CLOSED_VISIT = ("CLOSED", "COMPLETED", "READY_FOR_BILLING")
+
+
+def _complete_attended(rows):
+    """Past appointments still SCHEDULED although the patient had a closed
+    visit on that day → COMPLETED (saved to Supabase once). Today's are left
+    to complete_today, so a second booking later today is never touched."""
+    today = today_ist().isoformat()
+    past = [r for r in rows if (r.get("status") or "SCHEDULED").upper() == "SCHEDULED"
+            and r.get("patient_id") and str(r.get("appointment_date") or "")[:10] < today]
+    if not past:
+        return
+    try:
+        first = min(str(r["appointment_date"])[:10] for r in past)
+        start = _utc_naive(first, "00:00")
+        visits = (Visit.query.filter(Visit.patient_id.in_({int(r["patient_id"]) for r in past}))
+                  .filter(Visit.visit_date >= start)
+                  .filter(Visit.status.in_(list(CLOSED_VISIT))).all())
+    except Exception as e:
+        print("[appointments] could not check visits for past appointments:", type(e).__name__)
+        return
+    by_day = {}
+    for v in visits:
+        by_day.setdefault((v.patient_id, _ist_day(v.visit_date)), v.id)
+    for r in past:
+        vid = by_day.get((int(r["patient_id"]), str(r["appointment_date"])[:10]))
+        if vid is None:
+            continue
+        ch = {"status": "COMPLETED"}
+        if not r.get("visit_id"):
+            ch["visit_id"] = vid
+        try:
+            sb_update(r["id"], ch)
+            r.update(ch)
+        except ApptError as e:
+            print("[appointments] could not mark a past appointment completed:", e.message)
 
 
 # ═════════════════════════════════════════════════════════════════════
