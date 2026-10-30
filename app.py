@@ -437,6 +437,7 @@ other_blueprints = [
     billing_ledger_bp,
     portal_bp,
     chatbot_bp,
+    voice_bp,
 ]
 
 for bp in other_blueprints:
