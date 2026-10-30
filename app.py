@@ -38,6 +38,7 @@ from routes.cbct_backend import cbct_bp, run_cbct_migrations
 from routes.billing_ledger import billing_ledger_bp, run_billing_ledger_migrations, backfill_legacy_visit_charges
 from routes.portal         import portal_bp, ensure_portal_tables
 from routes.chatbot        import chatbot_bp
+from routes.voice          import voice_bp
 
 # ---------------------------
 # Single source of truth for allowed origins
