@@ -14,6 +14,17 @@ Endpoints:
   GET    /cbct/<id>/link                  – Private one-hour link to a cloud scan's slices
   GET    /cbct/storage/status             – How many scans are in the cloud / in the database
   POST   /cbct/storage/move-to-cloud      – (Doctor) move older scans' slices into the cloud
+  GET    /cbct/<id>/volume?max=256|400    – The whole scan as one compact 3-D block for the
+                                            planner (real density values, gzip). 404 when the
+                                            scan has none yet - the planner then builds it
+                                            from the slice pictures by itself.
+  POST   /cbct/<id>/volume/rebuild        – Make the 3-D block again from the original DICOM
+                                            ZIP kept in cloud storage (older scans)
+
+The 3-D block ("CBV1" + header + one byte per voxel, HU = value*16 - 1000)
+  is made at upload: a full version (largest side <= 400 voxels) and a small one
+  for phones (<= 256). Cloud storage: volume.bin.gz / volume-small.bin.gz next to
+  slices.json. No cloud: the small one in cbct_volumes.volume_data.
 
 Where a scan is kept
   Cloud storage ON (IMAGE_STORAGE=s3, the same Cloudflare R2 settings as images.py):
@@ -182,6 +193,17 @@ def _extract_dicom_volume(zip_path):
     volume = np.stack(normalised, axis=0)  # (depth, rows, cols)
 
     first = datasets[0]
+    # which way the slices go (head up?) and the true distance between slices
+    z_up, z_spacing = True, None
+    try:
+        zs = [float(ds.ImagePositionPatient[2]) for ds in datasets if hasattr(ds, "ImagePositionPatient")]
+        if len(zs) == len(datasets) and len(zs) > 1:
+            z_up = zs[-1] > zs[0]
+            steps = sorted(abs(b - a) for a, b in zip(zs, zs[1:]) if abs(b - a) > 1e-4)
+            if steps:
+                z_spacing = steps[len(steps) // 2]
+    except Exception:
+        pass
     meta = {
         "patient_name":    str(getattr(first, "PatientName",     "Unknown")),
         "patient_id":      str(getattr(first, "PatientID",       "")),
@@ -193,6 +215,8 @@ def _extract_dicom_volume(zip_path):
         "num_slices":      len(normalised),
         "pixel_spacing":   [float(v) for v in getattr(first, "PixelSpacing", [0.3, 0.3])],
         "slice_thickness": float(getattr(first, "SliceThickness", 0.3)),
+        "z_up":            z_up,
+        "z_spacing":       z_spacing,
     }
     return volume, meta
 
@@ -215,6 +239,64 @@ def _build_slice_store(volume, window=2500, level=500):
         result["sagittal"].append(_array_to_base64_jpeg(_apply_wl(volume[:, :, c], window, level)))
 
     return result
+
+
+VOLUME_FULL_MAX = int(os.environ.get("CBCT_VOLUME_MAX", "400") or 400)
+VOLUME_SMALL_MAX = 256
+
+
+def _build_volume_blob(volume, meta, max_dim):
+    """3-D block for the planner: gzip("CBV1" + uint32 header length + JSON header + uint8 voxels).
+    Voxels are averaged down so the largest side is <= max_dim; value = (HU + 1000) / 16."""
+    import gzip
+    import math
+    import struct
+    d, r, c = volume.shape
+    f = max(1, int(math.ceil(max(d, r, c) / float(max_dim))))
+    if f > 1:
+        d2, r2, c2 = d // f, r // f, c // f
+        small = np.empty((d2, r2, c2), dtype=np.uint8)
+        for k in range(d2):                                    # one slab at a time - little memory
+            block = volume[k * f:(k + 1) * f, :r2 * f, :c2 * f].astype(np.float32)
+            block = block.reshape(f, r2, f, c2, f).mean(axis=(0, 2, 4))
+            small[k] = np.clip((block + 1000.0) / 16.0, 0, 255).astype(np.uint8)
+    else:
+        small = np.clip((volume.astype(np.float32) + 1000.0) / 16.0, 0, 255).astype(np.uint8)
+    px = meta.get("pixel_spacing", [0.3, 0.3]) or [0.3, 0.3]
+    sy = float(px[0]) if len(px) > 0 else 0.3
+    sx = float(px[1]) if len(px) > 1 else sy
+    sz = float(meta.get("z_spacing") or meta.get("slice_thickness") or sx) or sx
+    nz, ny, nx = small.shape
+    head = json.dumps({"nx": int(nx), "ny": int(ny), "nz": int(nz), "sx": sx * f, "sy": sy * f, "sz": sz * f,
+                       "huScale": 16, "huOffset": -1000, "zUp": bool(meta.get("z_up", True))}).encode("utf-8")
+    raw = b"CBV1" + struct.pack("<I", len(head)) + head + small.tobytes(order="C")
+    return gzip.compress(raw, compresslevel=6)
+
+
+def _volume_column_ready():
+    try:
+        from sqlalchemy import inspect as _insp
+        return "volume_data" in {c["name"] for c in _insp(db.engine).get_columns("cbct_volumes")}
+    except Exception:
+        return False
+
+
+def _save_volume_blobs(vol, volume_3d, meta, cloud=None):
+    """Make and keep the 3-D blocks. Never stops an upload: a scan without them still opens."""
+    try:
+        if cloud is not None and _in_cloud(vol):
+            for name, mx in (("volume.bin.gz", VOLUME_FULL_MAX), ("volume-small.bin.gz", VOLUME_SMALL_MAX)):
+                blob = _build_volume_blob(volume_3d, meta, mx)
+                cloud._S3.save(_sibling(vol.slice_data, name), io.BytesIO(blob), "application/octet-stream")
+                del blob
+        elif _volume_column_ready():
+            blob = _build_volume_blob(volume_3d, meta, 288)
+            db.session.execute(text("UPDATE cbct_volumes SET volume_data = :v WHERE id = :i"),
+                               {"v": base64.b64encode(blob).decode("ascii"), "i": vol.id})
+            db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        print("[CBCT] 3-D block not made:", type(exc).__name__, str(exc)[:200])
 
 
 def _store_slice_images(cbct_id, slice_store):
@@ -316,7 +398,7 @@ def _delete_scan_objects(locator):
     mod = _images_module()
     if mod is None or not str(locator or "").startswith("s3://"):
         return
-    for name in ("slices.json", "original-dicom.zip"):
+    for name in ("slices.json", "original-dicom.zip", "volume.bin.gz", "volume-small.bin.gz"):
         try:
             mod._S3.delete(_sibling(locator, name))
         except Exception as exc:
@@ -447,6 +529,8 @@ def upload_cbct(visit_id):
         else:
             _store_slice_images(cbct.id, slice_store)
             db.session.commit()
+            slice_store = None
+        _save_volume_blobs(cbct, volume_3d, dicom_meta, cloud)
         return jsonify({"cbct": _serialize_vol(cbct), "num_slices": depth}), 201
 
     except Exception as e:
@@ -700,6 +784,73 @@ def cbct_move_to_cloud():
     return jsonify({"started": True, "move": dict(_cbct_move)}), 202
 
 
+# ── 3-D block for the planner ─────────────────────────────────────────────────
+
+@cbct_bp.route("/cbct/<int:cbct_id>/volume", methods=["GET"])
+def get_volume(cbct_id):
+    vol = db.get_or_404(CBCTVolume, cbct_id)
+    try:
+        want = int(request.args.get("max", VOLUME_FULL_MAX))
+    except ValueError:
+        want = VOLUME_FULL_MAX
+    blob = None
+    if _in_cloud(vol):
+        mod = _images_module()
+        if mod is not None:
+            names = ["volume-small.bin.gz", "volume.bin.gz"] if want <= VOLUME_SMALL_MAX else ["volume.bin.gz", "volume-small.bin.gz"]
+            for name in names:
+                try:
+                    blob = mod._S3.read(_sibling(vol.slice_data, name))
+                except Exception:
+                    blob = None
+                if blob:
+                    break
+    elif _volume_column_ready():
+        row = db.session.execute(text("SELECT volume_data FROM cbct_volumes WHERE id = :i"), {"i": cbct_id}).fetchone()
+        if row and row[0]:
+            try:
+                blob = base64.b64decode(row[0])
+            except Exception:
+                blob = None
+    if not blob:
+        return jsonify({"error": "This scan has no 3-D block yet.", "code": "NO_VOLUME"}), 404
+    return Response(blob, mimetype="application/octet-stream",
+                    headers={"Content-Encoding": "gzip", "Cache-Control": "private, max-age=3600"})
+
+
+@cbct_bp.route("/cbct/<int:cbct_id>/volume/rebuild", methods=["POST"])
+def rebuild_volume(cbct_id):
+    """Older scans: make the 3-D block from the original DICOM ZIP kept in cloud storage."""
+    vol = db.get_or_404(CBCTVolume, cbct_id)
+    mod = _cloud_on()
+    if mod is None or not _in_cloud(vol):
+        return jsonify({"error": "Only scans kept in cloud storage with their original ZIP can be rebuilt. "
+                                 "Upload the ZIP again for full quality."}), 400
+    zip_path = None
+    try:
+        data = mod._S3.read(_sibling(vol.slice_data, "original-dicom.zip"))
+        if not data:
+            return jsonify({"error": "The original ZIP of this scan was not kept. Upload it again for full quality."}), 404
+        with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
+            tmp.write(data)
+            zip_path = tmp.name
+        del data
+        volume_3d, meta = _extract_dicom_volume(zip_path)
+        if volume_3d is None:
+            return jsonify({"error": "The original ZIP could not be read."}), 422
+        _save_volume_blobs(vol, volume_3d, meta, mod)
+        return jsonify({"status": "rebuilt", "id": cbct_id}), 200
+    except Exception as exc:
+        traceback.print_exc()
+        return jsonify({"error": f"Rebuild failed: {type(exc).__name__}"}), 500
+    finally:
+        if zip_path:
+            try:
+                os.unlink(zip_path)
+            except Exception:
+                pass
+
+
 # ── Export composite PNG ───────────────────────────────────────────────────────
 
 @cbct_bp.route("/cbct/<int:cbct_id>/export/png", methods=["GET"])
@@ -827,6 +978,7 @@ def run_cbct_migrations(app):
             "pixel_spacing_y": "FLOAT DEFAULT 0.3",
             "notes": "TEXT",
             "slice_data": "TEXT",
+            "volume_data": "TEXT",      # 3-D block for the planner when cloud storage is off
         }
 
         for col, dtype in columns.items():
