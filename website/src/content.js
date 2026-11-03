@@ -195,6 +195,7 @@ export const technology = [
       },
       {
         name: "Gutta-percha points",
+        photo: photos.guttaPercha,
         art: "gutta",
         what: "Gutta-percha is a natural, rubber-like root filling material, made as fine tapered points (cones) in the same size and taper as the last file used in the canal. The master point is fitted to the full length of the canal and checked on an X-ray, then warmed and packed with the obturation pen and the Cicada.",
         why: "A point matched to your canal fills it closely from the tip of the root to the top, so bacteria cannot get back in. It is well tolerated by the body, and it can be removed if the tooth ever needs re-treatment.",
