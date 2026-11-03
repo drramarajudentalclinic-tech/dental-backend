@@ -20,6 +20,7 @@ Endpoints:
                                             from the slice pictures by itself.
   POST   /cbct/<id>/volume/rebuild        – Make the 3-D block again from the original DICOM
                                             ZIP kept in cloud storage (older scans)
+  GET    /cbct/<id>/original              – 1-hour download link to the original DICOM ZIP
 
 The 3-D block ("CBV1" + header + one byte per voxel, HU = value*16 - 1000)
   is made at upload: a full version (largest side <= 400 voxels) and a small one
@@ -697,6 +698,26 @@ def cbct_link(cbct_id):
     except Exception as exc:                  # the viewer then loads through /slices
         print(f"[CBCT] could not make a link for scan {cbct_id}:", type(exc).__name__, str(exc)[:200])
         return jsonify({"url": None})
+
+
+@cbct_bp.route("/cbct/<int:cbct_id>/original", methods=["GET"])
+def cbct_original(cbct_id):
+    """A private 1-hour download link to the original DICOM ZIP (cloud scans only)."""
+    if not _role():
+        return jsonify({"error": "Please sign in again."}), 401
+    vol = db.get_or_404(CBCTVolume, cbct_id)
+    mod = _images_module()
+    if mod is None or not _in_cloud(vol):
+        return jsonify({"error": "The original DICOM is kept only for scans stored in the cloud."}), 404
+    loc = _sibling(vol.slice_data, "original-dicom.zip")
+    try:
+        if hasattr(mod._S3, "exists") and not mod._S3.exists(loc):
+            return jsonify({"error": "The original DICOM ZIP of this scan was not kept."}), 404
+        url = mod._S3.presign(loc, "application/zip", f"cbct-{cbct_id}-dicom.zip", 3600)
+        return jsonify({"url": url, "expires_in": 3600})
+    except Exception as exc:
+        print(f"[CBCT] could not make the DICOM link for scan {cbct_id}:", type(exc).__name__, str(exc)[:200])
+        return jsonify({"error": "The download link could not be made. Try again."}), 500
 
 
 # ── Cloud storage: status and moving older scans ───────────────────────────────
