@@ -21,6 +21,8 @@ Endpoints:
   POST   /cbct/<id>/volume/rebuild        – Make the 3-D block again from the original DICOM
                                             ZIP kept in cloud storage (older scans)
   GET    /cbct/<id>/original              – 1-hour download link to the original DICOM ZIP
+  GET    /cbct?q=&patient=                – Scan browser: all scans with their patient (search)
+  GET    /cbct/browse?q=&same_as=         – Scan browser: all scans with their patient (doctors)
 
 The 3-D block ("CBV1" + header + one byte per voxel, HU = value*16 - 1000)
   is made at upload: a full version (largest side <= 400 voxels) and a small one
@@ -563,6 +565,60 @@ def list_cbct(visit_id):
 
 # ── Volume metadata ────────────────────────────────────────────────────────────
 
+@cbct_bp.route("/cbct", methods=["GET"])
+def list_all_cbct():
+    """Scan browser: every CBCT scan with its patient, newest first.
+    ?q= searches the patient's name, case number, the name in the DICOM and the scan date;
+    ?patient=<patient id> shows one patient's scans (for before / after comparison)."""
+    if not _role():
+        return jsonify({"error": "Please sign in again."}), 401
+    q = (request.args.get("q") or "").strip().lower()
+    patient = request.args.get("patient", type=int)
+    limit = max(1, min(request.args.get("limit", 200, type=int) or 200, 500))
+    cols = ("c.id, c.visit_id, c.patient_name, c.patient_id, c.study_date, c.modality, c.num_slices, c.rows, c.cols, "
+            "c.pixel_spacing_x, c.slice_thickness, c.uploaded_at, c.uploaded_by, c.notes, "
+            "CASE WHEN c.slice_data LIKE 's3://%' THEN 1 ELSE 0 END AS cloud")
+    try:
+        rows = db.session.execute(text(
+            f"SELECT {cols}, v.visit_date AS visit_date, p.id AS pid, p.name AS pname, p.case_number AS case_number "
+            "FROM cbct_volumes c LEFT JOIN visits v ON v.id = c.visit_id LEFT JOIN patients p ON p.id = v.patient_id "
+            "ORDER BY c.uploaded_at DESC LIMIT 3000")).mappings().all()
+    except Exception:                          # no visits / patients tables (e.g. a test database)
+        db.session.rollback()
+        rows = db.session.execute(text(
+            f"SELECT {cols}, NULL AS visit_date, NULL AS pid, NULL AS pname, NULL AS case_number "
+            "FROM cbct_volumes c ORDER BY c.uploaded_at DESC LIMIT 3000")).mappings().all()
+
+    def when(v, fmt):
+        if not v:
+            return ""
+        if isinstance(v, str):
+            try:
+                v = datetime.fromisoformat(v)
+            except ValueError:
+                return v
+        return v.strftime(fmt)
+
+    out = []
+    for r in rows:
+        if patient and r["pid"] != patient:
+            continue
+        if q:
+            hay = " ".join(str(r[k] or "") for k in ("pname", "case_number", "patient_name", "study_date", "notes")).lower()
+            if q not in hay:
+                continue
+        out.append({
+            "id": r["id"], "visit_id": r["visit_id"], "patient": r["pid"], "patient_display": r["pname"] or (r["patient_name"] or "").replace("^", " "),
+            "case_number": r["case_number"] or "", "dicom_name": (r["patient_name"] or "").replace("^", " "), "study_date": r["study_date"] or "",
+            "visit_date": when(r["visit_date"], "%d-%b-%Y"), "uploaded_at": when(r["uploaded_at"], "%d-%b-%Y %H:%M"),
+            "modality": r["modality"] or "CT", "dims": [r["cols"], r["rows"], r["num_slices"]],
+            "voxel": r["pixel_spacing_x"], "uploaded_by": r["uploaded_by"] or "", "notes": r["notes"] or "", "cloud": bool(r["cloud"]),
+        })
+        if len(out) >= limit:
+            break
+    return jsonify({"scans": out, "count": len(out)})
+
+
 @cbct_bp.route("/cbct/<int:cbct_id>", methods=["GET"])
 def get_cbct(cbct_id):
     vol = db.get_or_404(CBCTVolume, cbct_id)
@@ -698,6 +754,67 @@ def cbct_link(cbct_id):
     except Exception as exc:                  # the viewer then loads through /slices
         print(f"[CBCT] could not make a link for scan {cbct_id}:", type(exc).__name__, str(exc)[:200])
         return jsonify({"url": None})
+
+
+@cbct_bp.route("/cbct/browse", methods=["GET"])
+def cbct_browse():
+    """Scan browser: every CBCT scan with its patient, newest first.
+    ?q=      name / case number / DICOM patient name or ID
+    ?same_as=<scan id>   only scans of the same clinic patient (before / after comparison)
+    ?limit= (max 200)  ?offset=
+    Doctors and admins only."""
+    role = (_role() or "").lower()
+    if not role:
+        return jsonify({"error": "Please sign in again."}), 401
+    if role not in ("doctor", "admin"):
+        return jsonify({"error": "Only doctors can browse all scans."}), 403
+    q = (request.args.get("q") or "").strip().lower()
+    try:
+        limit = max(1, min(200, int(request.args.get("limit", 60))))
+        offset = max(0, int(request.args.get("offset", 0)))
+        same_as = int(request.args.get("same_as", 0) or 0)
+    except ValueError:
+        return jsonify({"error": "Bad paging values."}), 400
+    pid = 0
+    try:
+        if same_as:
+            row = db.session.execute(text(
+                "SELECT vi.patient_id FROM cbct_volumes v JOIN visits vi ON vi.id = v.visit_id WHERE v.id = :id"), {"id": same_as}).first()
+            pid = int(row[0]) if row and row[0] is not None else -1
+        rows = db.session.execute(text("""
+            SELECT v.id, v.visit_id, v.patient_name, v.patient_id, v.study_date, v.modality, v.num_slices, v.rows, v.cols,
+                   v.pixel_spacing_x, v.slice_thickness, v.uploaded_at, p.id AS pid, p.case_number, p.name AS pname, vi.visit_date
+            FROM cbct_volumes v
+            LEFT JOIN visits vi ON vi.id = v.visit_id
+            LEFT JOIN patients p ON p.id = vi.patient_id
+            WHERE (:q = '' OR lower(coalesce(p.name, '')) LIKE :like OR lower(coalesce(p.case_number, '')) LIKE :like
+                   OR lower(coalesce(v.patient_name, '')) LIKE :like OR lower(coalesce(v.patient_id, '')) LIKE :like)
+              AND (:pid = 0 OR p.id = :pid)
+            ORDER BY v.id DESC
+            LIMIT :limit OFFSET :offset"""),
+            {"q": q, "like": f"%{q}%", "pid": pid, "limit": limit + 1, "offset": offset}).mappings().all()
+    except Exception as exc:
+        db.session.rollback()
+        print("[CBCT] browse failed:", type(exc).__name__, str(exc)[:300])
+        return jsonify({"error": "The scan list could not be read."}), 500
+
+    def _d(x, fmt):
+        if not x:
+            return ""
+        if isinstance(x, str):
+            return x[:16]
+        try:
+            return x.strftime(fmt)
+        except Exception:
+            return str(x)[:16]
+    out = [{
+        "id": r["id"], "visit_id": r["visit_id"], "patient": r["pname"] or r["patient_name"] or "", "case_number": r["case_number"] or "",
+        "clinic_patient_id": r["pid"], "dicom_name": r["patient_name"] or "", "dicom_id": r["patient_id"] or "",
+        "study_date": r["study_date"] or "", "visit_date": _d(r["visit_date"], "%d-%b-%Y"), "uploaded_at": _d(r["uploaded_at"], "%d-%b-%Y %H:%M"),
+        "modality": r["modality"] or "CT", "size": f'{r["cols"]}×{r["rows"]}×{r["num_slices"]}',
+        "voxel": round(float(r["pixel_spacing_x"] or 0), 3),
+    } for r in rows[:limit]]
+    return jsonify({"scans": out, "more": len(rows) > limit, "offset": offset})
 
 
 @cbct_bp.route("/cbct/<int:cbct_id>/original", methods=["GET"])
