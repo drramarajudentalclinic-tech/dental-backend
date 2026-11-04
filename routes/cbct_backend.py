@@ -246,6 +246,7 @@ def _build_slice_store(volume, window=2500, level=500):
 
 VOLUME_FULL_MAX = int(os.environ.get("CBCT_VOLUME_MAX", "400") or 400)
 VOLUME_SMALL_MAX = 256
+VOLUME_HD_MAX = int(os.environ.get("CBCT_VOLUME_HD_MAX", "720") or 720)   # full detail for computers
 
 
 def _build_volume_blob(volume, meta, max_dim):
@@ -288,7 +289,10 @@ def _save_volume_blobs(vol, volume_3d, meta, cloud=None):
     """Make and keep the 3-D blocks. Never stops an upload: a scan without them still opens."""
     try:
         if cloud is not None and _in_cloud(vol):
-            for name, mx in (("volume.bin.gz", VOLUME_FULL_MAX), ("volume-small.bin.gz", VOLUME_SMALL_MAX)):
+            tiers = [("volume.bin.gz", VOLUME_FULL_MAX), ("volume-small.bin.gz", VOLUME_SMALL_MAX)]
+            if max(volume_3d.shape) > VOLUME_FULL_MAX:            # bigger scans also keep a full-detail copy
+                tiers.insert(0, ("volume-hd.bin.gz", VOLUME_HD_MAX))
+            for name, mx in tiers:
                 blob = _build_volume_blob(volume_3d, meta, mx)
                 cloud._S3.save(_sibling(vol.slice_data, name), io.BytesIO(blob), "application/octet-stream")
                 del blob
@@ -401,7 +405,7 @@ def _delete_scan_objects(locator):
     mod = _images_module()
     if mod is None or not str(locator or "").startswith("s3://"):
         return
-    for name in ("slices.json", "original-dicom.zip", "volume.bin.gz", "volume-small.bin.gz"):
+    for name in ("slices.json", "original-dicom.zip", "volume.bin.gz", "volume-small.bin.gz", "volume-hd.bin.gz"):
         try:
             mod._S3.delete(_sibling(locator, name))
         except Exception as exc:
@@ -935,7 +939,9 @@ def get_volume(cbct_id):
     if _in_cloud(vol):
         mod = _images_module()
         if mod is not None:
-            names = ["volume-small.bin.gz", "volume.bin.gz"] if want <= VOLUME_SMALL_MAX else ["volume.bin.gz", "volume-small.bin.gz"]
+            names = (["volume-small.bin.gz", "volume.bin.gz"] if want <= VOLUME_SMALL_MAX
+                     else ["volume-hd.bin.gz", "volume.bin.gz", "volume-small.bin.gz"] if want > VOLUME_FULL_MAX
+                     else ["volume.bin.gz", "volume-small.bin.gz"])
             for name in names:
                 try:
                     blob = mod._S3.read(_sibling(vol.slice_data, name))
