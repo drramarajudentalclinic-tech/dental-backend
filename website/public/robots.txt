@@ -1,2 +1,4 @@
 User-agent: *
-Disallow: /portal
+Allow: /
+
+Sitemap: https://www.drramarajudental.com/sitemap.xml

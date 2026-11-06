@@ -9,6 +9,22 @@ import ChatBot from "../components/ChatBot";
 import { useMotion } from "../motion";
 
 const tel = (n) => `tel:${String(n).replace(/[^\d+]/g, "")}`;
+/* treatment information pages (plain pages in public/treatments, made for search engines and for sharing) */
+const TREATMENT_PAGES = [
+  ["dental-implants", "Dental implants"],
+  ["root-canal-treatment", "Root canal treatment"],
+  ["crowns-and-bridges", "Crowns and bridges"],
+  ["braces-and-aligners", "Braces and clear aligners"],
+  ["dentures", "Complete and partial dentures"],
+  ["wisdom-tooth-removal", "Wisdom tooth removal and extractions"],
+  ["gum-treatment", "Gum treatment and flap surgery"],
+  ["laser-dentistry", "Laser dentistry"],
+  ["oral-cancer-screening", "Oral cancer screening and mouth lesions"],
+  ["teeth-cleaning", "Teeth cleaning and check-ups"],
+  ["tooth-coloured-fillings", "Tooth-coloured fillings"],
+  ["veneers", "Veneers and laminates"],
+  ["childrens-dentistry", "Children's dentistry"],
+];
 
 /* ── small line icons (drawn for this site) ── */
 const I = {
@@ -575,6 +591,14 @@ export default function Home() {
                 </div>
               </div>
             </div>
+          </div>
+        </section>
+        <section className="treat-links" aria-label="Treatment information">
+          <div className="wrap">
+            <h2>Treatment information</h2>
+            <p>How each treatment is done at the clinic, step by step.</p>
+            <ul>{TREATMENT_PAGES.map(([slug, name]) => <li key={slug}><a href={`/treatments/${slug}.html`}>{name}</a></li>)}</ul>
+            <p><a href="/treatments/">All treatments →</a></p>
           </div>
         </section>
       </main>
