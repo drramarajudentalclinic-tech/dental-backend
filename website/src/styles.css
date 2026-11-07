@@ -1014,3 +1014,11 @@ html.is-home .bar .btn.small:hover { background: var(--mint); border-color: var(
 @media (min-width: 1141px) and (max-width: 1320px) { html.is-home .nav { gap: 9px; } html.is-home .nav a { padding: 8px 14px; font-size: 14.5px; } }
 html.is-home .hero { padding-top: 48px; }
 @media (min-width: 1141px) { html.is-home .bar .wrap::before { content: ""; flex: 0 0 124px; } }   /* balances Patient login so the menu sits in the true centre */
+
+/* Patient login: small mobile-phone icon that gives a little buzz every few seconds */
+.bar .wrap > .btn.small::before { content: ""; width: 17px; height: 17px; flex-shrink: 0; background: currentColor; position: relative; z-index: 1;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='6' y='2.5' width='12' height='19' rx='2.5'/%3E%3Cpath d='M10.5 18.5h3'/%3E%3Cpath d='M10 6h4'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='6' y='2.5' width='12' height='19' rx='2.5'/%3E%3Cpath d='M10.5 18.5h3'/%3E%3Cpath d='M10 6h4'/%3E%3C/svg%3E") center / contain no-repeat;
+  animation: phone-buzz 5s 2s ease-in-out infinite; }
+.bar .wrap > .btn.small { gap: 8px; padding-left: 14px; }
+.bar .wrap > .btn.small:hover::before { animation: phone-buzz .7s ease-in-out; }
+@keyframes phone-buzz { 0%, 86%, 100% { transform: none; } 88% { transform: rotate(-14deg); } 90% { transform: rotate(12deg); } 92% { transform: rotate(-10deg); } 94% { transform: rotate(8deg); } 96% { transform: rotate(-4deg); } }
