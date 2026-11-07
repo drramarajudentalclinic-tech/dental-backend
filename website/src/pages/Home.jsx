@@ -46,7 +46,7 @@ const Icon = ({ n, size = 20 }) => (
 );
 
 /* ── open now / closed badge: Mon–Sat 11 am – 7 pm, India time (whatever the visitor's own clock says) ── */
-const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const WEEK_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const OPEN_H = 11, CLOSE_H = 19;
 function clinicStatus() {
   const ist = new Date(Date.now() + 330 * 60000);            // UTC + 5:30
@@ -59,7 +59,7 @@ function clinicStatus() {
   if (openDay(day) && mins < OPEN_H * 60) return { open: false, text: "Closed now · opens today 11 am" };
   let d = (day + 1) % 7;
   while (!openDay(d)) d = (d + 1) % 7;
-  return { open: false, text: `Closed now · opens ${d === (day + 1) % 7 ? "tomorrow" : DAYS[d]} 11 am` };
+  return { open: false, text: `Closed now · opens ${d === (day + 1) % 7 ? "tomorrow" : WEEK_DAYS[d]} 11 am` };
 }
 function OpenBadge() {
   const [st, setSt] = useState(clinicStatus);
