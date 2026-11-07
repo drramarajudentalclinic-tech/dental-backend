@@ -100,25 +100,26 @@ img { max-width: 100%; }
 .hero h1 { color: #fff; }
 .hero-place { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14.5px; color: #bfe0d9; background: rgba(255,255,255,.07);
   border: 1px solid rgba(255,255,255,.14); padding: 6px 14px 6px 10px; border-radius: 999px; margin-bottom: 22px; }
-/* clinic name (smaller, like a heading 5) and the motto as the big line (heading 4 role, display size) */
-.hero h1.hero-name { position: relative; display: inline-block; font: 700 clamp(1.85rem, 1.2rem + 2.2vw, 2.75rem)/1.12 var(--display); letter-spacing: -0.02em;
-  color: #fff; max-width: 22ch; margin: 0 0 4px; padding-bottom: 16px; }
-.hero h1.hero-name::after { content: ""; position: absolute; left: 0; bottom: 0; width: 64px; height: 3px; border-radius: 3px;
-  background: linear-gradient(90deg, var(--gum-2), #2c8a84); transform-origin: 0 50%; animation: grow-line 1s .5s cubic-bezier(.22,1,.36,1) both; }
+/* top of the page, line by line: full clinic name across the screen, motto, then the area */
+.hero-head { position: relative; z-index: 1; max-width: 1880px; margin: 0 auto 48px; padding: 0 clamp(20px, 3vw, 48px); text-align: center; container-type: inline-size; }
+.hero h1.hero-name { position: relative; display: block; margin: 0; padding-bottom: 18px; white-space: nowrap; color: #fff;
+  font: 700 4.5cqi/1.08 var(--display); letter-spacing: -0.02em; animation: rise .8s cubic-bezier(.2,.7,.2,1) both; }
+.hero h1.hero-name::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; margin: auto; width: 110px; height: 3px; border-radius: 3px;
+  background: linear-gradient(90deg, var(--gum-2), #2c8a84); transform-origin: 50% 50%; animation: grow-line 1s .5s cubic-bezier(.22,1,.36,1) both; }
+.motto { font: 700 max(1.35rem, 2.5cqi)/1.2 var(--display); letter-spacing: -0.015em; color: #fff; margin: 18px 0 18px; }
 @keyframes grow-line { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-.motto { font: 700 clamp(1.45rem, 1.1rem + 1.2vw, 2rem)/1.2 var(--display); letter-spacing: -0.015em; color: #fff; margin: 16px 0 24px; max-width: none; }
 .motto .mw { display: inline-block; margin-right: .24em; animation: word-in .9s calc(.25s + var(--wi, 0) * .09s) cubic-bezier(.22,1,.36,1) both; }
 .motto .mw:last-child { margin-right: 0; }
 .motto .hl { background: linear-gradient(90deg, var(--gum-2), #ffe1e8 50%, var(--gum-2)); background-size: 250% 100%;
   -webkit-background-clip: text; background-clip: text; color: transparent;
   animation: word-in .9s calc(.25s + var(--wi, 0) * .09s) cubic-bezier(.22,1,.36,1) both, sheen 7s 1.4s linear infinite; }
 @keyframes word-in { from { opacity: 0; transform: translateY(.45em) rotate(2deg); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
-/* laptop / desktop: full clinic name on one line, sized to the column width */
-@media (min-width: 981px) {
-  .hero-grid { grid-template-columns: minmax(0, 1.22fr) minmax(0, 1fr); gap: 48px; }
-  .hero-copy { container-type: inline-size; }
-  .hero h1.hero-name { display: block; max-width: none; white-space: nowrap; font-size: 4.5cqi; }
-  .motto { font-size: 3.6cqi; } }
+.hero-head .hero-place { margin: 0; animation: rise .8s .6s cubic-bezier(.2,.7,.2,1) both; }
+@media (max-width: 640px) {
+  .hero-head { margin-bottom: 32px; }
+  .hero h1.hero-name { white-space: normal; font-size: clamp(1.8rem, 7.6vw, 2.4rem); line-height: 1.12; padding-bottom: 14px; }
+  .motto { font-size: clamp(1.3rem, 5.6vw, 1.6rem); margin: 14px 0; }
+  .hero-head .hero-place { font-size: 13px; } }
 .sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .lead { font-size: 1.16rem; max-width: 48ch; color: #cfe3df; margin-bottom: 30px; }
 .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
@@ -878,8 +879,7 @@ html.fx-on :is(a, button, summary, select, label, [role=button], .t-card, .tc) {
 html.fx-on :is(input, textarea) { cursor: text; }
 
 /* screen sizes */
-@media (max-width: 980px) { .hero h1.hero-name { max-width: 26ch; } }
-@media (max-width: 560px) { .motto { margin: 12px 0 20px; } .hero h1.hero-name { padding-bottom: 10px; }
+@media (max-width: 560px) {
   .hero-actions .btn { flex: 1 1 100%; } }
 @media (hover: none) { .btn:active { transform: scale(.96); } .t-card:active, .tc:active { transform: scale(.985); } }
 @media (prefers-reduced-motion: reduce) { .btn { translate: none; } }

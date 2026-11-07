@@ -445,17 +445,18 @@ export default function Home() {
         <section className="hero">
           <div className="hero-glow" aria-hidden="true" />
           <div className="hero-orb o1" aria-hidden="true" /><div className="hero-orb o2" aria-hidden="true" />
+          <div className="hero-head">
+            <h1 className="hero-name">{clinic.name}</h1>
+            <h2 className="motto">
+              <span className="sr-only">{clinic.motto}</span>
+              {clinic.motto.split(" ").map((w, i, all) => (
+                <span key={i} className={"mw" + (i >= all.length - 2 ? " hl" : "")} style={{ "--wi": i }} aria-hidden="true">{w}</span>
+              ))}
+            </h2>
+            <p className="hero-place"><Icon n="pin" size={16} />Chaitanyapuri, near Dilsukhnagar, Hyderabad</p>
+          </div>
           <div className="wrap hero-grid">
             <div className="hero-copy">
-              <p className="hero-place"><Icon n="pin" size={16} />Chaitanyapuri, near Dilsukhnagar, Hyderabad</p>
-              <h1 className="sr-only">{clinic.name}</h1>
-              <h6 className="hero-name" aria-hidden="true">{clinic.name}</h6>
-              <h4 className="motto">
-                <span className="sr-only">{clinic.motto}</span>
-                {clinic.motto.split(" ").map((w, i, all) => (
-                  <span key={i} className={"mw" + (i >= all.length - 2 ? " hl" : "")} style={{ "--wi": i }} aria-hidden="true">{w}</span>
-                ))}
-              </h4>
               {clinic.pillars?.length > 0 && (
                 <ul className="hero-pillars">
                   {clinic.pillars.map(([t, d], k) => (
