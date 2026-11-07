@@ -927,6 +927,7 @@ h1.hero-name {
 /* ═════ OPEN NOW BADGE (booking card) ═════ */
 .open-badge { display: inline-flex; align-items: center; gap: 8px; margin: -4px 0 14px; padding: 5px 12px 5px 10px; border-radius: 999px;
   font: 700 13px var(--body); color: #8a3a4a; background: var(--gum-soft); border: 1px solid #f3cbd3; }
+.open-badge .ob-short { display: none; }
 .open-badge i { width: 8px; height: 8px; border-radius: 50%; background: var(--gum); flex-shrink: 0; }
 .open-badge.is-open { color: #12663a; background: #e3f6ea; border-color: #bfe6cd; }
 .open-badge.is-open i { background: #1f9d55; box-shadow: 0 0 0 0 rgba(31, 157, 85, .5); animation: live-dot 1.8s ease-out infinite; }
@@ -1013,7 +1014,6 @@ html.is-home .bar .btn.small { background: #fff; border-color: #fff; color: var(
 html.is-home .bar .btn.small:hover { background: var(--mint); border-color: var(--mint); }
 @media (min-width: 1141px) and (max-width: 1320px) { html.is-home .nav { gap: 9px; } html.is-home .nav a { padding: 8px 14px; font-size: 14.5px; } }
 html.is-home .hero { padding-top: 48px; }
-@media (min-width: 1141px) { html.is-home .bar .wrap::before { content: ""; flex: 0 0 124px; } }   /* balances Patient login so the menu sits in the true centre */
 
 /* Patient login: small mobile-phone icon that gives a little buzz every few seconds */
 .bar .wrap > .btn.small::before { content: ""; width: 17px; height: 17px; flex-shrink: 0; background: currentColor; position: relative; z-index: 1;
@@ -1022,3 +1022,30 @@ html.is-home .hero { padding-top: 48px; }
 .bar .wrap > .btn.small { gap: 8px; padding-left: 14px; }
 .bar .wrap > .btn.small:hover::before { animation: phone-buzz .7s ease-in-out; }
 @keyframes phone-buzz { 0%, 86%, 100% { transform: none; } 88% { transform: rotate(-14deg); } 90% { transform: rotate(12deg); } 92% { transform: rotate(-10deg); } 94% { transform: rotate(8deg); } 96% { transform: rotate(-4deg); } }
+
+/* ═════ MENU BAR EXTRAS (home): open-now badge left · call + WhatsApp icons right ═════ */
+html.is-home .bar .wrap { max-width: 1560px; }
+html.is-home .bar .wrap > .bar-left { order: -1; flex: 0 0 252px; display: flex; align-items: center; }
+html.is-home .bar .wrap > .nav { order: 1; }
+html.is-home .bar .wrap > .bar-icons { order: 2; }
+html.is-home .bar .wrap > .btn.small { order: 3; }
+.bar-left .open-badge { margin: 0; font-size: 12.5px; padding: 5px 12px 5px 10px; white-space: nowrap; color: #bfe6cd; background: rgba(31, 157, 85, .12); border-color: rgba(31, 157, 85, .35); }
+.bar-left .open-badge:not(.is-open) { color: #f6c3cd; background: rgba(196, 71, 95, .14); border-color: rgba(243, 166, 180, .35); }
+.bar-left .open-badge.is-soon { color: #f3d98a; background: rgba(212, 154, 0, .14); border-color: rgba(240, 221, 156, .35); }
+.bar-icons { display: flex; align-items: center; gap: 8px; }
+.bar-ico { position: relative; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; text-decoration: none; color: #fff;
+  border: 1px solid rgba(255,255,255,.18); transition: transform .25s cubic-bezier(.34,1.56,.64,1), background .25s, box-shadow .25s; }
+.bar-ico.call { background: rgba(255,255,255,.08); }
+.bar-ico.wa { background: #1f9d55; border-color: #1f9d55; animation: wa-glow 2.6s 2s ease-out infinite; }
+.bar-ico:hover { transform: translateY(-2px) scale(1.06); }
+.bar-ico.call:hover { background: #fff; color: var(--ink); }
+.bar-ico.wa:hover { background: #25b463; }
+.bar-ico.call svg { animation: phone-buzz 6s 3s ease-in-out infinite; }
+.bar-tip { position: absolute; top: calc(100% + 10px); left: 50%; translate: -50% 0; white-space: nowrap; pointer-events: none; opacity: 0; transform: translateY(-4px);
+  background: #fff; color: var(--ink); font: 700 12.5px var(--body); padding: 6px 10px; border-radius: 8px; box-shadow: 0 10px 24px -10px rgba(0,0,0,.5); transition: opacity .2s, transform .2s; }
+.bar-tip::before { content: ""; position: absolute; top: -4px; left: 50%; margin-left: -4px; width: 8px; height: 8px; background: #fff; transform: rotate(45deg); }
+.bar-ico:hover .bar-tip, .bar-ico:focus-visible .bar-tip { opacity: 1; transform: none; }
+@media (min-width: 1141px) and (max-width: 1439px) { html.is-home .bar .wrap > .bar-left { flex-basis: auto; } .bar-left .ob-full { display: none; } .bar-left .ob-short { display: inline; } }
+@media (max-width: 1140px) { html.is-home .bar .wrap > .bar-left { flex: 1 1 auto; } }
+@media (max-width: 760px) { .bar-icons { display: none; } }
+@media (max-width: 420px) { .bar-left .open-badge { font-size: 11.5px; padding: 4px 9px 4px 8px; } }

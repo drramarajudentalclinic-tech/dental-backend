@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { clinic, doctors, services, technology, protocols, portalSteps, screening, faqs, YEARS } from "../content";
 import * as photos from "../photos";
@@ -54,20 +55,41 @@ function clinicStatus() {
   const openDay = (d) => d !== 0;                             // closed on Sunday
   if (openDay(day) && mins >= OPEN_H * 60 && mins < CLOSE_H * 60) {
     const left = CLOSE_H * 60 - mins;
-    return { open: true, soon: left <= 60, text: left <= 60 ? `Open now · closes in ${left} min` : "Open now · closes 7 pm" };
+    return { open: true, soon: left <= 60, short: "Open now", text: left <= 60 ? `Open now · closes in ${left} min` : "Open now · closes 7 pm" };
   }
-  if (openDay(day) && mins < OPEN_H * 60) return { open: false, text: "Closed now · opens today 11 am" };
+  if (openDay(day) && mins < OPEN_H * 60) return { open: false, short: "Closed now", text: "Closed now · opens today 11 am" };
   let d = (day + 1) % 7;
   while (!openDay(d)) d = (d + 1) % 7;
-  return { open: false, text: `Closed now · opens ${d === (day + 1) % 7 ? "tomorrow" : WEEK_DAYS[d]} 11 am` };
+  return { open: false, short: "Closed now", text: `Closed now · opens ${d === (day + 1) % 7 ? "tomorrow" : WEEK_DAYS[d]} 11 am` };
 }
 function OpenBadge() {
   const [st, setSt] = useState(clinicStatus);
   useEffect(() => { const id = setInterval(() => setSt(clinicStatus()), 30000); return () => clearInterval(id); }, []);
   return (
     <span className={"open-badge" + (st.open ? " is-open" : "") + (st.soon ? " is-soon" : "")} role="status">
-      <i aria-hidden="true" />{st.text}
+      <i aria-hidden="true" /><span className="ob-full">{st.text}</span><span className="ob-short">{st.short}</span>
     </span>
+  );
+}
+
+/* ── extras placed inside the menu bar (home page): open-now on the left, call + WhatsApp before Patient login ── */
+function BarExtras() {
+  const [host, setHost] = useState(null);
+  useEffect(() => { setHost(document.querySelector(".bar .wrap")); }, []);
+  if (!host) return null;
+  return createPortal(
+    <>
+      <div className="bar-left"><OpenBadge /></div>
+      <div className="bar-icons">
+        <a className="bar-ico call" href={tel(clinic.phone)} aria-label={`Call the clinic: ${clinic.phone}`}>
+          <Icon n="phone" size={18} /><span className="bar-tip">Call {clinic.phone}</span>
+        </a>
+        <a className="bar-ico wa" href={waLink()} target="_blank" rel="noreferrer" aria-label="Message the clinic on WhatsApp">
+          <Icon n="chat" size={18} /><span className="bar-tip">WhatsApp us</span>
+        </a>
+      </div>
+    </>,
+    host
   );
 }
 
@@ -528,6 +550,7 @@ export default function Home() {
         </div>
       </header>
       <Bar />
+      <BarExtras />
       <main id="top">
         {/* ── HERO ── */}
         <section className="hero">
