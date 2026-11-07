@@ -45,6 +45,32 @@ const Icon = ({ n, size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{I[n]}</svg>
 );
 
+/* ── open now / closed badge: Mon–Sat 11 am – 7 pm, India time (whatever the visitor's own clock says) ── */
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const OPEN_H = 11, CLOSE_H = 19;
+function clinicStatus() {
+  const ist = new Date(Date.now() + 330 * 60000);            // UTC + 5:30
+  const day = ist.getUTCDay(), mins = ist.getUTCHours() * 60 + ist.getUTCMinutes();
+  const openDay = (d) => d !== 0;                             // closed on Sunday
+  if (openDay(day) && mins >= OPEN_H * 60 && mins < CLOSE_H * 60) {
+    const left = CLOSE_H * 60 - mins;
+    return { open: true, soon: left <= 60, text: left <= 60 ? `Open now · closes in ${left} min` : "Open now · closes 7 pm" };
+  }
+  if (openDay(day) && mins < OPEN_H * 60) return { open: false, text: "Closed now · opens today 11 am" };
+  let d = (day + 1) % 7;
+  while (!openDay(d)) d = (d + 1) % 7;
+  return { open: false, text: `Closed now · opens ${d === (day + 1) % 7 ? "tomorrow" : DAYS[d]} 11 am` };
+}
+function OpenBadge() {
+  const [st, setSt] = useState(clinicStatus);
+  useEffect(() => { const id = setInterval(() => setSt(clinicStatus()), 30000); return () => clearInterval(id); }, []);
+  return (
+    <span className={"open-badge" + (st.open ? " is-open" : "") + (st.soon ? " is-soon" : "")} role="status">
+      <i aria-hidden="true" />{st.text}
+    </span>
+  );
+}
+
 /* ── hero: a quick booking card (the clinic emblem sits behind it) ── */
 function HeroBook() {
   return (
@@ -55,10 +81,43 @@ function HeroBook() {
           <img src={logoSrc} alt="" />
           <div><b>Book your visit</b><span>Mon – Sat, 11 am – 7 pm · by appointment</span></div>
         </div>
+        <OpenBadge />
         <BookForm compact />
         <a className="hb-call" href={tel(clinic.phone)}><Icon n="phone" size={16} />Prefer to talk? Call {clinic.phone}</a>
       </div>
     </div>
+  );
+}
+
+/* ── what happens at the first visit ── */
+const FIRST_VISIT = [
+  ["pin", "Arrive and register", "Reception notes your details and medical history. Bring old X-rays, reports and the list of medicines you take."],
+  ["tooth", "Check-up", "Dr. Rama Raju examines your teeth, gums and the soft tissues of the mouth. An X-ray is taken only if it is needed."],
+  ["spark", "Your plan, explained", "The options, number of visits and cost are explained in plain words before anything starts. You decide."],
+  ["check", "Treatment or next date", "If treatment is needed, it may start the same day, or your next appointment is fixed before you leave."],
+];
+function FirstVisit() {
+  return (
+    <section className="sec first-visit" id="first-visit">
+      <div className="wrap">
+        <header className="sec-head rv"><span className="kicker">Your first visit</span><h2>What happens when you come in</h2>
+          <p>Four simple steps, so you know what to expect before you arrive.</p></header>
+        <ol className="fv-steps">
+          {FIRST_VISIT.map(([ico, t, d], k) => (
+            <li key={t} className="rv" style={{ "--rd": k * 110 + "ms" }}>
+              <span className="fv-num" aria-hidden="true">{k + 1}</span>
+              <span className="fv-ico" aria-hidden="true"><Icon n={ico} size={22} /></span>
+              <h3>{t}</h3>
+              <p>{d}</p>
+            </li>
+          ))}
+        </ol>
+        <div className="fv-bring rv">
+          <b>Please bring:</b>
+          <span>Old X-rays or scans</span><span>Medical reports</span><span>List of current medicines</span><span>Any dental prescriptions</span>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -283,7 +342,7 @@ function Doctor({ d }) {
             <div className="doc-inv">
               {d.inventions.map((x) => (
                 <button key={x.name} type="button" className="doc-inv-card" onClick={() => window.dispatchEvent(new CustomEvent("show-tech", { detail: x.tab }))}>
-                  <span className="dic-img"><img src={x.photo} alt="" loading="lazy" /></span>
+                  <span className="dic-img"><img src={x.photo} alt="" loading="lazy" decoding="async" /></span>
                   <b>{x.name}</b>
                   <small>{x.line}</small>
                   <span className="dic-badge">Patent holder</span>
@@ -310,7 +369,7 @@ function Screening() {
   return (
     <>
       <div className="scr-top">
-        <figure className="scr-photo"><img src={photos.oroscope} alt="DrOroscope hand-held oral screening camera" /></figure>
+        <figure className="scr-photo"><img src={photos.oroscope} alt="DrOroscope hand-held oral screening camera" loading="lazy" decoding="async" /></figure>
         <div>
           <span className="kicker">Early detection</span>
           <h2>{s.title}</h2>
@@ -434,27 +493,37 @@ export default function Home() {
   }, []);
   useMotion();
   useEffects();
+  useEffect(() => {   // home page: the masthead shows the clinic name, so the menu bar hides its own
+    document.documentElement.classList.add("is-home");
+    return () => document.documentElement.classList.remove("is-home");
+  }, []);
   const d0 = doctors[0];
   return (
     <>
       <div className="scroll-progress" aria-hidden="true" />
       <DraftNote />
+      {/* ── MASTHEAD: logo + full clinic name, motto, area (the menu bar sits below it) ── */}
+      <header className="masthead">
+        <div className="hero-head">
+          <div className="mh-name">
+            <img className="mh-logo" src={logoSrc} alt="" aria-hidden="true" />
+            <h1 className="hero-name">{clinic.name}</h1>
+          </div>
+          <h2 className="motto">
+            <span className="sr-only">{clinic.motto}</span>
+            {clinic.motto.split(" ").map((w, i, all) => (
+              <span key={i} className={"mw" + (i >= all.length - 2 ? " hl" : "")} style={{ "--wi": i }} aria-hidden="true">{w}</span>
+            ))}
+          </h2>
+          <p className="hero-place"><Icon n="pin" size={16} />Chaitanyapuri, near Dilsukhnagar, Hyderabad</p>
+        </div>
+      </header>
       <Bar />
       <main id="top">
         {/* ── HERO ── */}
         <section className="hero">
           <div className="hero-glow" aria-hidden="true" />
           <div className="hero-orb o1" aria-hidden="true" /><div className="hero-orb o2" aria-hidden="true" />
-          <div className="hero-head">
-            <h1 className="hero-name">{clinic.name}</h1>
-            <h2 className="motto">
-              <span className="sr-only">{clinic.motto}</span>
-              {clinic.motto.split(" ").map((w, i, all) => (
-                <span key={i} className={"mw" + (i >= all.length - 2 ? " hl" : "")} style={{ "--wi": i }} aria-hidden="true">{w}</span>
-              ))}
-            </h2>
-            <p className="hero-place"><Icon n="pin" size={16} />Chaitanyapuri, near Dilsukhnagar, Hyderabad</p>
-          </div>
           <div className="wrap hero-grid">
             <div className="hero-copy">
               {clinic.pillars?.length > 0 && (
@@ -552,6 +621,9 @@ export default function Home() {
           </div>
         </section>
 
+        {/* ── FIRST VISIT ── */}
+        <FirstVisit />
+
         {/* ── BOOK ── */}
         <section className="sec" id="book">
           <div className="wrap book-grid">
@@ -613,8 +685,8 @@ export default function Home() {
       </main>
       <Footer />
       <nav className="mobile-bar" aria-label="Contact the clinic">
-        <a href={tel(clinic.phone)}><Icon n="phone" size={20} />Call</a>
-        <a href={waLink()} target="_blank" rel="noreferrer"><Icon n="chat" size={20} />WhatsApp</a>
+        <a className="mb-call" href={tel(clinic.phone)}><Icon n="phone" size={20} />Call</a>
+        <a className="mb-wa" href={waLink()} target="_blank" rel="noreferrer"><Icon n="chat" size={20} />WhatsApp</a>
         <a href="#book"><Icon n="clock" size={20} />Book</a>
         <button type="button" className="ask" onClick={() => window.dispatchEvent(new Event("open-chat"))}><Icon n="chat" size={20} />Ask us</button>
       </nav>
