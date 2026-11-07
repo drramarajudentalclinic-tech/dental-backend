@@ -1108,3 +1108,28 @@ html.is-home .bar .wrap > .btn.small { order: 3; }
   .hb-card { background: rgba(17, 39, 40, .97); box-shadow: 0 40px 80px -30px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.08); }
   .treat-links a { background: var(--paper); color: var(--ink); border-color: var(--line); }
 }
+
+/* ═════ TRUST STRIP: four facts, full width ═════ */
+.trust.trust-4 { max-width: none; margin-top: -64px; grid-template-columns: repeat(4, 1fr); border-radius: 22px; overflow: hidden; border: 0;
+  background: linear-gradient(180deg, #fff, #f7fbfa); box-shadow: 0 30px 60px -30px rgba(6, 34, 36, .45), 0 0 0 1px rgba(13, 54, 55, .06); }
+.trust.trust-4::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; z-index: 1;
+  background: linear-gradient(90deg, var(--gum), #e8879b 30%, #2c8a84 70%, var(--ink-2-fill)); }
+.trust.trust-4 > div { position: relative; grid-template-columns: 56px minmax(0, 1fr); column-gap: 16px; align-content: center; padding: 30px 26px 28px;
+  transition: background .35s, transform .35s cubic-bezier(.22,1,.36,1); }
+.trust.trust-4 > div + div { border-left: 0; }
+.trust.trust-4 > div + div::before { content: ""; position: absolute; left: 0; top: 22%; bottom: 22%; width: 1px; background: linear-gradient(180deg, transparent, var(--line), transparent); }
+.trust.trust-4 .tr-ico { width: 56px; height: 56px; border-radius: 18px; align-self: center; color: #fff;
+  background: linear-gradient(145deg, #2c8a84, var(--ink-fill)); box-shadow: 0 10px 20px -10px rgba(13, 54, 55, .7), inset 0 1px 0 rgba(255,255,255,.25); }
+.trust.trust-4 > div:nth-child(3) .tr-ico { background: linear-gradient(145deg, #e8879b, var(--gum)); box-shadow: 0 10px 20px -10px rgba(196, 71, 95, .7), inset 0 1px 0 rgba(255,255,255,.25); }
+.trust.trust-4 dt { font: 700 1.6rem/1.05 var(--display); letter-spacing: -0.02em; color: var(--ink); align-self: end; }
+.trust.trust-4 dd { margin-top: 5px; font-size: 14px; line-height: 1.4; }
+.trust.trust-4 > div:hover { background: var(--mint-2); }
+.trust.trust-4 > div:hover .tr-ico { transform: translateY(-3px) rotate(-8deg) scale(1.05); }
+@media (max-width: 1100px) { .trust.trust-4 { grid-template-columns: 1fr 1fr; }
+  .trust.trust-4 > div:nth-child(3)::before { display: none; }
+  .trust.trust-4 > div:nth-child(n+3) { border-top: 1px solid var(--line); } }
+@media (max-width: 560px) { .trust.trust-4 { margin-top: -48px; grid-template-columns: 1fr; }
+  .trust.trust-4 > div::before { display: none; } .trust.trust-4 > div + div { border-top: 1px solid var(--line); }
+  .trust.trust-4 > div { padding: 18px 20px; grid-template-columns: 48px minmax(0, 1fr); } .trust.trust-4 .tr-ico { width: 48px; height: 48px; border-radius: 15px; }
+  .trust.trust-4 dt { font-size: 1.3rem; } }
+@media (prefers-color-scheme: dark) { .trust.trust-4 { background: linear-gradient(180deg, #132b2c, #102526); box-shadow: 0 30px 60px -30px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.06); } }
