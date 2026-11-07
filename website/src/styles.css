@@ -884,21 +884,29 @@ html.fx-on :is(input, textarea) { cursor: text; }
 @media (hover: none) { .btn:active { transform: scale(.96); } .t-card:active, .tc:active { transform: scale(.985); } }
 @media (prefers-reduced-motion: reduce) { .btn { translate: none; } }
 
-/* clinic name: a band of coloured light runs across the letters on hover; headings glow softly */
-.hero h1.hero-name, .bn-1, .bn-2 { -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; background-size: 300% 100%; background-position: 100% 0; }
-.hero h1.hero-name { background-image: linear-gradient(100deg, #fff 0 40%, #ffd36b 45%, #f3a6b4 50%, #8fd6cc 55%, #fff 60% 100%); }
-.bn-1 { background-image: linear-gradient(100deg, var(--ink) 0 40%, var(--gum) 47%, #2c8a84 53%, var(--ink) 60% 100%); }
-.bn-2 { background-image: linear-gradient(100deg, var(--ink-2) 0 40%, var(--gum) 47%, #2c8a84 53%, var(--ink-2) 60% 100%); }
-@keyframes light-run { from { background-position: 100% 0; } to { background-position: 0 0; } }
-.fx-on .hero h1.hero-name:hover { animation: light-run 1.3s cubic-bezier(.4,0,.2,1); filter: drop-shadow(0 0 14px rgba(143, 214, 204, .35)); }
-.fx-on .brand:hover .bn-1, .fx-on .brand:hover .bn-2 { animation: light-run 1.1s cubic-bezier(.4,0,.2,1); }
-.fx-on .brand:hover .bn-2 { animation-delay: .12s; }
+/* ── clinic name "lightning" ──
+   1. every few seconds a band of gold-pink-mint light runs across the name by itself (all devices)
+   2. on hover the band runs at once, the letters flicker with an electric glow,
+   3. and a bright light follows the mouse across the letters */
+.hero h1.hero-name, .bn-1, .bn-2 { -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  background-size: 100% 100%, 300% 100%; background-position: 0 0, 100% 0; background-repeat: no-repeat; }
+.hero h1.hero-name {
+  background-image: radial-gradient(circle 150px at var(--tx, -999px) 55%, #fffbea 0, #ffe08a 22%, #f7b7c4 45%, rgba(255,255,255,0) 72%),
+    linear-gradient(100deg, #fff 0 40%, #ffe08a 45.5%, #fff8e6 48%, #f7b7c4 51%, #8fd6cc 55%, #fff 60% 100%);
+  animation: rise .8s cubic-bezier(.2,.7,.2,1) both, idle-run 8s 2.2s cubic-bezier(.45,0,.2,1) infinite; }
+.bn-1 { background-image: radial-gradient(circle 70px at var(--tx, -999px) 55%, var(--gum) 0, #2c8a84 55%, rgba(13,54,55,0) 80%),
+    linear-gradient(100deg, var(--ink) 0 40%, var(--gum) 47%, #2c8a84 53%, var(--ink) 60% 100%); animation: idle-run 10s 3s cubic-bezier(.45,0,.2,1) infinite; }
+.bn-2 { background-image: radial-gradient(circle 70px at var(--tx, -999px) 55%, var(--gum) 0, #2c8a84 55%, rgba(27,88,86,0) 80%),
+    linear-gradient(100deg, var(--ink-2) 0 40%, var(--gum) 47%, #2c8a84 53%, var(--ink-2) 60% 100%); animation: idle-run 10s 3.15s cubic-bezier(.45,0,.2,1) infinite; }
+@keyframes idle-run { 0% { background-position: 0 0, 100% 0; } 16%, 100% { background-position: 0 0, 0 0; } }
+@keyframes light-run { from { background-position: 0 0, 100% 0; } to { background-position: 0 0, 0 0; } }
+@keyframes zap { 0%, 100% { filter: drop-shadow(0 0 10px rgba(255, 224, 138, .25)); }
+  6% { filter: drop-shadow(0 0 22px rgba(255, 240, 200, .8)) brightness(1.15); } 9% { filter: drop-shadow(0 0 6px rgba(255, 224, 138, .2)); }
+  13% { filter: drop-shadow(0 0 26px rgba(247, 183, 196, .75)) brightness(1.2); } 22% { filter: drop-shadow(0 0 12px rgba(143, 214, 204, .4)); }
+  55% { filter: drop-shadow(0 0 16px rgba(143, 214, 204, .45)); } }
+.fx-on .hero h1.hero-name:hover { animation: light-run 1.15s cubic-bezier(.4,0,.2,1), zap 2.4s ease-in-out infinite; }
+.fx-on .brand:hover .bn-1, .fx-on .brand:hover .bn-2 { animation: light-run .95s cubic-bezier(.4,0,.2,1); }
+.fx-on .brand:hover .bn-2 { animation-delay: .1s; }
 .fx-on .hero .motto:hover { filter: drop-shadow(0 0 12px rgba(243, 166, 180, .35)); }
 .fx-on :is(h2, h3):not(.motto):hover { text-shadow: 0 0 16px rgba(44, 138, 132, .28); transition: text-shadow .3s; }
-.hero h1.hero-name, .hero .motto { transition: filter .3s; }
-.sparkle { position: fixed; z-index: 9999; pointer-events: none; margin: -9px 0 0 -9px; background: currentColor;
-  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
-  filter: drop-shadow(0 0 4px currentColor); animation: spark .85s cubic-bezier(.22,1,.36,1) forwards; }
-@keyframes spark { 0% { transform: translate(0, 0) scale(0) rotate(0); opacity: 1; } 35% { transform: translate(calc(var(--dx) * .4), calc(var(--dy) * .4)) scale(1) rotate(60deg); opacity: 1; }
-  100% { transform: translate(var(--dx), var(--dy)) scale(.2) rotate(160deg); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .sparkle { display: none; } }
+.hero .motto { transition: filter .3s; }
