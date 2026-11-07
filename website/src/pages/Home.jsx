@@ -7,6 +7,7 @@ import { Bar, Footer, DraftNote, waLink } from "../components/Chrome";
 import TechArt from "../components/TechArt";
 import ChatBot from "../components/ChatBot";
 import { useMotion } from "../motion";
+import { useEffects } from "../effects";
 
 const tel = (n) => `tel:${String(n).replace(/[^\d+]/g, "")}`;
 /* treatment information pages (plain pages in public/treatments, made for search engines and for sharing) */
@@ -432,6 +433,7 @@ export default function Home() {
     return () => window.removeEventListener("scroll", on);
   }, []);
   useMotion();
+  useEffects();
   const d0 = doctors[0];
   return (
     <>
@@ -446,8 +448,14 @@ export default function Home() {
           <div className="wrap hero-grid">
             <div className="hero-copy">
               <p className="hero-place"><Icon n="pin" size={16} />Chaitanyapuri, near Dilsukhnagar, Hyderabad</p>
-              <h1>{clinic.name}</h1>
-              <p className="motto">{clinic.motto}</p>
+              <h1 className="sr-only">{clinic.name}</h1>
+              <h6 className="hero-name" aria-hidden="true">{clinic.name}</h6>
+              <h4 className="motto">
+                <span className="sr-only">{clinic.motto}</span>
+                {clinic.motto.split(" ").map((w, i, all) => (
+                  <span key={i} className={"mw" + (i >= all.length - 2 ? " hl" : "")} style={{ "--wi": i }} aria-hidden="true">{w}</span>
+                ))}
+              </h4>
               {clinic.pillars?.length > 0 && (
                 <ul className="hero-pillars">
                   {clinic.pillars.map(([t, d], k) => (
