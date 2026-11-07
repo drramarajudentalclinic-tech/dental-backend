@@ -939,9 +939,12 @@ h1.hero-name {
 .fv-steps { list-style: none; margin: 34px 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; position: relative; }
 .fv-steps::before { content: ""; position: absolute; left: 12%; right: 12%; top: 31px; height: 2px; z-index: 0;
   background: repeating-linear-gradient(90deg, var(--line) 0 8px, transparent 8px 14px); }
-.fv-steps li { position: relative; z-index: 1; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-l); padding: 22px 20px 20px; box-shadow: var(--shadow-1);
+.fv-steps li { opacity: 0; translate: 0 26px; position: relative; z-index: 1; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-l); padding: 22px 20px 20px; box-shadow: var(--shadow-1);
   transition: opacity .75s cubic-bezier(.22,1,.36,1), translate .75s cubic-bezier(.22,1,.36,1), transform .35s cubic-bezier(.22,1,.36,1), box-shadow .35s, border-color .35s;
   transition-delay: var(--rd, 0ms), var(--rd, 0ms), 0s, 0s, 0s; }
+.fv-in .fv-steps li { opacity: 1; translate: 0 0; }
+.fv-bring { opacity: 0; transition: opacity .7s .5s; } .fv-in .fv-bring { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .fv-steps li, .fv-bring { opacity: 1; translate: none; } }
 .fv-steps li:hover { transform: translateY(-6px); box-shadow: var(--shadow-2); border-color: #bcd6cf; }
 .fv-num { position: absolute; top: -13px; right: 18px; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
   background: var(--gum); color: #fff; font: 700 13px var(--display); box-shadow: 0 0 0 4px var(--paper); }
@@ -996,18 +999,18 @@ h1.hero-name { color: #fff;
 html.is-home .bar { background: #0b2f31; border-bottom: 1px solid rgba(255,255,255,.08); box-shadow: 0 1px 0 rgba(255,255,255,.04) inset; }
 html.is-home .bar.scrolled { background: rgba(8, 36, 38, .97); box-shadow: 0 12px 30px -16px rgba(0,0,0,.6); }
 html.is-home .bar .wrap, html.is-home .bar.scrolled .wrap { min-height: 64px; gap: 16px; }
-html.is-home .nav { gap: 8px; }
-html.is-home .nav a { color: #d4e8e3; font: 600 15px var(--body); letter-spacing: .01em; padding: 9px 18px; border-radius: 999px;
-  border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.03); line-height: 1.2;
+html.is-home .nav { gap: 16px; }
+html.is-home .nav a { color: var(--ink); font: 650 15px var(--body); letter-spacing: .01em; padding: 9px 20px; border-radius: 999px;
+  border: 1px solid #fff; background: #fff; line-height: 1.2; box-shadow: 0 6px 16px -10px rgba(0,0,0,.55);
   transition: background .25s, border-color .25s, color .25s, transform .25s cubic-bezier(.34,1.56,.64,1), box-shadow .25s; }
 html.is-home .nav a::before { display: none; }
-html.is-home .nav a::after { left: 50%; right: auto; width: 5px; height: 5px; bottom: -9px; margin-left: -2.5px; border-radius: 50%; background: var(--gum-2); transform: scale(0); }
-html.is-home .nav a:hover { color: #fff; background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.3); transform: translateY(-2px); }
-html.is-home .nav a.active { color: var(--ink); background: #fff; border-color: #fff; box-shadow: 0 8px 20px -10px rgba(0,0,0,.6); }
+html.is-home .nav a::after { left: 50%; right: auto; width: 5px; height: 5px; bottom: -10px; margin-left: -2.5px; border-radius: 50%; background: var(--gum-2); transform: scale(0); }
+html.is-home .nav a:hover { color: var(--ink); background: var(--mint); border-color: var(--mint); transform: translateY(-2px); box-shadow: 0 12px 22px -10px rgba(0,0,0,.6); }
+html.is-home .nav a.active { color: #fff; background: var(--gum); border-color: var(--gum); }
 html.is-home .nav a.active::after, html.is-home .nav a:hover::after { transform: scale(1); }
-html.is-home .nav a:focus-visible { outline: 2px solid var(--gum-2); outline-offset: 2px; }
+html.is-home .nav a:focus-visible { outline: 2px solid var(--gum-2); outline-offset: 3px; }
 html.is-home .bar .btn.small { background: #fff; border-color: #fff; color: var(--ink); }
 html.is-home .bar .btn.small:hover { background: var(--mint); border-color: var(--mint); }
-@media (min-width: 1141px) and (max-width: 1320px) { html.is-home .nav { gap: 6px; } html.is-home .nav a { padding: 8px 13px; font-size: 14.5px; } }
+@media (min-width: 1141px) and (max-width: 1320px) { html.is-home .nav { gap: 9px; } html.is-home .nav a { padding: 8px 14px; font-size: 14.5px; } }
 html.is-home .hero { padding-top: 48px; }
 @media (min-width: 1141px) { html.is-home .bar .wrap::before { content: ""; flex: 0 0 124px; } }   /* balances Patient login so the menu sits in the true centre */

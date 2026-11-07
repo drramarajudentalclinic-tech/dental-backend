@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { clinic, doctors, services, technology, protocols, portalSteps, screening, faqs, YEARS } from "../content";
 import * as photos from "../photos";
@@ -97,14 +97,23 @@ const FIRST_VISIT = [
   ["check", "Treatment or next date", "If treatment is needed, it may start the same day, or your next appointment is fixed before you leave."],
 ];
 function FirstVisit() {
+  const ref = useRef(null);
+  const [seen, setSeen] = useState(false);
+  useEffect(() => {   // show the steps once they scroll into view (always shown if the browser can't tell)
+    const el = ref.current;
+    if (!el || !("IntersectionObserver" in window)) { setSeen(true); return; }
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setSeen(true); io.disconnect(); } }, { threshold: 0.15 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
   return (
-    <section className="sec first-visit" id="first-visit">
+    <section className={"sec first-visit" + (seen ? " fv-in" : "")} id="first-visit" ref={ref}>
       <div className="wrap">
-        <header className="sec-head rv"><span className="kicker">Your first visit</span><h2>What happens when you come in</h2>
+        <header className="sec-head"><span className="kicker">Your first visit</span><h2>What happens when you come in</h2>
           <p>Four simple steps, so you know what to expect before you arrive.</p></header>
         <ol className="fv-steps">
           {FIRST_VISIT.map(([ico, t, d], k) => (
-            <li key={t} className="rv" style={{ "--rd": k * 110 + "ms" }}>
+            <li key={t} style={{ "--rd": k * 120 + "ms" }}>
               <span className="fv-num" aria-hidden="true">{k + 1}</span>
               <span className="fv-ico" aria-hidden="true"><Icon n={ico} size={22} /></span>
               <h3>{t}</h3>
@@ -112,7 +121,7 @@ function FirstVisit() {
             </li>
           ))}
         </ol>
-        <div className="fv-bring rv">
+        <div className="fv-bring">
           <b>Please bring:</b>
           <span>Old X-rays or scans</span><span>Medical reports</span><span>List of current medicines</span><span>Any dental prescriptions</span>
         </div>
