@@ -971,3 +971,43 @@ h1.hero-name {
 @keyframes bar-up { from { transform: translateY(110%); } to { transform: none; } }
 @keyframes wa-glow { 0% { box-shadow: 0 0 0 0 rgba(37, 180, 99, .55); } 70%, 100% { box-shadow: 0 0 0 10px rgba(37, 180, 99, 0); } }
 @keyframes wa-nudge { 0%, 60%, 100% { transform: none; } 66% { transform: rotate(-14deg) scale(1.1); } 72% { transform: rotate(12deg) scale(1.1); } 78% { transform: none; } }
+
+/* ═════ HOME TOP: masthead + menu in the same deep teal as the page body ═════ */
+.masthead { background: radial-gradient(1100px 420px at 80% -30%, #1f6a66 0%, transparent 62%), radial-gradient(800px 380px at 0% 120%, #123f40 0%, transparent 60%),
+  linear-gradient(160deg, #0d3637 0%, #0a2c2e 100%); border-bottom: 0; padding: 30px 0 24px; }
+.masthead::before { content: ""; position: absolute; inset: 0; pointer-events: none; background-image: radial-gradient(rgba(255,255,255,.06) 1px, transparent 1px); background-size: 22px 22px;
+  mask-image: linear-gradient(180deg, #000, transparent 90%); -webkit-mask-image: linear-gradient(180deg, #000, transparent 90%); }
+.mh-logo { background: #fff; border-radius: 50%; padding: .1em; box-shadow: 0 0 0 3px rgba(255,255,255,.15), 0 10px 24px -10px rgba(0,0,0,.6); }
+h1.hero-name { color: #fff;
+  background-image: radial-gradient(circle 150px at var(--tx, -999px) 55%, #fffbea 0, #ffe08a 22%, #f7b7c4 45%, rgba(255,255,255,0) 72%),
+    linear-gradient(100deg, #fff 0 40%, #ffe08a 45.5%, #fff8e6 48%, #f7b7c4 51%, #8fd6cc 55%, #fff 60% 100%); }
+@keyframes zap { 0%, 100% { filter: drop-shadow(0 0 10px rgba(255, 224, 138, .25)); }
+  6% { filter: drop-shadow(0 0 22px rgba(255, 240, 200, .8)) brightness(1.15); } 9% { filter: drop-shadow(0 0 6px rgba(255, 224, 138, .2)); }
+  13% { filter: drop-shadow(0 0 26px rgba(247, 183, 196, .75)) brightness(1.2); } 22% { filter: drop-shadow(0 0 12px rgba(143, 214, 204, .4)); }
+  55% { filter: drop-shadow(0 0 16px rgba(143, 214, 204, .45)); } }
+.motto { color: #fff; }
+.motto::before { background: linear-gradient(90deg, var(--gum-2), #2c8a84); }
+.motto .hl { background-image: linear-gradient(90deg, var(--gum-2), #ffe1e8 50%, var(--gum-2)); }
+.fx-on .motto:hover { filter: drop-shadow(0 0 12px rgba(243, 166, 180, .35)); }
+.masthead .hero-place { color: #cfe6e1; background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.16); box-shadow: none; }
+.masthead .hero-place svg { color: var(--gum-2); }
+
+/* menu bar on the home page: dark glass, links as neat even pills */
+html.is-home .bar { background: #0b2f31; border-bottom: 1px solid rgba(255,255,255,.08); box-shadow: 0 1px 0 rgba(255,255,255,.04) inset; }
+html.is-home .bar.scrolled { background: rgba(8, 36, 38, .97); box-shadow: 0 12px 30px -16px rgba(0,0,0,.6); }
+html.is-home .bar .wrap, html.is-home .bar.scrolled .wrap { min-height: 64px; gap: 16px; }
+html.is-home .nav { gap: 8px; }
+html.is-home .nav a { color: #d4e8e3; font: 600 15px var(--body); letter-spacing: .01em; padding: 9px 18px; border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.03); line-height: 1.2;
+  transition: background .25s, border-color .25s, color .25s, transform .25s cubic-bezier(.34,1.56,.64,1), box-shadow .25s; }
+html.is-home .nav a::before { display: none; }
+html.is-home .nav a::after { left: 50%; right: auto; width: 5px; height: 5px; bottom: -9px; margin-left: -2.5px; border-radius: 50%; background: var(--gum-2); transform: scale(0); }
+html.is-home .nav a:hover { color: #fff; background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.3); transform: translateY(-2px); }
+html.is-home .nav a.active { color: var(--ink); background: #fff; border-color: #fff; box-shadow: 0 8px 20px -10px rgba(0,0,0,.6); }
+html.is-home .nav a.active::after, html.is-home .nav a:hover::after { transform: scale(1); }
+html.is-home .nav a:focus-visible { outline: 2px solid var(--gum-2); outline-offset: 2px; }
+html.is-home .bar .btn.small { background: #fff; border-color: #fff; color: var(--ink); }
+html.is-home .bar .btn.small:hover { background: var(--mint); border-color: var(--mint); }
+@media (min-width: 1141px) and (max-width: 1320px) { html.is-home .nav { gap: 6px; } html.is-home .nav a { padding: 8px 13px; font-size: 14.5px; } }
+html.is-home .hero { padding-top: 48px; }
+@media (min-width: 1141px) { html.is-home .bar .wrap::before { content: ""; flex: 0 0 124px; } }   /* balances Patient login so the menu sits in the true centre */
