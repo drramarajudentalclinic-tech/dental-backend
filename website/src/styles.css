@@ -1109,27 +1109,28 @@ html.is-home .bar .wrap > .btn.small { order: 3; }
   .treat-links a { background: var(--paper); color: var(--ink); border-color: var(--line); }
 }
 
-/* ═════ TRUST STRIP: four facts, full width ═════ */
+/* ═════ TRUST STRIP: four facts, full width, deep teal ═════ */
 .trust.trust-4 { max-width: none; margin-top: -64px; grid-template-columns: repeat(4, 1fr); border-radius: 22px; overflow: hidden; border: 0;
-  background: linear-gradient(180deg, #fff, #f7fbfa); box-shadow: 0 30px 60px -30px rgba(6, 34, 36, .45), 0 0 0 1px rgba(13, 54, 55, .06); }
-.trust.trust-4::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; z-index: 1;
-  background: linear-gradient(90deg, var(--gum), #e8879b 30%, #2c8a84 70%, var(--ink-2-fill)); }
+  background: radial-gradient(600px 200px at 85% -40%, rgba(44, 138, 132, .45), transparent 70%), linear-gradient(160deg, #134a4a 0%, #0d3637 55%, #0a2c2e 100%);
+  box-shadow: 0 30px 60px -28px rgba(0, 0, 0, .55), 0 0 0 1px rgba(255, 255, 255, .08), inset 0 1px 0 rgba(255, 255, 255, .08); }
+.trust.trust-4::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; z-index: 1;
+  background: linear-gradient(90deg, var(--gum-2), #8fd6cc 50%, var(--gum-2)); opacity: .9; }
 .trust.trust-4 > div { position: relative; grid-template-columns: 56px minmax(0, 1fr); column-gap: 16px; align-content: center; padding: 30px 26px 28px;
-  transition: background .35s, transform .35s cubic-bezier(.22,1,.36,1); }
+  transition: background .35s; }
 .trust.trust-4 > div + div { border-left: 0; }
-.trust.trust-4 > div + div::before { content: ""; position: absolute; left: 0; top: 22%; bottom: 22%; width: 1px; background: linear-gradient(180deg, transparent, var(--line), transparent); }
+.trust.trust-4 > div + div::before { content: ""; position: absolute; left: 0; top: 22%; bottom: 22%; width: 1px; background: linear-gradient(180deg, transparent, rgba(255,255,255,.18), transparent); }
 .trust.trust-4 .tr-ico { width: 56px; height: 56px; border-radius: 18px; align-self: center; color: #fff;
-  background: linear-gradient(145deg, #2c8a84, var(--ink-fill)); box-shadow: 0 10px 20px -10px rgba(13, 54, 55, .7), inset 0 1px 0 rgba(255,255,255,.25); }
-.trust.trust-4 > div:nth-child(3) .tr-ico { background: linear-gradient(145deg, #e8879b, var(--gum)); box-shadow: 0 10px 20px -10px rgba(196, 71, 95, .7), inset 0 1px 0 rgba(255,255,255,.25); }
-.trust.trust-4 dt { font: 700 1.6rem/1.05 var(--display); letter-spacing: -0.02em; color: var(--ink); align-self: end; }
-.trust.trust-4 dd { margin-top: 5px; font-size: 14px; line-height: 1.4; }
-.trust.trust-4 > div:hover { background: var(--mint-2); }
-.trust.trust-4 > div:hover .tr-ico { transform: translateY(-3px) rotate(-8deg) scale(1.05); }
+  background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .16); box-shadow: inset 0 1px 0 rgba(255,255,255,.12); }
+.trust.trust-4 > div:nth-child(3) .tr-ico { color: var(--gum-2); }
+.trust.trust-4 dt { font: 700 1.6rem/1.05 var(--display); letter-spacing: -0.02em; color: #fff; align-self: end; }
+.trust.trust-4 dd { margin-top: 5px; font-size: 14px; line-height: 1.4; color: #a9c9c3; }
+.trust.trust-4 > div:hover { background: rgba(255, 255, 255, .05); }
+.trust.trust-4 > div:hover .tr-ico { transform: translateY(-3px) rotate(-8deg) scale(1.05); background: rgba(255, 255, 255, .14); }
+.fx-on .trust.trust-4 > div { background-image: radial-gradient(260px circle at var(--sx, -999px) var(--sy, -999px), rgba(255, 255, 255, .08), transparent 60%); }
 @media (max-width: 1100px) { .trust.trust-4 { grid-template-columns: 1fr 1fr; }
   .trust.trust-4 > div:nth-child(3)::before { display: none; }
-  .trust.trust-4 > div:nth-child(n+3) { border-top: 1px solid var(--line); } }
+  .trust.trust-4 > div:nth-child(n+3) { border-top: 1px solid rgba(255,255,255,.1); } }
 @media (max-width: 560px) { .trust.trust-4 { margin-top: -48px; grid-template-columns: 1fr; }
-  .trust.trust-4 > div::before { display: none; } .trust.trust-4 > div + div { border-top: 1px solid var(--line); }
+  .trust.trust-4 > div::before { display: none; } .trust.trust-4 > div + div { border-top: 1px solid rgba(255,255,255,.1); }
   .trust.trust-4 > div { padding: 18px 20px; grid-template-columns: 48px minmax(0, 1fr); } .trust.trust-4 .tr-ico { width: 48px; height: 48px; border-radius: 15px; }
   .trust.trust-4 dt { font-size: 1.3rem; } }
-@media (prefers-color-scheme: dark) { .trust.trust-4 { background: linear-gradient(180deg, #132b2c, #102526); box-shadow: 0 30px 60px -30px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.06); } }
