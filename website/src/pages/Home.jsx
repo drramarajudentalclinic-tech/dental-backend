@@ -40,11 +40,68 @@ const I = {
   tooth: <path d="M8 3c-3 0-4.5 2.2-4.5 5 0 3 1.5 4.5 2.2 6.8.8 3 .8 6.2 2.6 6.2 1.8 0 1.9-4.5 4.7-4.5s2.9 4.5 4.7 4.5c1.8 0 1.8-3.2 2.6-6.2.7-2.3 2.2-3.8 2.2-6.8 0-2.8-1.5-5-4.5-5-2.2 0-3 1.1-5 1.1S10.2 3 8 3z" />,
   arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
   check: <path d="M5 12.5 10 17 19 7" />,
+  metro: <><rect x="5" y="3" width="14" height="14" rx="3" /><path d="M5 11h14M9 17l-2 4M15 17l2 4M9 14h.01M15 14h.01" /></>,
+  road: <path d="M8 3 5 21M16 3l3 18M12 5v2M12 11v2M12 17v2" />,
+  nav: <path d="M3 11 21 3l-8 18-2-8z" />,
+  share: <><circle cx="18" cy="5" r="2.5" /><circle cx="6" cy="12" r="2.5" /><circle cx="18" cy="19" r="2.5" /><path d="m8.2 10.8 7.6-4.4M8.2 13.2l7.6 4.4" /></>,
   lock: <><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></>,
 };
 const Icon = ({ n, size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{I[n]}</svg>
 );
+
+/* ── back to top: appears after scrolling; the ring fills as you read down the page ── */
+function BackToTop() {
+  const [p, setP] = useState(0);
+  useEffect(() => {
+    const on = () => {
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      setP(max > 0 ? Math.min(1, window.scrollY / max) : 0);
+    };
+    on(); window.addEventListener("scroll", on, { passive: true }); window.addEventListener("resize", on);
+    return () => { window.removeEventListener("scroll", on); window.removeEventListener("resize", on); };
+  }, []);
+  const C = 2 * Math.PI * 21;
+  return (
+    <button type="button" className={"to-top" + (p > 0.12 ? " show" : "")} aria-label="Back to top"
+      onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
+      <svg viewBox="0 0 48 48" aria-hidden="true">
+        <circle className="tt-track" cx="24" cy="24" r="21" />
+        <circle className="tt-ring" cx="24" cy="24" r="21" style={{ strokeDasharray: C, strokeDashoffset: C * (1 - p) }} />
+        <path className="tt-arrow" d="M24 31V17M18 23l6-6 6 6" />
+      </svg>
+    </button>
+  );
+}
+
+/* ── getting here: metro, landmark, road + direction buttons ── */
+function GettingHere() {
+  const [lat, lng] = (clinic.mapCenter || "").split(",");
+  const dir = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  const share = `https://wa.me/?text=${encodeURIComponent(`${clinic.name}\n${clinic.address.join(", ")}\nMap: ${clinic.mapsLink}`)}`;
+  const tips = [
+    ["metro", "By metro", "Chaitanyapuri station on the Red line (Miyapur – LB Nagar). The clinic is opposite Metro Pillar No. 1563."],
+    ["pin", "Landmark", "Rajanigandha Apartments, ground floor (G-15), opposite Metro Pillar No. 1563, near Dilsukhnagar."],
+    ["road", "By road", "On the Dilsukhnagar – LB Nagar main road, under the metro line. Auto and cab drivers know Chaitanyapuri."],
+  ];
+  return (
+    <div className="getting-here">
+      <div className="gh-tips">
+        {tips.map(([ico, t, d]) => (
+          <div className="gh-tip" key={t}>
+            <span className="gh-ico" aria-hidden="true"><Icon n={ico} size={22} /></span>
+            <div><b>{t}</b><p>{d}</p></div>
+          </div>
+        ))}
+      </div>
+      <div className="gh-actions">
+        <a className="btn" href={dir} target="_blank" rel="noreferrer"><Icon n="nav" size={18} />Get directions</a>
+        <a className="btn ghost" href={clinic.mapsLink} target="_blank" rel="noreferrer"><Icon n="pin" size={18} />Open in Google Maps</a>
+        <a className="btn ghost" href={share} target="_blank" rel="noreferrer"><Icon n="share" size={18} />Send location on WhatsApp</a>
+      </div>
+    </div>
+  );
+}
 
 /* ── open now / closed badge: Mon–Sat 11 am – 7 pm, India time (whatever the visitor's own clock says) ── */
 const WEEK_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -704,6 +761,7 @@ export default function Home() {
                 </div>
               </div>
             </div>
+            <GettingHere />
           </div>
         </section>
         <section className="treat-links" aria-label="Treatment information">
@@ -711,7 +769,7 @@ export default function Home() {
             <h2>Treatment information</h2>
             <p>How each treatment is done at the clinic, step by step.</p>
             <ul>{TREATMENT_PAGES.map(([slug, name]) => <li key={slug}><a href={`/treatments/${slug}.html`}>{name}</a></li>)}</ul>
-            <p><a href="/treatments/">All treatments →</a></p>
+            <p><a href="/treatments/">All treatments →</a> · <a href="/aftercare/">Aftercare instructions →</a></p>
           </div>
         </section>
       </main>
@@ -725,7 +783,8 @@ export default function Home() {
       <a className={`wa-float${scrolled ? " show" : ""}`} href={waLink()} target="_blank" rel="noreferrer" aria-label="Book an appointment on WhatsApp">
         <Icon n="chat" size={24} /><span>Book on WhatsApp</span>
       </a>
+      <BackToTop />
       <ChatBot />
     </>
   );
-}
+}
