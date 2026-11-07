@@ -1,5 +1,5 @@
 /* Extra movement for the website (works with styles.css "EFFECTS" section)
-   - soft ring that follows the mouse (laptop / desktop only)
+   - small tooth mouse pointer (laptop / desktop only, drawn in styles.css)
    - buttons lean toward the mouse, and show a ripple when tapped or clicked
    - cards show a soft light where the mouse is
    Phones and tablets get the ripple and the tap feedback only.
@@ -7,7 +7,6 @@
 import { useEffect } from "react";
 
 const CARDS = ".t-card, .tc, .hero-pillars li, .trust > div, .faq details, .visit-card, .hb-card";
-const HOVERABLE = "a, button, summary, select, input, textarea, label, [role=button], .t-card, .tc";
 
 export function useEffects() {
   useEffect(() => {
@@ -34,32 +33,10 @@ export function useEffects() {
     if (finePointer && !reduce) {
       document.documentElement.classList.add("fx-on");
 
-      /* ring that follows the mouse */
-      const ring = document.createElement("div");
-      ring.className = "cur-ring";
-      ring.setAttribute("aria-hidden", "true");
-      const dot = document.createElement("div");
-      dot.className = "cur-dot";
-      dot.setAttribute("aria-hidden", "true");
-      document.body.append(ring, dot);
-      cleanups.push(() => { ring.remove(); dot.remove(); });
-
-      let mx = -100, my = -100, rx = -100, ry = -100, raf = 0, shown = false;
-      const loop = () => {
-        rx += (mx - rx) * 0.2; ry += (my - ry) * 0.2;
-        ring.style.transform = `translate3d(${rx}px, ${ry}px, 0)`;
-        raf = Math.abs(mx - rx) + Math.abs(my - ry) > 0.3 ? requestAnimationFrame(loop) : 0;
-      };
+      /* the tooth pointer itself is set in styles.css (html.fx-on) */
       on(window, "pointermove", (e) => {
         if (e.pointerType !== "mouse") return;
-        mx = e.clientX; my = e.clientY;
-        dot.style.transform = `translate3d(${mx}px, ${my}px, 0)`;
-        if (!shown) { shown = true; rx = mx; ry = my; ring.classList.add("show"); dot.classList.add("show"); }
-        if (!raf) raf = requestAnimationFrame(loop);
-
         const t = e.target;
-        ring.classList.toggle("hover", !!t.closest?.(HOVERABLE));
-        ring.classList.toggle("dark", !!t.closest?.(".hero, .foot, .screen, .scr, .dark"));
 
         /* soft light inside cards */
         const card = t.closest?.(CARDS);
@@ -83,10 +60,7 @@ export function useEffects() {
         const btn = e.target.closest?.(".btn");
         if (btn && !btn.contains(e.relatedTarget)) { btn.style.removeProperty("--bx"); btn.style.removeProperty("--by"); }
       }, { passive: true });
-      on(document.documentElement, "mouseleave", () => { ring.classList.remove("show"); dot.classList.remove("show"); shown = false; });
-      on(window, "pointerdown", () => ring.classList.add("down"), { passive: true });
-      on(window, "pointerup", () => ring.classList.remove("down"), { passive: true });
-      cleanups.push(() => { cancelAnimationFrame(raf); document.documentElement.classList.remove("fx-on"); });
+      cleanups.push(() => document.documentElement.classList.remove("fx-on"));
     }
 
     return () => cleanups.forEach((f) => f());
