@@ -72,7 +72,7 @@ img { max-width: 100%; }
 .logo-img { display: block; flex-shrink: 0; object-fit: contain; }
 /* clinic name on one line: "Sri Satya Sai" in deep teal + the rest in lighter teal */
 .brand-name { display: block; line-height: 1.2; min-width: 0; }
-.bn-1, .bn-2 { display: inline; font: 700 21px/1.2 var(--display); letter-spacing: -0.012em; white-space: normal; overflow: visible; }
+.bn-1, .bn-2 { display: inline; font: 700 18px/1.2 var(--display); letter-spacing: -0.012em; white-space: normal; overflow: visible; }
 .bn-1 { color: var(--ink); }
 .bn-1::after { content: " "; }
 .bn-2 { color: var(--ink-2); font-weight: 600; }
@@ -86,9 +86,9 @@ img { max-width: 100%; }
   .bar .wrap, .bar.scrolled .wrap { flex-wrap: wrap; row-gap: 0; min-height: 0; }
   .bar .wrap > .brand { padding: 12px 0 10px; }
   .bar .wrap > .nav { order: 9; flex: 0 0 100%; justify-content: center; gap: 6px; padding: 4px 0 6px; border-top: 1px solid rgba(13, 54, 55, .07); }
-  .bn-1, .bn-2 { font-size: 23px; } }
-@media (min-width: 521px) and (max-width: 860px) { .bn-1, .bn-2 { font-size: 18px; } }
-@media (max-width: 520px) { .bar .wrap { min-height: 66px; gap: 10px; } .bn-1, .bn-2 { font-size: 15.5px; line-height: 1.22; }
+  .bn-1, .bn-2 { font-size: 18px; } }
+@media (min-width: 521px) and (max-width: 860px) { .bn-1, .bn-2 { font-size: 16px; } }
+@media (max-width: 520px) { .bar .wrap { min-height: 66px; gap: 10px; } .bn-1, .bn-2 { font-size: 14px; line-height: 1.22; }
   .bar .btn.small { padding: 0 12px; font-size: 13.5px; min-height: 36px; } .brand { gap: 8px; } .brand .logo-img { width: 40px; height: 37px; } }
 
 /* ── hero ── */
