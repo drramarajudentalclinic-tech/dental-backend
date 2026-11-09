@@ -46,6 +46,12 @@ const I = {
   nav: <path d="M3 11 21 3l-8 18-2-8z" />,
   share: <><circle cx="18" cy="5" r="2.5" /><circle cx="6" cy="12" r="2.5" /><circle cx="18" cy="19" r="2.5" /><path d="m8.2 10.8 7.6-4.4M8.2 13.2l7.6 4.4" /></>,
   lock: <><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></>,
+  note: <path d="M7 3h10v4H7zM5 5H4v16h16V5h-1M8 12h8M8 16h5" />,
+  rx: <path d="M6 3h7a4 4 0 0 1 0 8H6zM6 11v10M11 11l8 10M19 13l-6 8" />,
+  image: <><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="2" /><path d="m21 17-5-5-9 8" /></>,
+  cube: <><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z" /><path d="m4 7.5 8 4.5 8-4.5M12 12v9" /></>,
+  bill: <path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6M9 16h3" />,
+  cal: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></>,
 };
 const Icon = ({ n, size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{I[n]}</svg>
@@ -591,6 +597,7 @@ export default function Home() {
                 <a className="btn light" href={tel(clinic.phone)}><Icon n="phone" size={18} />Call {clinic.phone}</a>
                 <a className="btn outline-light" href="#treatments">See treatments <Icon n="arrow" size={18} /></a>
               </div>
+              <a className="hero-portal" href="#portal"><span className="pb-new">New</span>Your dental records, X-rays and prescriptions on your phone<Icon n="arrow" size={16} /></a>
             </div>
             {clinic.pillars?.length > 0 && (
               <ul className="hero-pillars hero-side">
@@ -661,15 +668,24 @@ export default function Home() {
         <section className="sec portal-band" id="portal">
           <div className="wrap portal-grid">
             <div>
+              <div className="pb-flag"><span className="pb-new">New</span>Your clinic records, online</div>
               <span className="kicker light">Patient portal</span>
-              <h2>Your dental records, on your phone</h2>
-              <p className="pb-lead">Visit summaries, prescriptions, X-rays, scans and receipts, available when the doctor shares them with you.</p>
-              <ol className="portal-steps">
+              <h2>Your dental records, <em className="pb-hl">on your phone</em></h2>
+              <p className="pb-lead">After each visit, see what your doctor shares with you, any time, on your phone. No files to carry, no papers to lose.</p>
+              <ul className="pb-chips">
+                {[["note", "Visit summaries"], ["rx", "Prescriptions"], ["image", "X-rays and photos"], ["bill", "Receipts"], ["cal", "Appointments"]].map(([i, t]) => (
+                  <li key={t}><Icon n={i} size={16} />{t}</li>
+                ))}
+              </ul>
+              <ol className="portal-steps pb-steps">
                 {portalSteps.map(([t, d]) => <li key={t}><b>{t}</b><span>{d}</span></li>)}
               </ol>
-              <Link className="btn light" to="/portal"><Icon n="lock" size={18} />Log in to the patient portal</Link>
+              <div className="pb-actions">
+                <Link className="btn light pb-cta" to="/portal"><Icon n="lock" size={18} />Log in to the patient portal</Link>
+                <span className="pb-safe"><Icon n="shield" size={16} />Secure login with a one-time code sent to your registered mobile.</span>
+              </div>
             </div>
-            <PortalPhone />
+            <figure className="pb-photo"><img src={photos.portalScreens} alt="Patient record on the clinic computer and in the patient portal on a phone" loading="lazy" decoding="async" /></figure>
           </div>
         </section>
 

@@ -377,10 +377,10 @@ export const technology = [
     items: [
       {
         name: "Digital patient records and patient portal",
-        photo: photos.records,
+        photo: photos.portalScreens,
         art: "records",
-        what: "Every visit, prescription, X-ray and scan is stored in one record for each patient.",
-        why: "Nothing is lost between visits, and the doctor can share your records with you online.",
+        what: "Every visit, prescription, X-ray and receipt is stored in one record for each patient. Through the patient portal, the doctor shares visit summaries, prescriptions, X-rays and receipts with you, and you see your appointments.",
+        why: "Your records on your phone, any time: no files to carry, no papers to lose. You log in with your mobile number and a 6-digit SMS code.",
       },
     ],
   },
@@ -780,9 +780,9 @@ export const protocols = [
 
 
 export const portalSteps = [
-  ["The doctor switches on your portal", "At your visit, the doctor turns on online access for your registered mobile number."],
-  ["The doctor chooses what to share", "Visit summaries, prescriptions, X-rays, scans and receipts — only what the doctor shares appears online."],
-  ["You log in with your mobile number", "We send a 6-digit code by SMS. No password to remember."],
+  ["Doctor switches it on", "At your visit, for your registered mobile number."],
+  ["Doctor shares your records", "Summaries, prescriptions, X-rays and receipts from your visit."],
+  ["You log in with an SMS code", "A 6-digit code each time. No password."],
 ];
 
 /* Oral cancer screening with the DrOroscope — facts from the published studies. */
@@ -838,4 +838,4 @@ export const faqs = [
   ["Can I see my X-rays and prescriptions later?", "Yes. When the doctor switches on your patient portal and shares them, you can see your visit summaries, prescriptions, X-rays and receipts on your phone."],
   ["How are instruments kept clean?", "Instruments are cleaned, sealed in sterilisation pouches and steam-autoclaved. The pouch is opened in front of you, and needles, gloves and suction tips are used once and thrown away. Surfaces are disinfected after every patient, and a germicidal UV-C lamp disinfects the empty treatment room."],
   ["When should a child first see a dentist?", "By the first birthday, or when the first tooth comes in. Early visits help catch decay in milk teeth and get children comfortable at the dentist."],
-];
+];
