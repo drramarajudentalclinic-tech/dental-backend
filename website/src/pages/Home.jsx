@@ -666,9 +666,9 @@ export default function Home() {
 
         {/* ── PORTAL ── */}
         <section className="sec portal-band" id="portal">
-          <div className="wrap portal-grid">
+          <div className="wrap"><div className="pb-frame"><div className="portal-grid">
             <div>
-              <div className="pb-flag"><span className="pb-new">New</span>Your clinic records, online</div>
+              <div className="pb-flag"><Icon n="lock" size={15} />Your clinic records, online</div>
               <span className="kicker light">Patient portal</span>
               <h2>Your dental records, <em className="pb-hl">on your phone</em></h2>
               <p className="pb-lead">After each visit, see what your doctor shares with you, any time, on your phone. No files to carry, no papers to lose.</p>
@@ -686,7 +686,7 @@ export default function Home() {
               </div>
             </div>
             <figure className="pb-photo"><img src={photos.portalScreens} alt="Patient record on the clinic computer and in the patient portal on a phone" loading="lazy" decoding="async" /></figure>
-          </div>
+          </div></div></div>
         </section>
 
         {/* ── FIRST VISIT ── */}
