@@ -25,7 +25,7 @@ export const clinic = {
   motto: "Oral health for healthy life",
   // shown under the motto on the home page
   pillars: [
-    ["Personalised treatment planning and execution", "A step by step plan made for your health and your teeth, explained first and carried out step by step."],
+    ["Personalised treatment planning and execution", "A step by step plan made for your health and teeth, explained first and carried out step by step."],
     ["Personalised pharmacogenomic treatment", "Medicines chosen to suit your genetic make-up and how your body handles them."],
   ],
   tagline: `Complete dental care in Chaitanyapuri, Hyderabad, since ${SINCE}, led by Dr. D. Rama Raju with ${YEARS} years of experience. Every treatment is explained before we begin.`,
@@ -822,4 +822,4 @@ export const faqs = [
   ["Can I see my X-rays and prescriptions later?", "Yes. When the doctor switches on your patient portal and shares them, you can see your visit summaries, prescriptions, X-rays and receipts on your phone."],
   ["How are instruments kept clean?", "Instruments are cleaned, sealed in sterilisation pouches and steam-autoclaved. The pouch is opened in front of you, and needles, gloves and suction tips are used once and thrown away. Surfaces are disinfected after every patient, and a germicidal UV-C lamp disinfects the empty treatment room."],
   ["When should a child first see a dentist?", "By the first birthday, or when the first tooth comes in. Early visits help catch decay in milk teeth and get children comfortable at the dentist."],
-];
+];
