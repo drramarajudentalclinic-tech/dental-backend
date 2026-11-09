@@ -40,6 +40,7 @@ const I = {
   tooth: <path d="M8 3c-3 0-4.5 2.2-4.5 5 0 3 1.5 4.5 2.2 6.8.8 3 .8 6.2 2.6 6.2 1.8 0 1.9-4.5 4.7-4.5s2.9 4.5 4.7 4.5c1.8 0 1.8-3.2 2.6-6.2.7-2.3 2.2-3.8 2.2-6.8 0-2.8-1.5-5-4.5-5-2.2 0-3 1.1-5 1.1S10.2 3 8 3z" />,
   arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
   check: <path d="M5 12.5 10 17 19 7" />,
+  user: <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>,
   metro: <><rect x="5" y="3" width="14" height="14" rx="3" /><path d="M5 11h14M9 17l-2 4M15 17l2 4M9 14h.01M15 14h.01" /></>,
   road: <path d="M8 3 5 21M16 3l3 18M12 5v2M12 11v2M12 17v2" />,
   nav: <path d="M3 11 21 3l-8 18-2-8z" />,
@@ -150,23 +151,6 @@ function BarExtras() {
   );
 }
 
-/* ── hero: a quick booking card (the clinic emblem sits behind it) ── */
-function HeroBook() {
-  return (
-    <div className="hero-book">
-      <img className="hb-mark" src={logoSrc} alt="" aria-hidden="true" />
-      <div className="hb-card">
-        <div className="hb-head">
-          <img src={logoSrc} alt="" />
-          <div><b>Book your visit</b><span>Mon – Sat, 11 am – 7 pm · by appointment</span></div>
-        </div>
-        <OpenBadge />
-        <BookForm compact />
-        <a className="hb-call" href={tel(clinic.phone)}><Icon n="phone" size={16} />Prefer to talk? Call {clinic.phone}</a>
-      </div>
-    </div>
-  );
-}
 
 /* ── what happens at the first visit ── */
 const FIRST_VISIT = [
@@ -465,25 +449,8 @@ function Screening() {
           <ul className="scr-tech">{s.tech.map((t) => <li key={t}><Icon n="spark" size={18} />{t}</li>)}</ul>
         </div>
       </div>
-      <div className="scr-grid">
-        <div className="scr-card">
-          <h3>Who should be screened</h3>
-          <ul className="scr-list">{s.who.map((t) => <li key={t}><Icon n="check" size={18} />{t}</li>)}</ul>
-        </div>
-        <div className="scr-card">
-          <h3>How we use it</h3>
-          <ol className="steps">{s.how.map((t) => <li key={t}><span>{t}</span></li>)}</ol>
-        </div>
-      </div>
       <div className="scr-benefits">
         {s.benefits.map(([t, d]) => <div key={t}><b>{t}</b><span>{d}</span></div>)}
-      </div>
-      <div className="scr-study">
-        <h3>What the research shows</h3>
-        <dl className="scr-stats">{s.study.stats.map(([n, l]) => <div key={l}><dt>{n}</dt><dd>{l}</dd></div>)}</dl>
-        <p>{s.study.text}</p>
-        <p className="scr-caution"><Icon n="shield" size={18} />{s.study.caution}</p>
-        <p className="scr-src">Sources: {s.study.sources.map(([t, u], i) => <span key={u}>{i ? "; " : ""}<a href={u} target="_blank" rel="noreferrer">{t}</a></span>)}</p>
       </div>
     </>
   );
@@ -615,27 +582,27 @@ export default function Home() {
           <div className="hero-orb o1" aria-hidden="true" /><div className="hero-orb o2" aria-hidden="true" />
           <div className="wrap hero-grid">
             <div className="hero-copy">
-              {clinic.pillars?.length > 0 && (
-                <ul className="hero-pillars">
-                  {clinic.pillars.map(([t, d], k) => (
-                    <li key={t}>
-                      <span className="hp-ico" aria-hidden="true"><Icon n={k === 0 ? "spark" : "shield"} size={18} /></span>
-                      <span><b>{t}</b><small>{d}</small></span>
-                    </li>
-                  ))}
-                </ul>
-              )}
               <p className="lead">{clinic.tagline}</p>
-              <div className="hero-doc">
-                <span className="ed-mono" aria-hidden="true">{d0.initials}</span>
-                <span><b>{d0.name}</b>{d0.inventions?.length > 0 && <small>Founder &amp; patent holder · DrOroscope, PRFuge, Tooth Titan, Teeth Tracer</small>}</span>
-              </div>
+              <a className="hero-doc" href="#doctors">
+                <span className="ed-mono" aria-hidden="true"><Icon n="user" size={20} /></span>
+                <span><b>Know about your doctor</b><small>Qualifications, experience and the dental devices he invented</small></span>
+                <Icon n="arrow" size={18} />
+              </a>
               <div className="hero-actions">
                 <a className="btn light" href={tel(clinic.phone)}><Icon n="phone" size={18} />Call {clinic.phone}</a>
                 <a className="btn outline-light" href="#treatments">See treatments <Icon n="arrow" size={18} /></a>
               </div>
             </div>
-            <HeroBook />
+            {clinic.pillars?.length > 0 && (
+              <ul className="hero-pillars hero-side">
+                {clinic.pillars.map(([t, d], k) => (
+                  <li key={t}>
+                    <span className="hp-ico" aria-hidden="true"><Icon n={k === 0 ? "spark" : "shield"} size={18} /></span>
+                    <span><b>{t}</b><small>{d}</small></span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </section>
 
@@ -670,12 +637,9 @@ export default function Home() {
               <p>Choose a treatment to see the equipment we use for it: what each one is, and what it changes for you.</p>
             </header>
             <Technology />
+            {/* oral cancer screening, part of the technology section */}
+            <div className="tech-screening" id="screening"><Screening /></div>
           </div>
-        </section>
-
-        {/* ── ORAL CANCER SCREENING ── */}
-        <section className="sec" id="screening">
-          <div className="wrap"><Screening /></div>
         </section>
 
         {/* ── PROTOCOLS ── */}
@@ -723,7 +687,7 @@ export default function Home() {
               <p className="book-lead">Tell us when suits you and what you need. The clinic will confirm a time on WhatsApp.</p>
               <ul className="book-points">
                 <li><Icon n="clock" size={18} />Monday to Saturday, 11 am – 7 pm, by appointment</li>
-                <li><Icon n="phone" size={18} />Prefer to talk? Call <a href={tel(clinic.phone)}>{clinic.phone}</a></li>
+                <li><Icon n="phone" size={18} /><span>Prefer to talk? Call <a href={tel(clinic.phone)}>{clinic.phone}</a><small className="book-hours">Call between 11:00 am and 7:00 pm, Monday to Saturday. Sunday is a holiday.</small></span></li>
                 <li><Icon n="pin" size={18} />Opposite Metro Pillar No. 1563, Chaitanyapuri</li>
               </ul>
             </div>
@@ -788,4 +752,4 @@ export default function Home() {
       <ChatBot />
     </>
   );
-}
+}
