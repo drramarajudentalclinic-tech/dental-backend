@@ -26,5 +26,7 @@ import electrosurgery from "./assets/photos/electrosurgery.webp";
 import uvLamp from "./assets/photos/uvLamp.webp";
 import pouches from "./assets/photos/pouches.webp";
 import guttaPercha from "./assets/photos/guttaPercha.webp";
+import portableXray from "./assets/photos/portableXray.webp";
+import portableXray2 from "./assets/photos/portableXray2.webp";
 
-export { toothTitan, prfuge, oroscope, teethTracer, blaster, cicada, runyes, anaesthesia, obturationPen, endoMotor, rvg, camera, apex, guide, records, implant, endoActivator, ivoclean, printer3d, laserTherapy, prfBox, bioactiveRcs, electrosurgery, uvLamp, pouches, guttaPercha };
+export { portableXray, portableXray2, toothTitan, prfuge, oroscope, teethTracer, blaster, cicada, runyes, anaesthesia, obturationPen, endoMotor, rvg, camera, apex, guide, records, implant, endoActivator, ivoclean, printer3d, laserTherapy, prfBox, bioactiveRcs, electrosurgery, uvLamp, pouches, guttaPercha };

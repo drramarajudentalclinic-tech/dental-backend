@@ -133,11 +133,27 @@ export const technology = [
         why: "Healthy lining glows green while suspicious areas look darker, so early changes in patches, ulcers and lumps are found without cutting, and it helps decide which areas need a biopsy. The photos are kept in your record to compare at the next visit.",
       },
       {
-        name: "Digital X-rays (RVG)",
+        name: "Digital X-rays (RVG) and hand-held portable X-ray",
         photo: photos.rvg,
         art: "rvg",
-        what: "A small sensor replaces film; the picture appears on screen in seconds.",
+        what: "A small digital sensor replaces film, and a light hand-held portable X-ray unit is held close to the tooth; the picture appears on screen in seconds.",
         why: "Much lower radiation than film, and we zoom in and show you the picture on the screen.",
+        slides: [
+          {
+            name: "Hand-held portable X-ray",
+            photo: photos.portableXray,
+            art: "rvg",
+            what: "A light, battery-powered X-ray unit held close to the tooth, used with the digital sensor.",
+            why: "The X-ray is taken right at the dental chair, with a small beam aimed only at the tooth being checked.",
+          },
+          {
+            name: "Hand-held portable X-ray with touch screen",
+            photo: photos.portableXray2,
+            art: "rvg",
+            what: "A compact hand-held X-ray unit; the settings for each tooth are chosen on its screen.",
+            why: "Quick pictures during treatment, without moving you to another room.",
+          },
+        ],
       },
       {
         name: "Intra-oral camera",
@@ -152,7 +168,7 @@ export const technology = [
     treatment: "Root canal treatment",
     items: [
       {
-        name: "Digital X-rays (RVG) for root canals",
+        name: "Digital X-rays (RVG) and hand-held portable X-ray for root canals",
         photo: photos.rvg,
         art: "rvg",
         what: "A digital X-ray sensor used before, during and after the root canal: to see the roots and the infection, to confirm the length of each canal, and to check the final filling.",
@@ -822,4 +838,4 @@ export const faqs = [
   ["Can I see my X-rays and prescriptions later?", "Yes. When the doctor switches on your patient portal and shares them, you can see your visit summaries, prescriptions, X-rays and receipts on your phone."],
   ["How are instruments kept clean?", "Instruments are cleaned, sealed in sterilisation pouches and steam-autoclaved. The pouch is opened in front of you, and needles, gloves and suction tips are used once and thrown away. Surfaces are disinfected after every patient, and a germicidal UV-C lamp disinfects the empty treatment room."],
   ["When should a child first see a dentist?", "By the first birthday, or when the first tooth comes in. Early visits help catch decay in milk teeth and get children comfortable at the dentist."],
-];
+];

@@ -227,7 +227,7 @@ const showProtocol = (title) => window.dispatchEvent(new CustomEvent("show-proto
 /* ── equipment ↔ treatment links ── */
 const TECH_ITEMS = technology.flatMap((g) => g.items.flatMap((it) => [it, ...(it.slides || [])]));
 const TECH_ALIAS = {
-  "Digital X-ray (RVG)": "Digital X-rays (RVG)", "Endo motor": "Endo motor and rotary files", "Cicada DT Fill": "Cicada DT Fill thermal obturator",
+  "Digital X-ray (RVG)": "Digital X-rays (RVG) and hand-held portable X-ray", "Endo motor": "Endo motor and rotary files", "Cicada DT Fill": "Cicada DT Fill thermal obturator",
   "Runyes scanner": "Runyes 3DS V3 Pro intra-oral scanner", "Micro-blaster": "Aluminium-oxide micro-blaster", "Surgical guide": "Surgical guide for implants",
   "PRFuge": "PRFuge centrifuge (PRF)", "Ivoclean": "Ivoclean cleaning paste (Ivoclar)", "3-D printer": "ELEGOO Saturn 4 Ultra 16K 3-D printer",
   "Laser therapy unit": "Advanced laser therapy unit", "Dental laser": "Dental laser (soft-tissue)", "BioActive RCS": "SafeEndo BioActive RCS (bioceramic sealer)",
@@ -750,4 +750,4 @@ export default function Home() {
       <ChatBot />
     </>
   );
-}
+}
