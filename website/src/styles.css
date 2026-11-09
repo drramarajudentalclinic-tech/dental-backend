@@ -1237,3 +1237,11 @@ html.is-home .nav a.nav-book.active { box-shadow: 0 0 0 3px rgba(243, 166, 180, 
 .tech-screening .scr-benefits { margin-top: 28px; }
 .book-points li { align-items: flex-start; }
 .book-points li > svg { margin-top: 3px; flex-shrink: 0; }
+
+/* ═════ HOME: hero content and trust strip run wider, close to the screen edges (same width as the menu bar) ═════ */
+@media (min-width: 1141px) {
+  html.is-home .hero > .wrap, html.is-home .hero + .wrap { max-width: 1560px; }
+  html.is-home .hero-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 72px; }
+  html.is-home .hero .lead { max-width: 56ch; font-size: 1.22rem; }
+  html.is-home .hero-side li { padding: 24px 26px; }
+}
