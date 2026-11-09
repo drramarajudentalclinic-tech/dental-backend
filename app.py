@@ -46,6 +46,8 @@ from routes.voice          import voice_bp
 ALLOWED_ORIGINS = [
     "https://dental-frontend-zp4w.onrender.com",
     "https://ssd-website-i0ip.onrender.com",      # clinic website + patient portal
+    "https://www.drramarajudental.com",            # clinic website on its own domain
+    "https://drramarajudental.com",
     "http://localhost:5173",
     "http://localhost:3000",
 ]
