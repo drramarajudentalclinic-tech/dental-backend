@@ -608,10 +608,9 @@ export default function Home() {
 
         {/* ── TRUST STRIP ── */}
         <div className="wrap">
-          <dl className="trust trust-4">
-            <div><span className="tr-ico"><Icon n="award" /></span><dt>{YEARS} years</dt><dd>of dental practice</dd></div>
+          <dl className="trust trust-4 trust-three">
             <div><span className="tr-ico"><Icon n="tooth" /></span><dt>MDS</dt><dd>Master of Dental Surgery</dd></div>
-            <div><span className="tr-ico"><Icon n="spark" /></span><dt>4 devices</dt><dd>invented and patented by Dr. Rama Raju</dd></div>
+            <div className="tr-pink"><span className="tr-ico"><Icon n="spark" /></span><dt>4 devices</dt><dd>invented and patented by Dr. Rama Raju</dd></div>
             <div><span className="tr-ico"><Icon n="shield" /></span><dt>Since {clinic.since || "1999"}</dt><dd>caring for patients in Chaitanyapuri</dd></div>
           </dl>
         </div>
@@ -752,4 +751,4 @@ export default function Home() {
       <ChatBot />
     </>
   );
-}
+}
