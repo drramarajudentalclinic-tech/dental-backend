@@ -446,7 +446,6 @@ function Screening() {
           <span className="kicker">Early detection</span>
           <h2>{s.title}</h2>
           <p className="scr-lead">{s.lead}</p>
-          <ul className="scr-tech">{s.tech.map((t) => <li key={t}><Icon n="spark" size={18} />{t}</li>)}</ul>
         </div>
       </div>
       <div className="scr-benefits">
