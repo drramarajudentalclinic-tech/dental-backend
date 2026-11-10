@@ -682,7 +682,13 @@ export default function Home() {
                 <span className="pb-safe"><Icon n="shield" size={16} />Secure login with a one-time code sent to your registered mobile.</span>
               </div>
             </div>
-            <figure className="pb-photo"><img src={photos.portalScreens} alt="Patient record on the clinic computer and in the patient portal on a phone" loading="lazy" decoding="async" /></figure>
+            <figure className="pb-photo">
+              <a href={photos.portalScreens} target="_blank" rel="noreferrer" aria-label="Open the picture in full size">
+                <img src={photos.portalScreensZoom} alt="Patient record of Sri Satya Sai Oral Health Center & Dental Clinic on the clinic computer, and the patient portal on a phone" loading="lazy" decoding="async" />
+                <span className="pb-zoom" aria-hidden="true"><Icon n="image" size={15} />View full size</span>
+              </a>
+              <figcaption><b>{clinic.name}</b>Clinic record on the computer, and the same record in the patient portal on your phone.</figcaption>
+            </figure>
           </div></div></div>
         </section>
 
@@ -755,4 +761,4 @@ export default function Home() {
       <ChatBot />
     </>
   );
-}
+}
