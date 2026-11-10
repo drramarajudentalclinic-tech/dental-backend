@@ -397,7 +397,7 @@ function Doctor({ d }) {
         <div className="doc-title">{d.title}</div>
         {clinic.registration && <div className="doc-reg">Dental Council Reg. No. {clinic.registration}</div>}
         {d.inventions?.length > 0 && <div className="doc-inv-chip">🏅 Founder &amp; patent holder of {d.inventions.length} dental devices</div>}
-        <div className="doc-inv-chip doc-ceo-chip">CEO, Raamah Biocare Pvt. Ltd.</div>
+        {d.roles?.length > 0 && <ul className="doc-roles">{d.roles.map((r) => <li key={r}>{r}</li>)}</ul>}
         <dl className="doc-stats">
           {d.stats.map(([big, small]) => <div key={small}><dt>{big}</dt><dd>{small}</dd></div>)}
         </dl>
@@ -428,10 +428,19 @@ function Doctor({ d }) {
         )}
         <h3>Areas of care</h3>
         <ul className="doc-focus">{d.focus.map((f) => <li key={f}><Icon n="check" size={18} />{f}</li>)}</ul>
-        <h3>Education and practice</h3>
-        <ol className="doc-time">
-          {d.timeline.map(([t, w]) => <li key={t}><span><b>{t}</b><br /><span className="muted">{w}</span></span></li>)}
+        <h3>Career</h3>
+        <ol className="doc-time doc-career">
+          {d.career.map(([y, r, w]) => <li key={y + r}><span className="yr">{y}</span><span><b>{r}</b><br /><span className="muted">{w}</span></span></li>)}
         </ol>
+        <h3>Research, education and awards</h3>
+        <div className="doc-prof">
+          {d.profile.map(([title, ico, items], k) => (
+            <details key={title} className="dp" open={k === 0}>
+              <summary><span className="dp-ico"><Icon n={ico} size={18} /></span><b>{title}</b><span className="dp-n">{items.length}</span></summary>
+              <ul>{items.map((x) => <li key={x}>{x}</li>)}</ul>
+            </details>
+          ))}
+        </div>
       </div>
     </div>
   );

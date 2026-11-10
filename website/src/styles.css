@@ -1373,3 +1373,26 @@ a.t-more { text-decoration: none; }
 .nf-links b { color: var(--ink); font: 700 1.05rem var(--display); }
 .nf-links span { color: var(--muted); font-size: 14.5px; }
 .nf-call { color: var(--muted); }
+
+/* doctor: roles on the card, career with years, CV panels */
+.doc-roles { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; text-align: left; }
+.doc-roles li { position: relative; padding: 7px 10px 7px 30px; background: #e8f3f1; color: #134e48; border: 1px solid #bfdcd6; border-radius: 10px; font-size: 13.5px; font-weight: 600; line-height: 1.35; }
+.doc-roles li::before { content: ""; position: absolute; left: 11px; top: 12px; width: 8px; height: 8px; border-radius: 50%; background: var(--gum); }
+.doc-time.doc-career li { grid-template-columns: 128px 1fr; gap: 14px; }
+.doc-career .yr { font: 700 .98rem var(--display); color: var(--ink); white-space: nowrap; }
+@media (max-width: 560px) { .doc-time.doc-career li { grid-template-columns: 1fr; gap: 2px; } }
+.doc-prof { display: grid; gap: 10px; }
+.dp { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; transition: box-shadow .25s, border-color .25s; }
+.dp[open] { border-color: #bfdcd6; box-shadow: var(--shadow-1, 0 4px 14px rgba(13,54,55,.08)); }
+.dp summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 34px 1fr auto 18px; align-items: center; gap: 12px; padding: 13px 16px; }
+.dp summary::-webkit-details-marker { display: none; }
+.dp summary::after { content: ""; width: 9px; height: 9px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg) translateY(-3px); transition: transform .25s; justify-self: center; }
+.dp[open] summary::after { transform: rotate(225deg) translateY(-2px); }
+.dp summary:hover { background: #f6faf9; }
+.dp summary b { font: 700 1.02rem var(--display); color: var(--ink); }
+.dp-ico { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: #e8f3f1; color: #134e48; }
+.dp-n { font-size: 12.5px; font-weight: 700; color: var(--gum); background: #fdeef1; border-radius: 999px; padding: 2px 9px; }
+.dp ul { margin: 0; padding: 4px 18px 16px 64px; display: grid; gap: 7px; }
+.dp li { font-size: 15px; line-height: 1.45; color: var(--ink-2, #1f3a3a); }
+.dp li::marker { color: var(--gum); }
+@media (max-width: 560px) { .dp ul { padding-left: 38px; } .dp summary { grid-template-columns: 30px 1fr auto 14px; gap: 10px; padding: 12px; } }
