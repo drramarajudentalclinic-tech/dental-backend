@@ -12,21 +12,13 @@ import { useEffects } from "../effects";
 
 const tel = (n) => `tel:${String(n).replace(/[^\d+]/g, "")}`;
 /* treatment information pages (plain pages in public/treatments, made for search engines and for sharing) */
-const TREATMENT_PAGES = [
-  ["dental-implants", "Dental implants"],
-  ["root-canal-treatment", "Root canal treatment"],
-  ["crowns-and-bridges", "Crowns and bridges"],
-  ["braces-and-aligners", "Braces and clear aligners"],
-  ["dentures", "Complete and partial dentures"],
-  ["wisdom-tooth-removal", "Wisdom tooth removal and extractions"],
-  ["gum-treatment", "Gum treatment and flap surgery"],
-  ["laser-dentistry", "Laser dentistry"],
-  ["oral-cancer-screening", "Oral cancer screening and mouth lesions"],
-  ["teeth-cleaning", "Teeth cleaning and check-ups"],
-  ["tooth-coloured-fillings", "Tooth-coloured fillings"],
-  ["veneers", "Veneers and laminates"],
-  ["childrens-dentistry", "Children's dentistry"],
-];
+const TREATMENT_PAGES = {
+  "Check-ups and cleaning": "teeth-cleaning", "Fillings": "tooth-coloured-fillings", "Root canal treatment": "root-canal-treatment",
+  "Crowns and bridges": "crowns-and-bridges", "Dental implants": "dental-implants", "Complete dentures": "dentures", "Partial dentures": "dentures",
+  "Veneers and laminates": "veneers", "Braces and aligners": "braces-and-aligners", "Tooth extraction": "wisdom-tooth-removal",
+  "Wisdom tooth removal": "wisdom-tooth-removal", "Gum treatment and flap surgery": "gum-treatment", "Laser dentistry": "laser-dentistry",
+  "Oral lesions and oral cancer screening": "oral-cancer-screening", "Children's dentistry": "childrens-dentistry",
+};
 
 /* ── small line icons (drawn for this site) ── */
 const I = {
@@ -211,17 +203,22 @@ function Treatments() {
             <span className="t-ico"><Icon n="tooth" size={22} /></span>
             <h3>{t}</h3>
             <p>{d}</p>
-            {proto && <button type="button" className="t-more" onClick={() => showProtocol(proto)}>See the steps <Icon n="arrow" size={16} /></button>}
+            <div className="t-links">
+              {proto && <button type="button" className="t-more" onClick={() => showProtocol(proto)}>See the steps <Icon n="arrow" size={16} /></button>}
+              {TREATMENT_PAGES[t] && <a className="t-more t-page" href={`/treatments/${TREATMENT_PAGES[t]}.html`}>Full details <Icon n="arrow" size={16} /></a>}
+            </div>
           </article>
         ))}
       </div>
-      {services.length > 12 && (
-        <div className="center">
+      <div className="t-foot">
+        {services.length > 12 && (
           <button type="button" className="btn ghost" onClick={() => setAll((x) => !x)} aria-expanded={all}>
             {all ? "Show fewer treatments" : `Show all ${services.length} treatments`}
           </button>
-        </div>
-      )}
+        )}
+        <a className="btn ghost" href="/treatments/">All treatment pages <Icon n="arrow" size={16} /></a>
+        <a className="btn ghost" href="/aftercare/">Aftercare instructions <Icon n="arrow" size={16} /></a>
+      </div>
     </>
   );
 }
@@ -233,10 +230,10 @@ const showProtocol = (title) => window.dispatchEvent(new CustomEvent("show-proto
 /* ── equipment ↔ treatment links ── */
 const TECH_ITEMS = technology.flatMap((g) => g.items.flatMap((it) => [it, ...(it.slides || [])]));
 const TECH_ALIAS = {
-  "Digital X-ray (RVG)": "Digital X-rays (RVG) and hand-held portable X-ray", "Endo motor": "Endo motor and rotary files", "Cicada DT Fill": "Cicada DT Fill thermal obturator",
-  "Runyes scanner": "Runyes 3DS V3 Pro intra-oral scanner", "Micro-blaster": "Aluminium-oxide micro-blaster", "Surgical guide": "Surgical guide for implants",
-  "PRFuge": "PRFuge centrifuge (PRF)", "Ivoclean": "Ivoclean cleaning paste (Ivoclar)", "3-D printer": "ELEGOO Saturn 4 Ultra 16K 3-D printer",
-  "Laser therapy unit": "Advanced laser therapy unit", "Dental laser": "Dental laser (soft-tissue)", "BioActive RCS": "SafeEndo BioActive RCS (bioceramic sealer)",
+  "Digital X-ray (RVG)": "Digital X-rays (RVG) and hand-held portable X-ray", "Endo motor": "Endo motor and rotary files", "Backfill gun": "Cordless thermal obturator (backfill gun)",
+  "Intra-oral scanner": "Intra-oral 3-D scanner", "Micro-blaster": "Aluminium-oxide micro-blaster", "Surgical guide": "Surgical guide for implants",
+  "PRFuge": "PRFuge centrifuge (PRF)", "Cleaning paste": "Bonding-surface cleaning paste", "3-D printer": "High-resolution 3-D printer",
+  "Laser therapy unit": "Advanced laser therapy unit", "Dental laser": "Dental laser (soft-tissue)", "Bioceramic sealer": "Bioceramic root canal sealer",
   "Electrosurgery unit": "Solid-state electrosurgery unit",
   "Germicidal UV lamp": "Germicidal UV-C lamp",
 };
@@ -597,7 +594,7 @@ export default function Home() {
                 <a className="btn light" href={tel(clinic.phone)}><Icon n="phone" size={18} />Call {clinic.phone}</a>
                 <a className="btn outline-light" href="#treatments">See treatments <Icon n="arrow" size={18} /></a>
               </div>
-              <a className="hero-portal" href="#portal"><span className="pb-new">New</span>Your dental records, X-rays and prescriptions on your phone<Icon n="arrow" size={16} /></a>
+              <a className="hero-portal" href="#portal"><Icon n="lock" size={15} />Your dental records, X-rays and prescriptions on your phone<Icon n="arrow" size={16} /></a>
             </div>
             {clinic.pillars?.length > 0 && (
               <ul className="hero-pillars hero-side">
@@ -743,14 +740,6 @@ export default function Home() {
             <GettingHere />
           </div>
         </section>
-        <section className="treat-links" aria-label="Treatment information">
-          <div className="wrap">
-            <h2>Treatment information</h2>
-            <p>How each treatment is done at the clinic, step by step.</p>
-            <ul>{TREATMENT_PAGES.map(([slug, name]) => <li key={slug}><a href={`/treatments/${slug}.html`}>{name}</a></li>)}</ul>
-            <p><a href="/treatments/">All treatments →</a> · <a href="/aftercare/">Aftercare instructions →</a></p>
-          </div>
-        </section>
       </main>
       <Footer />
       <nav className="mobile-bar" aria-label="Contact the clinic">
@@ -766,4 +755,4 @@ export default function Home() {
       <ChatBot />
     </>
   );
-}
+}

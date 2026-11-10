@@ -1322,3 +1322,22 @@ html.is-home .nav a.nav-book.active { box-shadow: 0 0 0 3px rgba(243, 166, 180, 
 .pb-flag svg { color: var(--gum-2); }
 @media (max-width: 560px) { .pb-frame { border-radius: 22px; padding: 20px 16px; } }
 @media (min-width: 1141px) { #portal > .wrap { max-width: 1400px; } .pb-frame .portal-grid { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 56px; } }
+/* ═════ TREATMENT CARDS: one list, each card links to its steps and its full page ═════ */
+.t-card { display: flex; flex-direction: column; }
+.t-card > p { flex: 1; }
+.t-links { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.t-links .t-more { margin-top: 0; }
+a.t-more { text-decoration: none; }
+.t-page { color: var(--gum); }
+.t-foot { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 32px; }
+.t-foot .btn svg { transition: transform .25s; } .t-foot .btn:hover svg { transform: translateX(4px); }
+.t-links:empty { display: none; }
+
+/* ═════ PAGE STRUCTURE: sections alternate plain / tinted, with the same spacing, so each one reads as its own block ═════ */
+#treatments, #protocols, #book, #faq { background: var(--enamel); }
+#technology, #doctors, #visit { background: var(--mint-2); }
+#treatments, #technology, #protocols, #doctors, #book, #faq, #visit { padding-block: clamp(64px, 7vw, 104px); border-top: 1px solid var(--line); }
+#treatments { border-top: 0; }
+.sec-head { margin-bottom: clamp(28px, 3.5vw, 44px); }
+.hero-portal svg:first-child { color: var(--gum-2); margin-left: 6px; }
+@media (prefers-color-scheme: dark) { #technology, #doctors, #visit { background: #0d2223; } }
