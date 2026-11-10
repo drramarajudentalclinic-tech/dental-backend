@@ -14,7 +14,7 @@ const REVEAL = [
   ".map", ".visit-card", ".trust > div", ".foot-grid > div",
 ].join(",");
 
-const COUNT = ".trust dt, .doc-stats dt, .scr-stats dt";
+const COUNT = ".trust dt, .trust .tr-t, .doc-stats dt, .scr-stats dt";
 
 function countUp(el) {
   const m = el.textContent.match(/^(\D*)(\d+(?:\.\d+)?)(.*)$/s);
@@ -111,4 +111,4 @@ export function useMotion() {
 
     return () => cleanups.forEach((f) => f());
   }, []);
-}
+}

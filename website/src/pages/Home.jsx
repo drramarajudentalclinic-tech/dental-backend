@@ -611,11 +611,11 @@ export default function Home() {
 
         {/* ── TRUST STRIP ── */}
         <div className="wrap">
-          <dl className="trust trust-4 trust-three">
-            <div><span className="tr-ico"><Icon n="tooth" /></span><dt>MDS</dt><dd>Master of Dental Surgery</dd></div>
-            <div className="tr-pink"><span className="tr-ico"><Icon n="spark" /></span><dt>4 devices</dt><dd>invented and patented by Dr. Rama Raju</dd></div>
-            <div><span className="tr-ico"><Icon n="shield" /></span><dt>Since {clinic.since || "1999"}</dt><dd>caring for patients in Chaitanyapuri</dd></div>
-          </dl>
+          <div className="trust trust-4 trust-three" role="list">
+            <div role="listitem"><span className="tr-ico" aria-hidden="true"><Icon n="tooth" /></span><b className="tr-t">MDS</b><span className="tr-d">Master of Dental Surgery</span></div>
+            <div role="listitem" className="tr-pink"><span className="tr-ico" aria-hidden="true"><Icon n="spark" /></span><b className="tr-t">4 devices</b><span className="tr-d">invented and patented by Dr. Rama Raju</span></div>
+            <div role="listitem"><span className="tr-ico" aria-hidden="true"><Icon n="shield" /></span><b className="tr-t">Since {clinic.since || "1999"}</b><span className="tr-d">caring for patients in Chaitanyapuri</span></div>
+          </div>
         </div>
 
         {/* ── TREATMENTS ── */}
