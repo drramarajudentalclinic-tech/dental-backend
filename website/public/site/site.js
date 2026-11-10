@@ -57,6 +57,7 @@
   Array.prototype.forEach.call(document.querySelectorAll(".how-video"), function (box) {
     var v = box.querySelector("video"), steps = box.querySelectorAll(".how-steps li"), fill = box.querySelector(".how-bar i");
     var T = Array.prototype.map.call(steps, function (li) { return parseFloat(li.getAttribute("data-t")) || 0; });
+    function play() { var pr = v.play(); if (pr && pr.catch) pr.catch(function () {}); }   /* a play cut short by scrolling away is not an error */
     function sync() {
       var t = v.currentTime, k = 0;
       for (var j = 0; j < T.length; j++) if (t >= T[j]) k = j;
@@ -65,9 +66,13 @@
     }
     v.addEventListener("timeupdate", sync); v.addEventListener("seeked", sync);
     Array.prototype.forEach.call(steps, function (li, k) {
-      li.addEventListener("click", function () { v.currentTime = T[k] + 0.05; v.play(); sync(); });
+      li.addEventListener("click", function () {
+        v.currentTime = T[k] + 0.05; play(); sync();
+        var r = v.getBoundingClientRect();   /* on phones the video is above the list: bring it into view */
+        if (r.bottom < 60 || r.top > window.innerHeight - 60) v.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
+      });
     });
-    v.addEventListener("click", function () { if (v.paused) v.play(); else v.pause(); });
+    v.addEventListener("click", function () { if (v.paused) play(); else v.pause(); });
     sync();
     if (reduce) { v.removeAttribute("loop"); return; }   /* reduced motion: the visitor starts it by tapping */
     if ("IntersectionObserver" in window) {
