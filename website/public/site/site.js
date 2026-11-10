@@ -73,7 +73,7 @@
     if ("IntersectionObserver" in window) {
       new IntersectionObserver(function (es) {
         es.forEach(function (e) { if (e.isIntersecting) { var pr = v.play(); if (pr && pr.catch) pr.catch(function () {}); } else v.pause(); });
-      }, { threshold: 0.35 }).observe(box);
+      }, { threshold: 0.5 }).observe(v);   /* watch the video itself, so long step lists on phones do not stop it starting */
     } else { v.play(); }
   });
 
