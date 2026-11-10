@@ -160,3 +160,14 @@ html { scroll-behavior: smooth; scroll-padding-top: 80px; }
 .ss-nav a.nav-book { display: inline-flex; align-items: center; gap: 7px; background: var(--ss-gum); border-color: var(--ss-gum); color: #fff; }
 .ss-nav a.nav-book:hover { background: #d4566e; border-color: #d4566e; }
 .ss-nav a.nav-book svg { animation: ss-buzz 5s 2.5s ease-in-out infinite; }
+/* "how it works" video */
+.how-vid { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: 14px; background: #eef7f4; cursor: pointer; }
+.how-video .how-steps li { transition: background .3s, color .3s; }
+.how-tip { margin: 8px 2px 0; font-size: 13px; color: #6b7d7b; }
+.how.how-video { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); }
+.how-video .how-steps li { padding: 6px 10px; }
+.how-video .how-steps li span { font-size: 13.5px; }
+@media (max-width: 700px) { .how.how-video { grid-template-columns: 1fr; } }
+.how.how-video { align-items: start; }
+.how.how-video > div:first-child { position: sticky; top: 90px; }
+@media (max-width: 700px) { .how.how-video > div:first-child { position: static; } }

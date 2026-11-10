@@ -53,7 +53,31 @@
   window.addEventListener("scroll", onScroll, { passive: true }); onScroll();
 
   /* "how it works": frames change every few seconds; tap a step to jump to it */
-  Array.prototype.forEach.call(document.querySelectorAll(".how"), function (box) {
+  /* "how it works" video: plays when it scrolls into view, the step list follows the video, tap a step to jump to it */
+  Array.prototype.forEach.call(document.querySelectorAll(".how-video"), function (box) {
+    var v = box.querySelector("video"), steps = box.querySelectorAll(".how-steps li"), fill = box.querySelector(".how-bar i");
+    var T = Array.prototype.map.call(steps, function (li) { return parseFloat(li.getAttribute("data-t")) || 0; });
+    function sync() {
+      var t = v.currentTime, k = 0;
+      for (var j = 0; j < T.length; j++) if (t >= T[j]) k = j;
+      for (var j2 = 0; j2 < steps.length; j2++) steps[j2].classList.toggle("on", j2 === k);
+      if (fill && v.duration) fill.style.width = (t / v.duration) * 100 + "%";
+    }
+    v.addEventListener("timeupdate", sync); v.addEventListener("seeked", sync);
+    Array.prototype.forEach.call(steps, function (li, k) {
+      li.addEventListener("click", function () { v.currentTime = T[k] + 0.05; v.play(); sync(); });
+    });
+    v.addEventListener("click", function () { if (v.paused) v.play(); else v.pause(); });
+    sync();
+    if (reduce) { v.removeAttribute("loop"); return; }   /* reduced motion: the visitor starts it by tapping */
+    if ("IntersectionObserver" in window) {
+      new IntersectionObserver(function (es) {
+        es.forEach(function (e) { if (e.isIntersecting) { var pr = v.play(); if (pr && pr.catch) pr.catch(function () {}); } else v.pause(); });
+      }, { threshold: 0.35 }).observe(box);
+    } else { v.play(); }
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll(".how:not(.how-video)"), function (box) {
     var frames = box.querySelectorAll(".fr"), steps = box.querySelectorAll(".how-steps li"), fill = box.querySelector(".how-bar i");
     var i = 0, n = frames.length, timer = 0, t0 = 0, DUR = 3800, raf = 0, paused = false;
     function show(k) {
