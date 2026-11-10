@@ -24,6 +24,10 @@
   }
   paintBadge(); setInterval(paintBadge, 30000);
 
+  /* years of experience: counted from 1999, so it goes up by itself every year */
+  var yrs = Math.max(1, new Date().getFullYear() - 1999);
+  Array.prototype.forEach.call(document.querySelectorAll("[data-years]"), function (el) { el.textContent = yrs; });
+
   /* light follows the mouse across the clinic name */
   var h = document.querySelector(".ss-h");
   if (h && !reduce) {
