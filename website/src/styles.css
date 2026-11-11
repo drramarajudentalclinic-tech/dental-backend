@@ -1396,3 +1396,63 @@ a.t-more { text-decoration: none; }
 .dp li { font-size: 15px; line-height: 1.45; color: var(--ink-2, #1f3a3a); }
 .dp li::marker { color: var(--gum); }
 @media (max-width: 560px) { .dp ul { padding-left: 38px; } .dp summary { grid-template-columns: 30px 1fr auto 14px; gap: 10px; padding: 12px; } }
+/* CV panel years */
+.dp-yr { display: inline-block; min-width: 52px; margin-right: 8px; padding: 1px 8px; border-radius: 999px; background: #e8f3f1; color: #134e48; font: 700 12px var(--body); text-align: center; vertical-align: 1px; }
+
+/* ── clinic journey: road map with a stop for each year ── */
+#journey { --k-clinic: #1f7a72; --k-tech: #2f6fb3; --k-teach: #7a4fb0; --k-research: #c4475f; --k-award: #c08a1e; --k-learn: #3f8a3a; }
+.jr-head { max-width: 720px; }
+.jr-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 18px; }
+.jr-filters button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); border-radius: 999px; padding: 7px 14px; font: 650 13.5px var(--body); cursor: pointer; transition: background .2s, color .2s, border-color .2s, transform .2s; }
+.jr-filters button:hover { transform: translateY(-1px); border-color: #bfdcd6; }
+.jr-filters button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.jr-filters button svg { color: var(--kc, var(--gum)); }
+.jr-filters button.on svg { color: #fff; }
+.jr-filters .k-clinic, .jr-item.k-clinic { --kc: var(--k-clinic); } .jr-filters .k-tech, .jr-item.k-tech { --kc: var(--k-tech); }
+.jr-filters .k-teach, .jr-item.k-teach { --kc: var(--k-teach); } .jr-filters .k-research, .jr-item.k-research { --kc: var(--k-research); }
+.jr-filters .k-award, .jr-item.k-award { --kc: var(--k-award); } .jr-filters .k-learn, .jr-item.k-learn { --kc: var(--k-learn); }
+.jr-wrap { position: relative; }
+.jr-scroll { overflow-x: auto; background: linear-gradient(#f3faf8, #eaf5f1); border: 1px solid var(--line); overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: thin; padding: 6px 4px 14px; border-radius: var(--radius-l); }
+.jr-scroll:focus-visible { outline: 3px solid #8fd6cc; outline-offset: 2px; }
+.jr-track { list-style: none; margin: 0; padding: 0; display: grid; grid-auto-flow: column; grid-auto-columns: 238px; grid-template-rows: auto 236px auto; }
+.jr-stop { display: grid; grid-template-rows: 250px 236px 250px; scroll-snap-align: start; position: relative; z-index: 1; }
+@supports (grid-template-rows: subgrid) { .jr-stop { grid-row: 1 / 4; grid-template-rows: subgrid; } .jr-top, .jr-bot { min-height: 150px; } }
+.jr-stop.off .jr-card, .jr-stop.off .jr-pin { opacity: .25; }
+.jr-card, .jr-pin { transition: opacity .3s, transform .25s, box-shadow .25s; }
+.jr-top { display: flex; align-items: flex-end; padding: 0 8px 14px; position: relative; }
+.jr-bot { display: flex; align-items: flex-start; padding: 14px 8px 0; position: relative; }
+/* the landscape band: hills, trees and the winding road (an SVG behind the year signs) */
+.jr-track { position: relative; grid-template-rows: auto 236px auto; }
+.jr-land-cell { grid-row: 2; position: relative; z-index: 0; pointer-events: none; }
+.jr-land { display: block; }
+.jr-road { position: relative; z-index: 1; }
+.jr-pin { position: absolute; left: 50%; top: var(--y); transform: translate(-50%, -50%); z-index: 2; min-width: 64px; padding: 7px 12px; border-radius: 12px; background: #fff; color: var(--ink); font: 800 1.02rem var(--display); text-align: center; box-shadow: 0 8px 18px rgba(0,0,0,.28); border: 3px solid var(--gum); white-space: nowrap; }
+.jr-pin::after { content: ""; position: absolute; left: 50%; top: 100%; width: 3px; height: 12px; margin-left: -1.5px; background: #6b4a32; }
+.jr-stop.up .jr-road::before, .jr-stop.down .jr-road::before { content: ""; position: absolute; left: 50%; width: 2px; margin-left: -1px; background: repeating-linear-gradient(rgba(13,54,55,.55) 0 3px, transparent 3px 7px); }
+.jr-stop.up .jr-road::before { top: 0; height: calc(var(--y) - 18px); }
+.jr-stop.down .jr-road::before { top: calc(var(--y) + 18px); bottom: 0; }
+.jr-bot { background: #dcefd9; }
+.jr-stop.first .jr-pin { font-size: .82rem; }
+.jr-flag { min-width: 0; padding: 8px; border-radius: 50%; background: var(--gum); color: #fff; border-color: #fff; }
+.jr-flag::after { display: none; }
+.jr-card { width: 100%; background: var(--paper); border: 1px solid var(--line); border-radius: 16px; padding: 10px 12px; box-shadow: 0 6px 18px rgba(13,54,55,.08); display: grid; gap: 8px; transition: transform .25s, box-shadow .25s; }
+.jr-stop:hover .jr-card { transform: translateY(-3px); box-shadow: 0 12px 26px rgba(13,54,55,.14); }
+.jr-stop.down:hover .jr-card { transform: translateY(3px); }
+.jr-item { display: grid; grid-template-columns: 28px 1fr; gap: 9px; align-items: start; transition: opacity .3s; }
+.jr-item.dim { opacity: .35; }
+.jr-ico { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; background: color-mix(in srgb, var(--kc) 14%, white); color: var(--kc); }
+.jr-item b { display: block; font: 700 14.5px/1.25 var(--display); color: var(--ink); }
+.jr-item small { display: block; margin-top: 2px; font-size: 12.8px; line-height: 1.35; color: var(--muted); }
+.jr-today { background: linear-gradient(135deg, var(--ink-fill, #0f3d3e), #1f6a66); color: #fff; border: none; }
+.jr-today b { font: 800 1.2rem var(--display); } .jr-today small { color: #cfeee8; font-size: 13.5px; line-height: 1.4; }
+.jr-arrow { position: absolute; top: 50%; z-index: 2; width: 42px; height: 42px; margin-top: -21px; border-radius: 50%; border: 1px solid var(--line); background: #fff; color: var(--ink); display: grid; place-items: center; cursor: pointer; box-shadow: 0 6px 16px rgba(13,54,55,.18); transition: transform .2s; }
+.jr-arrow:hover { transform: scale(1.08); }
+.jr-arrow.prev { left: -8px; } .jr-arrow.prev svg { transform: rotate(180deg); } .jr-arrow.next { right: -8px; }
+@media (max-width: 700px) {
+  .jr-stop { grid-template-rows: 240px 236px 240px; }
+  @supports (grid-template-rows: subgrid) { .jr-stop { grid-template-rows: subgrid; } }
+  .jr-arrow { display: none; }
+  .jr-filters { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+  .jr-filters button { flex-shrink: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .jr-card, .jr-stop, .jr-filters button { transition: none; } }

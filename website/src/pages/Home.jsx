@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
-import { clinic, doctors, services, technology, protocols, portalSteps, screening, faqs, YEARS } from "../content";
+import { clinic, doctors, services, technology, protocols, portalSteps, screening, faqs, journey, journeyKinds, YEARS, SINCE } from "../content";
 import * as photos from "../photos";
 import logoSrc from "../logo";
 import { Bar, Footer, DraftNote, waLink } from "../components/Chrome";
@@ -437,7 +437,7 @@ function Doctor({ d }) {
           {d.profile.map(([title, ico, items], k) => (
             <details key={title} className="dp" open={k === 0}>
               <summary><span className="dp-ico"><Icon n={ico} size={18} /></span><b>{title}</b><span className="dp-n">{items.length}</span></summary>
-              <ul>{items.map((x) => <li key={x}>{x}</li>)}</ul>
+              <ul>{items.map(([y, x]) => <li key={x}>{y && <span className="dp-yr">{y}</span>}{x}</li>)}</ul>
             </details>
           ))}
         </div>
@@ -446,6 +446,111 @@ function Doctor({ d }) {
   );
 }
 
+
+/* the landscape under the journey: hills, trees and a winding road (drawn to the exact width, so nothing stretches) */
+const BAND = 236;
+const roadY = (x, w) => 160 + 26 * Math.sin(x / w * 1.15 + 0.4) + 8 * Math.sin(x / w * 2.9);
+function smooth(pts) { // points → smooth SVG path
+  let d = `M${pts[0][0]},${pts[0][1]}`;
+  for (let i = 0; i < pts.length - 1; i++) { const [x0, y0] = pts[Math.max(0, i - 1)], [x1, y1] = pts[i], [x2, y2] = pts[i + 1], [x3, y3] = pts[Math.min(pts.length - 1, i + 2)];
+    d += ` C${x1 + (x2 - x0) / 6},${y1 + (y2 - y0) / 6} ${x2 - (x3 - x1) / 6},${y2 - (y3 - y1) / 6} ${x2},${y2}`; }
+  return d;
+}
+function Landscape({ n, w }) {
+  const W = n * w, H = BAND, r = (k) => { const x = Math.sin(k * 127.1) * 43758.5; return x - Math.floor(x); };
+  const hill = (step, base, amp, seed) => { const p = []; for (let x = -step, k = 0; x <= W + step; x += step / 2, k++) p.push([x + (r(k + seed) - .5) * step * .25, base - (k % 2 ? amp * (0.12 + 0.12 * r(k + seed)) : amp * (0.7 + 0.3 * r(k + seed)))]); return smooth(p) + ` L${W + step},${H} L${-step},${H} Z`; };
+  const road = []; for (let x = -20; x <= W + 20; x += 20) road.push([x, roadY(x, w)]);
+  const rd = smooth(road);
+  const trees = []; for (let k = 0; k < n * 1.6; k++) { const x = (k + 0.3 + r(k + 40) * 0.5) * w / 1.6, yr = roadY(x, w); const above = r(k + 9) > .45; const y = above ? yr - 34 - r(k + 3) * 34 : yr + 32 + r(k + 5) * 22; if (y > H - 8) continue; trees.push([x, y, 0.75 + r(k + 7) * 0.5, above]); }
+  return (
+    <svg className="jr-land" width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="jrSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#eaf6f3" stopOpacity="0" /><stop offset="1" stopColor="#dff0ea" /></linearGradient>
+        <linearGradient id="jrFar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#bfe0c9" /><stop offset="1" stopColor="#a8d4b5" /></linearGradient>
+        <linearGradient id="jrMid" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#8cc79a" /><stop offset="1" stopColor="#74b884" /></linearGradient>
+        <linearGradient id="jrNear" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#68b07a" /><stop offset=".6" stopColor="#8fc79b" /><stop offset="1" stopColor="#dcefd9" /></linearGradient>
+      </defs>
+      <rect width={W} height={H} fill="url(#jrSky)" />
+      <circle cx={w * 0.55} cy="34" r="20" fill="#fbe7a8" opacity=".8" />
+      <path d={hill(w * 1.3, 112, 104, 1)} fill="url(#jrFar)" />
+      <path d={hill(w * 0.95, 150, 72, 20)} fill="url(#jrMid)" />
+      <path d={smooth(road.map(([x, y]) => [x, y - 22])) + ` L${W + 20},${H} L-20,${H} Z`} fill="url(#jrNear)" />
+      {trees.filter((t) => t[3]).map(([x, y, s], k) => <g key={"a" + k} transform={`translate(${x} ${y}) scale(${s})`}><rect x="-2" y="-2" width="4" height="12" fill="#6b4a32" /><circle cy="-10" r="11" fill="#3f8f55" /><circle cx="-5" cy="-15" r="7" fill="#4fa565" /></g>)}
+      <path d={rd} fill="none" stroke="#2e3638" strokeWidth="40" strokeLinecap="round" opacity=".18" transform="translate(0 5)" />
+      <path d={rd} fill="none" stroke="#e9e2cf" strokeWidth="40" strokeLinecap="round" />
+      <path d={rd} fill="none" stroke="#4b5557" strokeWidth="34" strokeLinecap="round" />
+      <path d={rd} fill="none" stroke="#f3e4a6" strokeWidth="3" strokeDasharray="18 14" />
+      {trees.filter((t) => !t[3]).map(([x, y, s], k) => <g key={"b" + k} transform={`translate(${x} ${y}) scale(${s})`}><rect x="-2" y="-2" width="4" height="12" fill="#6b4a32" /><circle cy="-10" r="11" fill="#357c49" /><circle cx="4" cy="-15" r="7" fill="#46995c" /></g>)}
+    </svg>
+  );
+}
+
+/* ── clinic journey: a road with a stop for each year ── */
+const JK_ICON = { clinic: "tooth", tech: "spark", teach: "user", research: "shield", award: "award", learn: "note" };
+function Journey() {
+  const [kind, setKind] = useState("all");
+  const ref = useRef(null);
+  const [colW, setColW] = useState(() => (typeof window !== "undefined" && window.matchMedia("(max-width: 700px)").matches ? 205 : 238));
+  useEffect(() => { const m = window.matchMedia("(max-width: 700px)"); const f = () => setColW(m.matches ? 205 : 238); m.addEventListener("change", f); return () => m.removeEventListener("change", f); }, []);
+  const go = (dir) => { const el = ref.current; if (el) el.scrollBy({ left: dir * Math.min(el.clientWidth * 0.8, 780), behavior: "smooth" }); };
+  /* after choosing a filter, travel to the first matching stop */
+  const pick = (k) => {
+    setKind(k);
+    const el = ref.current; if (!el) return;
+    const i = k === "all" ? 0 : journey.findIndex(([, items]) => items.some(([c]) => c === k));
+    const stop = el.querySelectorAll(".jr-stop")[Math.max(0, i)];
+    if (stop) el.scrollTo({ left: Math.max(0, stop.offsetLeft - 30), behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  };
+  return (
+    <>
+      <header className="sec-head jr-head">
+        <span className="kicker">Since {SINCE}</span>
+        <h2>Our journey, milestone by milestone</h2>
+        <p>{YEARS} years of the clinic, its treatments and equipment, and the doctor's teaching and research. Travel along the road to see each year.</p>
+      </header>
+      <div className="jr-filters" role="group" aria-label="Show milestones">
+        <button type="button" className={kind === "all" ? "on" : ""} aria-pressed={kind === "all"} onClick={() => pick("all")}>All</button>
+        {Object.entries(journeyKinds).map(([k, label]) => (
+          <button key={k} type="button" className={`k-${k}` + (kind === k ? " on" : "")} aria-pressed={kind === k} onClick={() => pick(k)}><Icon n={JK_ICON[k]} size={15} />{label}</button>
+        ))}
+      </div>
+      <div className="jr-wrap">
+        <button type="button" className="jr-arrow prev" aria-label="Earlier milestones" onClick={() => go(-1)}><Icon n="arrow" size={18} /></button>
+        <div className="jr-scroll" ref={ref} tabIndex={0} role="region" aria-label="Clinic journey from before 1999 to today">
+          <ol className="jr-track" style={{ gridAutoColumns: colW + "px" }}>
+            <li className="jr-land-cell" aria-hidden="true" style={{ gridColumn: `1 / span ${journey.length + 1}` }}><Landscape n={journey.length + 1} w={colW} /></li>
+            {journey.map(([y, items], k) => {
+              const hit = kind === "all" || items.some(([c]) => c === kind);
+              const card = (
+                <div className="jr-card">
+                  {items.map(([c, t, d]) => (
+                    <div key={t} className={`jr-item k-${c}` + (kind !== "all" && c !== kind ? " dim" : "")}>
+                      <span className="jr-ico" title={journeyKinds[c]}><Icon n={JK_ICON[c]} size={15} /></span>
+                      <span><b>{t}</b><small>{d}</small></span>
+                    </div>
+                  ))}
+                </div>
+              );
+              return (
+                <li key={y} style={{ gridColumn: k + 1, "--y": Math.round(roadY((k + 0.5) * colW, colW)) + "px" }} className={"jr-stop" + (k % 2 ? " down" : " up") + (hit ? "" : " off") + (k === 0 ? " first" : "") + (k === journey.length - 1 ? " last" : "")}>
+                  <div className="jr-top">{k % 2 ? null : card}</div>
+                  <div className="jr-road"><span className="jr-pin">{y}</span></div>
+                  <div className="jr-bot">{k % 2 ? card : null}</div>
+                </li>
+              );
+            })}
+            <li className="jr-stop jr-now up" aria-label="Today" style={{ gridColumn: journey.length + 1, "--y": Math.round(roadY((journey.length + 0.5) * colW, colW)) + "px" }}>
+              <div className="jr-top"><div className="jr-card jr-today"><b>Today</b><small>{YEARS} years of care in Chaitanyapuri, and still growing.</small></div></div>
+              <div className="jr-road"><span className="jr-pin jr-flag"><Icon n="pin" size={18} /></span></div>
+              <div className="jr-bot" />
+            </li>
+          </ol>
+        </div>
+        <button type="button" className="jr-arrow next" aria-label="Later milestones" onClick={() => go(1)}><Icon n="arrow" size={18} /></button>
+      </div>
+    </>
+  );
+}
 
 /* ── oral cancer screening (DrOroscope) ── */
 function Screening() {
@@ -668,6 +773,11 @@ export default function Home() {
         {/* ── DOCTOR ── */}
         <section className="sec" id="doctors">
           <div className="wrap"><Doctor d={d0} /></div>
+        </section>
+
+        {/* ── CLINIC JOURNEY ── */}
+        <section className="sec sec-tint" id="journey">
+          <div className="wrap"><Journey /></div>
         </section>
 
         {/* ── PORTAL ── */}
