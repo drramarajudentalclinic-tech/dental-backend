@@ -688,11 +688,6 @@ export default function Home() {
           <div className="wrap hero-grid">
             <div className="hero-copy">
               <p className="lead">{clinic.tagline}</p>
-              <a className="hero-doc" href="#about-doctor" onClick={(e) => { e.preventDefault(); window.dispatchEvent(new Event("open-doctor")); }}>
-                <span className="ed-mono" aria-hidden="true"><Icon n="user" size={20} /></span>
-                <span><b>Know about your doctor</b><small>Qualifications, experience and research profile</small></span>
-                <Icon n="arrow" size={18} />
-              </a>
               <div className="hero-actions">
                 <a className="btn light" href={tel(clinic.phone)}><Icon n="phone" size={18} />Call {clinic.phone}</a>
                 <a className="btn outline-light" href="#treatments">See treatments <Icon n="arrow" size={18} /></a>
