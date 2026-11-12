@@ -103,7 +103,7 @@ export const journey = [
   ["2005", [["teach", "Reader", "St. Joseph Dental College, Eluru (2005–09)"]]],
   ["2007", [["clinic", "Own premises", "The clinic moved into its own premises in the same complex"], ["tech", "Rotary root canals", "Root canals with rotary files began"], ["learn", "Implantology course", "SDM College of Dental Sciences, Dharwad"]]],
   ["2009", [["teach", "Professor", "Karnavati School of Dentistry (2009–11)"]]],
-  ["2010", [["clinic", "Clinic expanded", "The clinic grew within the same complex"]]],
+  ["2010", [["clinic", "Clinic expanded", "The clinic grew within the same complex, to 3 dental chairs"]]],
   ["2011", [["tech", "Laser treatment", "Laser-assisted gum and soft-tissue treatment began"], ["teach", "Professor and Head of Department", "SVS Institute of Dental Sciences (2011–17)"]]],
   ["2012", [["tech", "Digital X-rays", "Digital X-rays (RVG) at the chair and a portable X-ray machine were added"]]],
   ["2013", [["learn", "Palliative care", "Certificate course, IAPC at MNJ Institute of Oncology, Hyderabad"]]],
