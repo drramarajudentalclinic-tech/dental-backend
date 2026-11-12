@@ -1049,6 +1049,14 @@ html.is-home .bar .wrap > .btn.small { order: 3; }
 @media (min-width: 1141px) and (max-width: 1439px) { html.is-home .bar .wrap > .bar-left { flex-basis: auto; } .bar-left .ob-full { display: none; } .bar-left .ob-short { display: inline; } }
 @media (max-width: 1140px) { html.is-home .bar .wrap > .bar-left { flex: 1 1 auto; } }
 @media (max-width: 760px) { .bar-icons { display: none; } }
+
+/* Home, wide screens: Call, WhatsApp and Patient login sit right after "Visit us", as one centred group */
+@media (min-width: 1141px) {
+  html.is-home .bar .wrap > .nav { flex: 0 1 auto; margin-left: auto; }
+  html.is-home .bar .wrap > .btn.small { margin-right: auto; }
+  html.is-home .bar .wrap > .bar-icons { margin-left: -4px; }
+}
+@media (min-width: 1440px) { html.is-home .bar .wrap::after { content: ""; order: 4; flex: 0 0 252px; } }
 @media (max-width: 420px) { .bar-left .open-badge { font-size: 11.5px; padding: 4px 9px 4px 8px; } }
 
 /* ═════ BACK TO TOP (ring fills as you read) ═════ */
