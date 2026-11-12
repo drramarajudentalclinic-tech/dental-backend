@@ -1223,11 +1223,11 @@ a.hero-doc:hover > svg:last-child { transform: translateX(4px); }
 
 /* "Book a visit" in the menu: stands out with a phone icon */
 .nav a.nav-book { display: inline-flex; align-items: center; gap: 7px; }
-html.is-home .nav a.nav-book { background: var(--gum); border-color: var(--gum); color: #fff; }
-html.is-home .nav a.nav-book:hover { background: #d4566e; border-color: #d4566e; color: #fff; }
+html.is-home .nav a.nav-book { background: #1f9d55; border-color: #1f9d55; color: #fff; }
+html.is-home .nav a.nav-book:hover { background: #198a49; border-color: #198a49; color: #fff; }
 html.is-home .nav a.nav-book svg { animation: phone-buzz 5s 2.5s ease-in-out infinite; }
 html.is-home .nav a.active:not(.nav-book) { color: var(--ink-fill); background: var(--mint); border-color: var(--mint); }
-html.is-home .nav a.nav-book.active { box-shadow: 0 0 0 3px rgba(243, 166, 180, .45); }
+html.is-home .nav a.nav-book.active { box-shadow: 0 0 0 3px rgba(31, 157, 85, .4); }
 
 /* booking section: calling hours under "Prefer to talk?" */
 .book-hours { display: block; margin-top: 3px; font-size: 14px; color: var(--muted); }

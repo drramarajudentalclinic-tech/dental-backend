@@ -157,8 +157,8 @@ html { scroll-behavior: smooth; scroll-padding-top: 80px; }
   .ss-top { background: #112829; } .ss-top .a { stroke: #e3f1ee; } .ss-top .t { stroke: #24403f; }
   footer { border-color: #24403f !important; }
 }
-.ss-nav a.nav-book { display: inline-flex; align-items: center; gap: 7px; background: var(--ss-gum); border-color: var(--ss-gum); color: #fff; }
-.ss-nav a.nav-book:hover { background: #d4566e; border-color: #d4566e; }
+.ss-nav a.nav-book { display: inline-flex; align-items: center; gap: 7px; background: #1f9d55; border-color: #1f9d55; color: #fff; }
+.ss-nav a.nav-book:hover { background: #198a49; border-color: #198a49; color: #fff; }
 .ss-nav a.nav-book svg { animation: ss-buzz 5s 2.5s ease-in-out infinite; }
 /* "how it works" video */
 .how-vid { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: 14px; background: #eef7f4; cursor: pointer; }

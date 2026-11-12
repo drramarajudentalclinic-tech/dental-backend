@@ -708,6 +708,18 @@ export default function Home() {
           </div>
         </div>
 
+        {/* ── DOCTOR ── */}
+        <section className="sec" id="doctors">
+          <div className="wrap"><Doctor d={d0} open={docOpen} onOpen={openDoctor} /></div>
+        </section>
+
+        {/* ── CLINIC JOURNEY (opens with the doctor's profile) ── */}
+        {docOpen && (
+          <section className="sec jv-sec" id="journey">
+            <div className="wrap"><Journey /></div>
+          </section>
+        )}
+
         {/* ── TREATMENTS ── */}
         <section className="sec" id="treatments">
           <div className="wrap">
@@ -745,18 +757,6 @@ export default function Home() {
             <Protocols />
           </div>
         </section>
-
-        {/* ── DOCTOR ── */}
-        <section className="sec" id="doctors">
-          <div className="wrap"><Doctor d={d0} open={docOpen} onOpen={openDoctor} /></div>
-        </section>
-
-        {/* ── CLINIC JOURNEY (opens with the doctor's profile) ── */}
-        {docOpen && (
-          <section className="sec jv-sec" id="journey">
-            <div className="wrap"><Journey /></div>
-          </section>
-        )}
 
         {/* ── PORTAL ── */}
         <section className="sec portal-band" id="portal">
