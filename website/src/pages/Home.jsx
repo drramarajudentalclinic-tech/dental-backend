@@ -669,6 +669,18 @@ export default function Home() {
       <Bar />
       <BarExtras />
       <main id="top">
+        {/* ── DOCTOR ── */}
+        <section className="sec" id="doctors">
+          <div className="wrap"><Doctor d={d0} open={docOpen} onOpen={openDoctor} /></div>
+        </section>
+
+        {/* ── CLINIC JOURNEY (opens with the doctor's profile) ── */}
+        {docOpen && (
+          <section className="sec jv-sec" id="journey">
+            <div className="wrap"><Journey /></div>
+          </section>
+        )}
+
         {/* ── HERO ── */}
         <section className="hero">
           <div className="hero-glow" aria-hidden="true" />
@@ -707,18 +719,6 @@ export default function Home() {
             <div role="listitem"><span className="tr-ico" aria-hidden="true"><Icon n="shield" /></span><b className="tr-t">Since {clinic.since || "1999"}</b><span className="tr-d">caring for patients in Chaitanyapuri</span></div>
           </div>
         </div>
-
-        {/* ── DOCTOR ── */}
-        <section className="sec" id="doctors">
-          <div className="wrap"><Doctor d={d0} open={docOpen} onOpen={openDoctor} /></div>
-        </section>
-
-        {/* ── CLINIC JOURNEY (opens with the doctor's profile) ── */}
-        {docOpen && (
-          <section className="sec jv-sec" id="journey">
-            <div className="wrap"><Journey /></div>
-          </section>
-        )}
 
         {/* ── TREATMENTS ── */}
         <section className="sec" id="treatments">
