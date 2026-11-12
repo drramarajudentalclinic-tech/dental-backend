@@ -387,9 +387,10 @@ function Protocols() {
   );
 }
 
-function Doctor({ d }) {
+/* Doctor: the card is shown first; "Know about your doctor" opens the full profile and the journey */
+function Doctor({ d, open, onOpen }) {
   return (
-    <div className="doctor">
+    <div className={"doctor" + (open ? " is-open" : " is-closed")}>
       <aside className="doc-card">
         <div className="doc-mono" aria-hidden="true">{d.initials}</div>
         <h3 className="doc-name">{d.name}</h3>
@@ -406,7 +407,20 @@ function Doctor({ d }) {
           <a className="btn ghost" href={waLink(`Hello, I would like an appointment with ${d.name}.`)} target="_blank" rel="noreferrer"><Icon n="chat" size={18} />WhatsApp</a>
         </div>
       </aside>
-      <div className="doc-body">
+      {!open && (
+        <div className="doc-teaser">
+          <span className="kicker">Your dentist</span>
+          <h2>{d.name}</h2>
+          <p className="measure">{d.qualification} · in private practice for {YEARS} years · Chaitanyapuri, Hyderabad, since {SINCE}.</p>
+          <button type="button" className="doc-more" onClick={onOpen} aria-expanded="false" aria-controls="about-doctor">
+            <span className="ed-mono" aria-hidden="true"><Icon n="user" size={22} /></span>
+            <span><b>Know about your doctor</b><small>Qualifications, experience and research profile</small></span>
+            <Icon n="arrow" size={20} />
+          </button>
+        </div>
+      )}
+      {open && (
+      <div className="doc-body" id="about-doctor" tabIndex={-1}>
         <span className="kicker">Your dentist</span>
         <h2>About the doctor</h2>
         {d.about.map((p) => <p key={p.slice(0, 20)} className="measure">{p}</p>)}
@@ -428,24 +442,11 @@ function Doctor({ d }) {
         )}
         <h3>Areas of care</h3>
         <ul className="doc-focus">{d.focus.map((f) => <li key={f}><Icon n="check" size={18} />{f}</li>)}</ul>
-        <h3>Career</h3>
-        <ol className="doc-time doc-career">
-          {d.career.map(([y, r, w]) => <li key={y + r}><span className="yr">{y}</span><span><b>{r}</b><br /><span className="muted">{w}</span></span></li>)}
-        </ol>
-        <h3>Research, education and awards</h3>
-        <div className="doc-prof">
-          {d.profile.map(([title, ico, items], k) => (
-            <details key={title} className="dp" open={k === 0}>
-              <summary><span className="dp-ico"><Icon n={ico} size={18} /></span><b>{title}</b><span className="dp-n">{items.length}</span></summary>
-              <ul>{items.map(([y, x]) => <li key={x}>{y && <span className="dp-yr">{y}</span>}{x}</li>)}</ul>
-            </details>
-          ))}
-        </div>
       </div>
+      )}
     </div>
   );
 }
-
 
 /* ── clinic journey: a road winding down the page, with a marker at each year ── */
 const JK_ICON = { clinic: "tooth", tech: "spark", teach: "user", research: "shield", award: "award", learn: "note" };
@@ -626,6 +627,13 @@ function PortalPhone() {
 
 export default function Home() {
   const [scrolled, setScrolled] = useState(false);
+  const [docOpen, setDocOpen] = useState(() => typeof window !== "undefined" && window.location.hash === "#about-doctor");
+  const openDoctor = () => {
+    setDocOpen(true);
+    if (window.location.hash !== "#about-doctor") history.replaceState(null, "", "#about-doctor");
+    setTimeout(() => { const el = document.getElementById("about-doctor"); if (el) { el.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }); el.focus({ preventScroll: true }); } }, 60);
+  };
+  useEffect(() => { const f = () => openDoctor(); window.addEventListener("open-doctor", f); return () => window.removeEventListener("open-doctor", f); }, []);
   useEffect(() => {
     const on = () => setScrolled(window.scrollY > 520);
     on(); window.addEventListener("scroll", on, { passive: true });
@@ -668,9 +676,9 @@ export default function Home() {
           <div className="wrap hero-grid">
             <div className="hero-copy">
               <p className="lead">{clinic.tagline}</p>
-              <a className="hero-doc" href="#doctors">
+              <a className="hero-doc" href="#about-doctor" onClick={(e) => { e.preventDefault(); window.dispatchEvent(new Event("open-doctor")); }}>
                 <span className="ed-mono" aria-hidden="true"><Icon n="user" size={20} /></span>
-                <span><b>Know about your doctor</b><small>Qualifications, experience and the dental devices he invented</small></span>
+                <span><b>Know about your doctor</b><small>Qualifications, experience and research profile</small></span>
                 <Icon n="arrow" size={18} />
               </a>
               <div className="hero-actions">
@@ -694,9 +702,8 @@ export default function Home() {
 
         {/* ── TRUST STRIP ── */}
         <div className="wrap">
-          <div className="trust trust-4 trust-three" role="list">
+          <div className="trust trust-4 trust-three trust-two" role="list">
             <div role="listitem"><span className="tr-ico" aria-hidden="true"><Icon n="tooth" /></span><b className="tr-t">MDS</b><span className="tr-d">Master of Dental Surgery</span></div>
-            <div role="listitem" className="tr-pink"><span className="tr-ico" aria-hidden="true"><Icon n="spark" /></span><b className="tr-t">4 devices</b><span className="tr-d">invented and patented by Dr. Rama Raju</span></div>
             <div role="listitem"><span className="tr-ico" aria-hidden="true"><Icon n="shield" /></span><b className="tr-t">Since {clinic.since || "1999"}</b><span className="tr-d">caring for patients in Chaitanyapuri</span></div>
           </div>
         </div>
@@ -741,13 +748,15 @@ export default function Home() {
 
         {/* ── DOCTOR ── */}
         <section className="sec" id="doctors">
-          <div className="wrap"><Doctor d={d0} /></div>
+          <div className="wrap"><Doctor d={d0} open={docOpen} onOpen={openDoctor} /></div>
         </section>
 
-        {/* ── CLINIC JOURNEY ── */}
-        <section className="sec jv-sec" id="journey">
-          <div className="wrap"><Journey /></div>
-        </section>
+        {/* ── CLINIC JOURNEY (opens with the doctor's profile) ── */}
+        {docOpen && (
+          <section className="sec jv-sec" id="journey">
+            <div className="wrap"><Journey /></div>
+          </section>
+        )}
 
         {/* ── PORTAL ── */}
         <section className="sec portal-band" id="portal">
