@@ -98,7 +98,7 @@ export const journeyKinds = {
   clinic: "Clinic", tech: "New treatment or equipment", teach: "Teaching", research: "Research and patents", award: "Award", learn: "Learning",
 };
 export const journey = [
-  ["1999", [["clinic", "The clinic opened its doors", "Sri Satya Sai Oral Health Center & Dental Clinic started caring for patients at Rajanigandha Apartments, Chaitanyapuri"]]],
+  ["1999", [["clinic", "Clinic started", "The clinic started in the year 1999, at Rajanigandha Apartments, Chaitanyapuri"]]],
   ["2002", [["teach", "Senior Lecturer", "Vishnu Dental College, Bhimavaram (2002–05)"]]],
   ["2005", [["teach", "Reader", "St. Joseph Dental College, Eluru (2005–09)"]]],
   ["2007", [["clinic", "Own premises", "The clinic moved into its own premises in the same complex"], ["tech", "Rotary root canals", "Root canals with rotary files began"], ["learn", "Implantology course", "SDM College of Dental Sciences, Dharwad"]]],
