@@ -771,7 +771,7 @@ export default function Home() {
               </ol>
               <div className="pb-actions">
                 <Link className="btn light pb-cta" to="/portal"><Icon n="lock" size={18} />Log in to the patient portal</Link>
-                <span className="pb-safe"><Icon n="shield" size={16} />Secure login with a one-time code sent to your registered mobile.</span>
+                <span className="pb-safe"><Icon n="shield" size={16} />Secure login with a one-time code sent to your registered mobile number.</span>
               </div>
             </div>
             <figure className="pb-photo">
@@ -793,7 +793,7 @@ export default function Home() {
             <div>
               <span className="kicker">Appointments</span>
               <h2>Book an appointment</h2>
-              <p className="book-lead">Tell us when suits you and what you need. The clinic will confirm a time on WhatsApp.</p>
+              <p className="book-lead">Tell us what time suits you and what you need. The clinic will confirm a time on WhatsApp.</p>
               <ul className="book-points">
                 <li><Icon n="clock" size={18} />Monday to Saturday, 11 am – 7 pm, by appointment</li>
                 <li><Icon n="phone" size={18} /><span>Prefer to talk? Call <a href={tel(clinic.phone)}>{clinic.phone}</a><small className="book-hours">Call between 11:00 am and 7:00 pm, Monday to Saturday. Sunday is a holiday.</small></span></li>

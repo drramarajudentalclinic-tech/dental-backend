@@ -25,7 +25,7 @@ export const clinic = {
   motto: "Oral health for healthy life",
   // shown under the motto on the home page
   pillars: [
-    ["Personalised treatment planning and execution", "A step by step plan made for your health and teeth, explained first and carried out step by step."],
+    ["Personalised treatment planning and execution", "A step-by-step plan made for your health and teeth, explained first and carried out step by step."],
     ["Personalised pharmacogenomic treatment", "Medicines chosen to suit your genetic make-up and how your body handles them."],
   ],
   tagline: `Complete dental care in Chaitanyapuri, Hyderabad, since ${SINCE}, led by Dr. D. Rama Raju with ${YEARS} years of experience. Every treatment is explained before we begin.`,
@@ -46,7 +46,7 @@ export const clinic = {
     ["Monday – Saturday", "11:00 am – 7:00 pm"],
     ["Sunday", "Holiday"],
   ],
-  hoursNote: "By appointment only. Please call or WhatsApp one day before for an appointment.",
+  hoursNote: "By appointment only. Please call or WhatsApp one day in advance to book an appointment.",
   registration: "A-1096",      // Dental Council registration no. (footer and doctor card)
 };
 
@@ -69,8 +69,8 @@ export const doctors = [
     ],
     about: [
       `Dr. D. Rama Raju (BDS, MDS) has been in private practice for ${YEARS} years. He runs Sri Satya Sai Oral Health Center & Dental Clinic in Chaitanyapuri, near Dilsukhnagar, Hyderabad, which has been caring for patients since ${SINCE}.`,
-      "Alongside the clinic, he has taught dentistry for over 20 years: he was Professor and Head of Department at SVS Institute of Dental Sciences, is its Honorary Professor since 2017, and is Professor of Practice at Rangoonwala Dental College, Pune (2026–27). He has published more than 30 research papers in national and international peer-reviewed journals.",
-      "He is the CEO of Raamah Biocare Pvt. Ltd., and the founder and patent holder of four dental devices the company makes in India: the DrOroscope for oral cancer screening, the PRFuge centrifuge for platelet-rich fibrin, the Tooth Titan that turns an extracted tooth into bone graft, and the Teeth Tracer digital bite analyser. All four are used at the clinic.",
+      "Alongside the clinic, he has taught dentistry for over 20 years: he was Professor and Head of Department at SVS Institute of Dental Sciences, has been its Honorary Professor since 2017, and is Professor of Practice at Rangoonwala Dental College, Pune (2026–27). He has published more than 30 research papers in national and international peer-reviewed journals.",
+      "He is the CEO of Raamah Biocare Pvt. Ltd., and the founder and patent holder of four dental devices the company makes in India: the DrOroscope for oral cancer screening, the PRFuge centrifuge for platelet-rich fibrin, the Tooth Titan that turns an extracted tooth into a bone graft, and the Teeth Tracer digital bite analyser. All four are used at the clinic.",
       "Patients see him for everything from check-ups, fillings and root canals to extractions, implants, dentures, braces and full-mouth rehabilitation. Every treatment starts with a clear diagnosis, and the options and the cost are explained before anything begins.",
     ],
     focus: [
@@ -85,7 +85,7 @@ export const doctors = [
     inventions: [
       { name: "DrOroscope", photo: photos.oroscope, line: "Oral cancer screening camera", tab: "Check-ups" },
       { name: "PRFuge", photo: photos.prfuge, line: "Centrifuge for platelet-rich fibrin", tab: "Dental implants" },
-      { name: "Tooth Titan", photo: photos.toothTitan, line: "Your extracted tooth made into bone graft", tab: "Dental implants" },
+      { name: "Tooth Titan", photo: photos.toothTitan, line: "Your extracted tooth made into a bone graft", tab: "Dental implants" },
       { name: "Teeth Tracer", photo: photos.teethTracer, line: "Digital bite-force analyser", tab: "Bite" },
     ],
   },
@@ -98,10 +98,10 @@ export const journeyKinds = {
   clinic: "Clinic", tech: "New treatment or equipment", teach: "Teaching", research: "Research and patents", award: "Award", learn: "Learning",
 };
 export const journey = [
-  ["1999", [["clinic", "Clinic started", "The clinic started in the year 1999, at Rajanigandha Apartments, Chaitanyapuri"]]],
+  ["1999", [["clinic", "Clinic started", "The clinic started in the year 1999 at Rajanigandha Apartments, Chaitanyapuri"]]],
   ["2002", [["teach", "Senior Lecturer", "Vishnu Dental College, Bhimavaram (2002–05)"]]],
   ["2005", [["teach", "Reader", "St. Joseph Dental College, Eluru (2005–09)"]]],
-  ["2007", [["clinic", "Own premises", "The clinic moved into its own premises in the same complex"], ["tech", "Rotary root canals", "Root canals with rotary files began"], ["learn", "Implantology course", "SDM College of Dental Sciences, Dharwad"]]],
+  ["2007", [["clinic", "Own premises", "The clinic moved into its own premises in the same complex"], ["tech", "Rotary root canals", "Rotary files were introduced for root canals"], ["learn", "Implantology course", "SDM College of Dental Sciences, Dharwad"]]],
   ["2009", [["teach", "Professor", "Karnavati School of Dentistry (2009–11)"]]],
   ["2010", [["clinic", "Clinic expanded", "The clinic grew within the same complex, to 3 dental chairs"]]],
   ["2011", [["tech", "Laser treatment", "Laser-assisted gum and soft-tissue treatment began"], ["teach", "Professor and Head of Department", "SVS Institute of Dental Sciences (2011–17)"]]],
@@ -160,7 +160,7 @@ export const technology = [
         photo: photos.oroscope,
         art: "oroscope",
         what: "A hand-held oral screening camera invented by Dr. D. Rama Raju, the founder and patent holder of the DrOroscope, and made in India by Raamah Biocare. A slim head with a 5-megapixel camera reaches the back of the mouth and photographs each area under white, blue and fluorescence light; the pictures appear on a tablet.",
-        why: "Healthy lining glows green while suspicious areas look darker, so early changes in patches, ulcers and lumps are found without cutting, and it helps decide which areas need a biopsy. The photos are kept in your record to compare at the next visit.",
+        why: "Healthy lining glows green while suspicious areas look darker, so early changes in patches, ulcers and lumps can be found without cutting; it also helps decide which areas need a biopsy. The photos are kept in your record to compare at the next visit.",
       },
       {
         name: "Digital X-rays (RVG) and hand-held portable X-ray",
@@ -430,7 +430,7 @@ export const protocols = [
     steps: [
       "Used instruments are soaked in disinfectant and cleaned.",
       "They are packed and sealed in sterilisation pouches with a colour-change indicator.",
-      "The pouches go through a steam autoclave cycle; the indicator changes colour to show the cycle was complete.",
+      "The pouches go through a steam autoclave cycle; the indicator changes colour to show that the cycle is complete.",
       "Pouches are opened in front of you, at the chair, for your treatment.",
       "Single-use items (needles, gloves, suction tips, cups) are used once and discarded.",
       "Work surfaces and the dental chair are wiped with disinfectant after every patient.",
@@ -465,7 +465,7 @@ export const protocols = [
       ["Endo motor", "Turns the rotary files that clean and shape the canals"],
       ["Endo activator", "Activates the disinfecting solution inside the canals"],
       ["Gutta-percha points", "The master point matched to the canal size and taper"],
-      ["Bioceramic sealer", "Bioceramic sealer that seals the gaps and supports healing"],
+      ["Bioceramic sealer", "Seals the gaps and supports healing"],
       ["Obturation pen", "Packs warm gutta-percha at the root tip"],
       ["Backfill gun", "Fills the rest of the canal with warm gutta-percha"],
       ["Intra-oral scanner", "Digital scan for the crown, where a crown is advised", true],
@@ -542,7 +542,7 @@ export const protocols = [
       "The shade is matched to your tooth before treatment starts.",
       "Local anaesthesia where needed, given slowly with the anaesthesia booster.",
       "The decay is removed and the cavity shaped, keeping as much healthy tooth as possible.",
-      "The tooth is kept dry; it is etched, rinsed, and a bonding agent is applied and hardened with a curing light.",
+      "The tooth is kept dry; it is etched and rinsed, and a bonding agent is applied and hardened with a curing light.",
       "Composite is placed in thin layers, each hardened with the curing light, and shaped like the natural tooth.",
       "The bite is checked and adjusted, and the filling polished smooth.",
     ],
@@ -706,7 +706,7 @@ export const protocols = [
       "The type is chosen with you: cast metal, flexible or acrylic.",
       "Impressions or a digital scan with the intra-oral scanner, and the design (clasps and rests) planned with the lab.",
       "For a cast partial denture, the metal framework is tried in first.",
-      "Teeth try-in to check look, fit and bite.",
+      "Teeth try-in to check the look, fit and bite.",
       "The denture is fitted, and the fit and bite are adjusted.",
       "Review visits, and advice on cleaning the denture and the teeth that hold it.",
     ],
@@ -799,7 +799,7 @@ export const protocols = [
       "History of the lesion and of habits such as tobacco, gutka, pan or alcohol.",
       "Examination of the whole mouth, tongue and neck.",
       "DrOroscope screening under white, blue and green-amber light; photos record the size and site.",
-      "Possible causes are removed: a sharp tooth smoothed, an ill-fitting denture adjusted, habit counselling.",
+      "Possible causes are removed: a sharp tooth smoothed, an ill-fitting denture adjusted, and habit counselling given.",
       "A review in about 2 weeks to see whether the lesion is healing.",
       "If it persists or looks suspicious, a biopsy of the exact spot is advised to confirm the diagnosis.",
       "Treatment for the diagnosis (medicines, low-level laser therapy for painful ulcers, or referral), and follow-up photos compared at each visit.",
@@ -810,8 +810,8 @@ export const protocols = [
 
 
 export const portalSteps = [
-  ["Doctor switches it on", "At your visit, for your registered mobile number."],
-  ["Doctor shares your records", "Summaries, prescriptions, X-rays and receipts from your visit."],
+  ["Your doctor switches it on", "At your visit, for your registered mobile number."],
+  ["Your doctor shares your records", "Summaries, prescriptions, X-rays and receipts from your visit."],
   ["You log in with an SMS code", "A 6-digit code each time. No password."],
 ];
 
@@ -823,7 +823,7 @@ export const screening = {
     "You use or have used tobacco, gutka, khaini, pan or betel nut, or you smoke",
     "You drink alcohol regularly",
     "A white or red patch, a lump, or a rough area in the mouth",
-    "An ulcer or sore that has not healed in 2 weeks",
+    "An ulcer or sore that has not healed within 2 weeks",
     "Burning in the mouth with spicy food, or the mouth opening less widely than before",
     "You are over 40 and would like a screening (ask at your visit)",
   ],
@@ -842,13 +842,13 @@ export const screening = {
     ["A record you can follow", "Photos from each visit are compared, so slow changes are not missed."],
   ],
   tech: [
-    "Autofluorescence imaging with three light modes (white, blue, and green-amber)",
+    "Autofluorescence imaging with three light modes (white, blue and green-amber)",
     "Slim 5-megapixel intra-oral camera that reaches the back of the mouth",
     "Tablet software with artificial-intelligence features, reports and stored records",
     "Made in India by Raamah Biocare. Dr. D. Rama Raju is the founder and patent holder of the DrOroscope",
   ],
   study: {
-    stats: [["100%", "of the dysplasia confirmed by biopsy was picked up"], ["90%", "overall accuracy compared with biopsy"], ["40", "patients with red and white oral lesions, Hyderabad"]],
+    stats: [["100%", "of biopsy-confirmed dysplasia cases were picked up"], ["90%", "overall accuracy compared with biopsy"], ["40", "patients with red and white oral lesions, Hyderabad"]],
     text: "In a 2024 study of 40 patients with lesions such as leukoplakia and oral submucous fibrosis, every lesion was also biopsied. The DrOroscope picked up every case with dysplasia (sensitivity 100%) and was correct in 90% of patients overall. A larger study of 200 people reported 92.7% sensitivity and 88.5% accuracy.",
     caution: "The DrOroscope is a screening aid. Some areas it marks turn out to be harmless, so a biopsy is still the test that confirms a diagnosis.",
     sources: [
@@ -863,9 +863,9 @@ export const faqs = [
   ["Do I need an appointment?", "Yes. The clinic works by appointment only, Monday to Saturday, 11 am to 7 pm. Call or WhatsApp +91 99088 94449 to book a time. Sunday is a holiday."],
   ["Is root canal treatment painful?", "The tooth is numbed with local anaesthesia before treatment, so you should feel pressure but not pain. Some soreness for a day or two afterwards is common, and the doctor prescribes medicine for it."],
   ["How long does a dental implant take?", "The implant is placed in one sitting under local anaesthesia. It then needs about 3 months to join the bone before the crown is fitted. If a bone graft is needed, healing can take longer; the doctor explains the timeline for your case."],
-  ["Is the oral cancer screening painful?", "No. The DrOroscope only shines light and takes photos of the inside of your mouth. It takes a few minutes, and is done when the doctor advises it or you ask for it."],
+  ["Is the oral cancer screening painful?", "No. The DrOroscope only shines light and takes photos of the inside of your mouth. It takes a few minutes and is done when the doctor advises it or you ask for it."],
   ["What should I bring to my first visit?", "A list of the medicines you take, any medical reports, and any old dental X-rays or scans. If you have diabetes, blood pressure or heart problems, or are pregnant, please tell the doctor."],
   ["Can I see my X-rays and prescriptions later?", "Yes. When the doctor switches on your patient portal and shares them, you can see your visit summaries, prescriptions, X-rays and receipts on your phone."],
   ["How are instruments kept clean?", "Instruments are cleaned, sealed in sterilisation pouches and steam-autoclaved. The pouch is opened in front of you, and needles, gloves and suction tips are used once and thrown away. Surfaces are disinfected after every patient, and a germicidal UV-C lamp disinfects the empty treatment room."],
-  ["When should a child first see a dentist?", "By the first birthday, or when the first tooth comes in. Early visits help catch decay in milk teeth and get children comfortable at the dentist."],
+  ["When should a child first see a dentist?", "By the first birthday, or when the first tooth comes in. Early visits help catch decay in milk teeth and help children feel comfortable at the dentist."],
 ];

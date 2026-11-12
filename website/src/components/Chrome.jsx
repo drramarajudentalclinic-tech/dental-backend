@@ -15,7 +15,7 @@ export function Logo({ size = 52 }) {
 function BrandName() {
   return (
     <span className="brand-name">
-      <span className="bn-1">Sri Satya Sai</span>
+      <span className="bn-1">Sri Satya Sai</span>{" "}
       <span className="bn-2">Oral Health Center &amp; Dental Clinic</span>
     </span>
   );
