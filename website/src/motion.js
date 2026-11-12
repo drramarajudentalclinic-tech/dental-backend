@@ -19,6 +19,7 @@ const COUNT = ".trust dt, .trust .tr-t, .doc-stats dt, .scr-stats dt";
 function countUp(el) {
   const m = el.textContent.match(/^(\D*)(\d+(?:\.\d+)?)(.*)$/s);
   if (!m || Number(m[2]) < 2) return;
+  if (/^(19|20)\d\d$/.test(m[2])) return;   // a year ("Since 1999") stays as it is: it does not count up
   const [, pre, num, post] = m;
   const end = Number(num), dec = (num.split(".")[1] || "").length, t0 = performance.now(), dur = 1400;
   const step = (t) => {
@@ -111,4 +112,4 @@ export function useMotion() {
 
     return () => cleanups.forEach((f) => f());
   }, []);
-}
+}
