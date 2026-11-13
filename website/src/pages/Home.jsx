@@ -693,7 +693,7 @@ export default function Home() {
                 <a className="btn light" href={tel(clinic.phone)}><Icon n="phone" size={18} />Call {clinic.phone}</a>
                 <a className="btn outline-light" href="#treatments">See treatments <Icon n="arrow" size={18} /></a>
               </div>
-              <a className="hero-portal" href="#portal"><Icon n="lock" size={15} />Your dental records, X-rays and prescriptions on your phone<Icon n="arrow" size={16} /></a>
+              <a className="hero-portal hero-portal-hl" href="#portal"><span className="hp-new">New</span><Icon n="lock" size={15} />Your dental records, X-rays and prescriptions on your phone<Icon n="arrow" size={16} /></a>
             </div>
             {clinic.pillars?.length > 0 && (
               <ul className="hero-pillars hero-side">
@@ -707,14 +707,6 @@ export default function Home() {
             )}
           </div>
         </section>
-
-        {/* ── TRUST STRIP ── */}
-        <div className="wrap">
-          <div className="trust trust-4 trust-three trust-two" role="list">
-            <div role="listitem"><span className="tr-ico" aria-hidden="true"><Icon n="tooth" /></span><b className="tr-t">MDS</b><span className="tr-d">Master of Dental Surgery</span></div>
-            <div role="listitem"><span className="tr-ico" aria-hidden="true"><Icon n="shield" /></span><b className="tr-t">Since {clinic.since || "1999"}</b><span className="tr-d">caring for patients in Chaitanyapuri</span></div>
-          </div>
-        </div>
 
         {/* ── TREATMENTS ── */}
         <section className="sec" id="treatments">
