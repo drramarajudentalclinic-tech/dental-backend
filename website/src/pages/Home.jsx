@@ -693,7 +693,7 @@ export default function Home() {
                 <a className="btn light" href={tel(clinic.phone)}><Icon n="phone" size={18} />Call {clinic.phone}</a>
                 <a className="btn outline-light" href="#treatments">See treatments <Icon n="arrow" size={18} /></a>
               </div>
-              <a className="hero-portal hero-portal-hl" href="#portal"><span className="hp-new">New</span><Icon n="lock" size={15} />Your dental records, X-rays and prescriptions on your phone<Icon n="arrow" size={16} /></a>
+              <a className="hero-portal hero-portal-hl" href="#portal"><Icon n="lock" size={15} />Your dental records, X-rays and prescriptions on your phone<Icon n="arrow" size={16} /></a>
             </div>
             {clinic.pillars?.length > 0 && (
               <ul className="hero-pillars hero-side">
