@@ -431,6 +431,19 @@ def mark_visit_missed(visit_id):
     ))
     db.session.commit()
 
+    # the booking of that day is closed in the Appointments app too (shown there as "Missed")
+    try:
+        from routes.appointments import mark_missed, ApptError
+        try:
+            n = mark_missed(visit)
+            if n:
+                print(f"[visits] visit {visit_id} missed → {n} appointment(s) marked missed")
+        except ApptError as e:
+            print("[visits] missed: appointment not updated:", e.message)
+    except Exception as e:                       # the visit is already saved as missed
+        db.session.rollback()
+        print("[visits] missed: appointment not updated:", type(e).__name__, str(e)[:200])
+
     return jsonify({
         "message":   "Visit marked as missed",
         "visit_id":  visit_id,

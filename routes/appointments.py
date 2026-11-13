@@ -373,6 +373,7 @@ def _out(r, visit_state=None):
         "linked": bool(pid),
         "in_clinic_visit_id": vs.get("active") if (is_today and st == "SCHEDULED") else None,
         "missed_visit_id": vs.get("missed_today") if (is_today and st == "SCHEDULED" and not vs.get("active")) else None,
+        "missed": _is_missed(r),
         "created_at": r.get("created_at"), "updated_at": r.get("updated_at"),
     }
 
@@ -510,6 +511,32 @@ def complete_today(patient, visit_id=None):
 
 
 CLOSED_VISIT = ("CLOSED", "COMPLETED", "READY_FOR_BILLING")
+
+
+MISSED_NOTE = "Missed appointment - patient did not come"
+
+
+def _is_missed(r):
+    """A booking the doctor marked as missed (kept as CANCELLED, so the slot is free again)."""
+    return (str(r.get("status") or "").upper() == "CANCELLED"
+            and str(r.get("notes") or "").startswith(MISSED_NOTE))
+
+
+def mark_missed(visit):
+    """The doctor marked this visit as MISSED → its booking of that day is closed in
+    Supabase too, so the Appointments app shows it (status CANCELLED, notes start with
+    MISSED_NOTE; the app labels it "Missed"). Returns how many bookings were changed."""
+    if not configured() or visit is None or not visit.patient_id:
+        return 0
+    day = _ist_day(visit.visit_date) if visit.visit_date else today_ist().isoformat()
+    rows = sb_select(patient_id=f"eq.{visit.patient_id}", appointment_date=f"eq.{day}", status="eq.SCHEDULED")
+    mine = [r for r in rows if str(r.get("visit_id") or "") == str(visit.id)]
+    if not mine:                                         # booked but not linked to any visit yet
+        mine = [r for r in rows if not r.get("visit_id")][:1]
+    for r in mine:
+        sb_update(r["id"], {"status": "CANCELLED", "visit_id": visit.id,
+                            "notes": _text(f"{MISSED_NOTE} · {r.get('notes') or ''}".strip(" ·"), 500)})
+    return len(mine)
 
 
 def _complete_attended(rows):
