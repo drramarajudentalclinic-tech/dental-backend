@@ -376,6 +376,70 @@ def close_visit(visit_id):
         "advice":         visit.advice         or "",
     }), 200
 
+# ─────────────────────────────────────────────
+# MISSED APPOINTMENT
+# PUT /api/visits/<visit_id>/missed      { "doctor_name": "...", "reason": "..." }   (body optional)
+#
+# The patient did not come. The open visit is closed as MISSED, so it
+#   • leaves the Doctor's "Open Patient Visits" list (that list shows only CREATED / IN_PROGRESS),
+#   • stays in the patient's visit history, marked "Missed",
+#   • does NOT go to Reception for billing (that list shows only closed / completed visits),
+#   • is not made again by the appointment sync (the booking stays linked to this visit).
+# Only a visit with nothing written in it can be marked missed; if the doctor has
+# already written notes or a prescription, the visit must be completed instead.
+# ─────────────────────────────────────────────
+MISSED_STATUS = "MISSED"
+
+
+@visits_bp.route("/visits/<int:visit_id>/missed", methods=["PUT"])
+def mark_visit_missed(visit_id):
+    visit = Visit.query.get_or_404(visit_id)
+    status = (visit.status or "").strip().upper()
+
+    if status == MISSED_STATUS:
+        return jsonify({"message": "Visit already marked as missed", "visit_id": visit_id, "status": visit.status}), 200
+    if status not in ("CREATED", "IN_PROGRESS", "REOPENED"):
+        return jsonify({"error": "Only an open visit can be marked as missed."}), 409
+
+    written = any(str(getattr(visit, f, "") or "").strip()
+                  for f in ("diagnosis", "treatment_done", "treatment_plan"))
+    if not written:
+        written = Consultation.query.filter_by(visit_id=visit_id).first() is not None
+    if not written:
+        try:
+            from models import Prescription
+            written = Prescription.query.filter_by(visit_id=visit_id).first() is not None
+        except Exception:
+            pass
+    if written:
+        return jsonify({"error": "Notes or a prescription are already saved in this visit, "
+                                 "so it cannot be marked as missed. Please use Complete instead."}), 409
+
+    data = request.get_json(force=True, silent=True) or {}
+    old_status = visit.status
+    visit.status    = MISSED_STATUS
+    visit.closed_at = datetime.utcnow()
+    visit.closed_by = (data.get("doctor_name") or visit.assigned_doctor or "Doctor")[:100]
+
+    db.session.add(VisitAudit(
+        visit_id=visit.id,
+        action="MISSED_APPOINTMENT",
+        old_status=old_status,
+        new_status=visit.status,
+        performed_by=visit.closed_by,
+        reason=(data.get("reason") or "Patient did not come for the appointment"),
+    ))
+    db.session.commit()
+
+    return jsonify({
+        "message":   "Visit marked as missed",
+        "visit_id":  visit_id,
+        "status":    visit.status,
+        "closed_at": visit.closed_at.strftime("%d-%b-%Y %H:%M"),
+        "closed_by": visit.closed_by or "",
+    }), 200
+
+
 # ═════════════════════════════════════════════
 # CLOSED VISITS FOR RECEPTION  ("Doctor's Instructions")
 #

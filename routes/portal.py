@@ -518,7 +518,7 @@ def _models():
 
 def _visits_of(pid):
     return (Visit.query.filter(Visit.patient_id == pid)
-            .filter(or_(Visit.status.is_(None), Visit.status != "CANCELLED"))
+            .filter(or_(Visit.status.is_(None), Visit.status.notin_(["CANCELLED", "MISSED"])))   # a missed visit has nothing to share
             .order_by(Visit.visit_date.desc().nullslast(), Visit.id.desc()).all())
 
 

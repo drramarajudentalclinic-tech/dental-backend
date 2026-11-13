@@ -345,9 +345,11 @@ def _visit_state(patient_ids):
             .order_by(Visit.id.desc()).all())
     for v in rows:
         st = (v.status or "").upper()
-        d = out.setdefault(v.patient_id, {"active": None, "closed_today": None})
+        d = out.setdefault(v.patient_id, {"active": None, "closed_today": None, "missed_today": None})
         if st in ACTIVE_VISIT and d["active"] is None:
             d["active"] = v.id
+        elif st == "MISSED" and v.visit_date and v.visit_date >= start and d["missed_today"] is None:
+            d["missed_today"] = v.id                     # the doctor marked today's visit as missed
         elif st in ("CLOSED", "COMPLETED", "READY_FOR_BILLING") and v.visit_date and v.visit_date >= start and d["closed_today"] is None:
             d["closed_today"] = v.id
     return out
@@ -370,6 +372,7 @@ def _out(r, visit_state=None):
         "patient_id": pid, "visit_id": r.get("visit_id"), "source": source,
         "linked": bool(pid),
         "in_clinic_visit_id": vs.get("active") if (is_today and st == "SCHEDULED") else None,
+        "missed_visit_id": vs.get("missed_today") if (is_today and st == "SCHEDULED" and not vs.get("active")) else None,
         "created_at": r.get("created_at"), "updated_at": r.get("updated_at"),
     }
 
@@ -1017,7 +1020,7 @@ _CLINICAL_WRITES = [re.compile(p) for p in (
     r"/visits/\d+/prescriptions/?$", r"/prescriptions/\d+/?$", r"/prescription-medicines(/\d+)?/?$",
     r"/visits/\d+/images/?$", r"/images/\d+/?$",
     r"/visits/\d+/cbct", r"/cbct/",
-    r"/visits/\d+/close/?$", r"/visits/\d+/next-appointment/?$",
+    r"/visits/\d+/close/?$", r"/visits/\d+/missed/?$", r"/visits/\d+/next-appointment/?$",
     r"/doctor/visit/\d+/",
 )]
 
