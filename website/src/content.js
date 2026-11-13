@@ -114,7 +114,7 @@ export const journey = [
   ["2015", [["learn", "Bioinformatics", "Certificate course, Osmania University"]]],
   ["2017", [["research", "First government grant", "Department of Science and Technology funding; DCGI/CDSCO approval as a non-invasive device"], ["award", "Young Researcher Award", "IAOMR"], ["teach", "Honorary Professor", "SVS Institute of Dental Sciences, Mahabubnagar"]]],
   ["2018", [["award", "BMJ South Asia Awards", "Nominated"]]],
-  ["2019", [["tech", "Electrosurgery", "Added for gum shaping and small biopsies with less bleeding"]]],
+  ["2019", [["tech", "Electrosurgery", "Added for gum shaping and small excisions with less bleeding"]]],
   ["2020", [["award", "Gold medal", "Best faculty paper, 18th National Triple O Symposium, New Delhi"]]],
   ["2021", [["tech", "Intra-oral scanner and PSP X-rays", "3-D digital scans replaced impression trays; phosphor-plate digital X-rays were added"]]],
   ["2022", [["research", "Patent granted: DrOroscope", "Oral cancer screening device"], ["research", "BIRAC funding", "Autogenous dentine graft (Tooth Titan)"]]],
