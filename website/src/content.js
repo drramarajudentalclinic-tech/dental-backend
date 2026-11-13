@@ -32,6 +32,9 @@ export const clinic = {
   since: String(SINCE),
   phone: "+91 99088 94449",
   whatsapp: "+91 99088 94449",
+  // Used only when the clinic is closed (before 11 am, after 7 pm, Sundays): WhatsApp messages
+  // for appointments go to this number, and the site shows it as "message only".
+  afterHoursWhatsapp: "+91 99490 94449",
   email: "drramarajudentalclinic@gmail.com",
   address: [
     "G-15, Ground Floor, Rajanigandha Apartments",

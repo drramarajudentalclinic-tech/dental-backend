@@ -24,6 +24,41 @@
   }
   paintBadge(); setInterval(paintBadge, 30000);
 
+  /* after hours (before 11 am, after 7 pm, Sundays): WhatsApp for appointments goes to the
+     message-only number, and a note with that number is shown under the menu bar */
+  var MAIN_WA = "919908894449", AFTER_WA = "919949094449", AFTER_SHOWN = "+91 99490 94449";
+  function openNow() { return status().s === "Open now"; }
+  /* when the clinic will reply: before 11 am Mon–Sat → today; Sunday and after 7 pm Mon–Fri → tomorrow; after 7 pm Saturday → Monday */
+  function replyWhen() {
+    var ist = new Date(Date.now() + 330 * 60000), day = ist.getUTCDay(), m = ist.getUTCHours() * 60 + ist.getUTCMinutes();
+    if (day !== 0 && m < 660) return "today after 11 am";
+    if (day === 6) return "on Monday morning after 11 am";
+    return "tomorrow morning after 11 am";
+  }
+  function paintAfterHours() {
+    var closed = !openNow(), want = closed ? AFTER_WA : MAIN_WA, other = closed ? MAIN_WA : AFTER_WA;
+    Array.prototype.forEach.call(document.querySelectorAll('a[href*="wa.me/' + other + '"]'), function (a) {
+      a.href = a.href.replace("wa.me/" + other, "wa.me/" + want);
+    });
+    var note = document.querySelector(".ah-note");
+    if (closed && note) {                                   /* keep the reply time right (e.g. past midnight) */
+      var w = note.querySelector(".ah-when"); if (w) w.textContent = replyWhen();
+    } else if (closed && !note) {
+      var bar = document.querySelector(".ss-bar"); if (!bar) return;
+      note = document.createElement("div");
+      note.className = "ah-note"; note.setAttribute("role", "note");
+      note.innerHTML = '<span><b>Clinic closed now.</b> For appointments, <b>message only</b> on WhatsApp: ' +
+        '<a class="ah-num" target="_blank" rel="noreferrer" href="https://wa.me/' + AFTER_WA +
+        '?text=Hello%2C%20I%20would%20like%20to%20book%20an%20appointment.">' + AFTER_SHOWN + '</a>. ' +
+        'We will respond as soon as possible, <span class="ah-when">' + replyWhen() + '</span>.</span>' +
+        '<span class="ah-tag">Message only · no calls</span>';
+      bar.parentNode.insertBefore(note, bar.nextSibling);
+    } else if (!closed && note) {
+      note.parentNode.removeChild(note);
+    }
+  }
+  paintAfterHours(); setInterval(paintAfterHours, 30000);
+
   /* years of experience: counted from 1999, so it goes up by itself every year */
   var yrs = Math.max(1, new Date().getFullYear() - 1999);
   Array.prototype.forEach.call(document.querySelectorAll("[data-years]"), function (el) { el.textContent = yrs; });

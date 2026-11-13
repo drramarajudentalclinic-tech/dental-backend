@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { clinic, doctors, services, technology, protocols, portalSteps, screening, faqs, journey, journeyKinds, YEARS, SINCE } from "../content";
 import * as photos from "../photos";
 import logoSrc from "../logo";
-import { Bar, Footer, DraftNote, waLink } from "../components/Chrome";
+import { Bar, Footer, DraftNote, waLink, AfterHoursNote } from "../components/Chrome";
 import TechArt from "../components/TechArt";
 import ChatBot from "../components/ChatBot";
 import { useMotion } from "../motion";
@@ -668,6 +668,7 @@ export default function Home() {
       </header>
       <Bar />
       <BarExtras />
+      <AfterHoursNote />
       <main id="top">
         {/* ── DOCTOR ── */}
         <section className="sec" id="doctors">
@@ -798,6 +799,7 @@ export default function Home() {
                 <li><Icon n="clock" size={18} />Monday to Saturday, 11 am – 7 pm, by appointment</li>
                 <li><Icon n="phone" size={18} /><span>Prefer to talk? Call <a href={tel(clinic.phone)}>{clinic.phone}</a><small className="book-hours">Call between 11:00 am and 7:00 pm, Monday to Saturday. Sunday is a holiday.</small></span></li>
                 <li><Icon n="pin" size={18} />Opposite Metro Pillar No. 1563, Chaitanyapuri</li>
+                <li className="ah-li"><AfterHoursNote variant="inline" /></li>
               </ul>
             </div>
             <BookForm />
@@ -828,7 +830,8 @@ export default function Home() {
                 <div className="vc-row"><span className="vc-ico"><Icon n="clock" /></span><div><b>Timings</b>
                   <table className="hours"><tbody>{clinic.hours.map(([d, h]) => <tr key={d}><td>{d}</td><td>{h}</td></tr>)}</tbody></table></div></div>
                 <div className="vc-row"><span className="vc-ico"><Icon n="phone" /></span><div><b>Appointments</b>
-                  <p><a href={tel(clinic.phone)}>{clinic.phone}</a><br /><a href={`mailto:${clinic.email}`}>{clinic.email}</a></p></div></div>
+                  <p><a href={tel(clinic.phone)}>{clinic.phone}</a><br /><a href={`mailto:${clinic.email}`}>{clinic.email}</a></p>
+                  <AfterHoursNote variant="inline" /></div></div>
                 <div className="vc-actions">
                   <a className="btn" href={tel(clinic.phone)}><Icon n="phone" size={18} />Call now</a>
                   <a className="btn ghost" href={waLink()} target="_blank" rel="noreferrer"><Icon n="chat" size={18} />WhatsApp</a>

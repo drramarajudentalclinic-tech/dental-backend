@@ -1,10 +1,72 @@
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import * as content from "../content";
 import logoSrc from "../logo";
 
 const { clinic } = content;
 const tel = (n) => `tel:${String(n).replace(/[^\d+]/g, "")}`;
-export const waLink = (text) => `https://wa.me/${clinic.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(text || "Hello, I would like to book an appointment.")}`;
+/* Clinic hours: Monday–Saturday, 11 am – 7 pm, India time (whatever the visitor's own clock says). */
+export function clinicOpenNow() {
+  const ist = new Date(Date.now() + 330 * 60000);            // UTC + 5:30
+  const day = ist.getUTCDay(), mins = ist.getUTCHours() * 60 + ist.getUTCMinutes();
+  return day !== 0 && mins >= 11 * 60 && mins < 19 * 60;
+}
+const digits = (n) => String(n || "").replace(/\D/g, "");
+const MAIN_WA = digits(clinic.whatsapp);
+const AFTER_WA = digits(clinic.afterHoursWhatsapp);
+/* WhatsApp goes to the clinic number in clinic hours, and to the message-only number when closed. */
+export const waNumberNow = () => (AFTER_WA && !clinicOpenNow() ? AFTER_WA : MAIN_WA);
+export const waLink = (text) => `https://wa.me/${waNumberNow()}?text=${encodeURIComponent(text || "Hello, I would like to book an appointment.")}`;
+
+/* When the clinic will reply to an after-hours message (India time):
+   before 11 am Mon–Sat → today; after 7 pm Mon–Fri and Sunday → tomorrow; after 7 pm Saturday → Monday. */
+export function replyWhen() {
+  const ist = new Date(Date.now() + 330 * 60000);
+  const day = ist.getUTCDay(), mins = ist.getUTCHours() * 60 + ist.getUTCMinutes();
+  if (day !== 0 && mins < 11 * 60) return "today after 11 am";
+  if (day === 6) return "on Monday morning after 11 am";
+  return "tomorrow morning after 11 am";
+}
+
+/* true while the clinic is closed; checked again every 30 seconds */
+export function useClinicClosed() {
+  const [closed, setClosed] = useState(() => !clinicOpenNow());
+  useEffect(() => {
+    const id = setInterval(() => setClosed(!clinicOpenNow()), 30000);
+    return () => clearInterval(id);
+  }, []);
+  // a WhatsApp link drawn earlier still goes to the right number when it is clicked
+  useEffect(() => {
+    if (!AFTER_WA) return undefined;
+    const onClick = (e) => {
+      const a = e.target.closest && e.target.closest('a[href*="wa.me/"]');
+      if (!a) return;
+      const want = waNumberNow(), other = want === AFTER_WA ? MAIN_WA : AFTER_WA;
+      if (a.href.includes(`wa.me/${other}`)) a.href = a.href.replace(`wa.me/${other}`, `wa.me/${want}`);
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, []);
+  return closed;
+}
+
+/* Shown only while the clinic is closed: the message-only number for appointments. */
+export function AfterHoursNote({ variant = "strip" }) {
+  const closed = useClinicClosed();
+  const [, setTick] = useState(0);                 // redraw each minute so the reply time stays right past midnight
+  useEffect(() => { const id = setInterval(() => setTick((t) => t + 1), 60000); return () => clearInterval(id); }, []);
+  if (!closed || !AFTER_WA) return null;
+  return (
+    <div className={`ah-note ah-${variant}`} role="note">
+      <span className="ah-text">
+        <b>Clinic closed now.</b> For appointments, <b>message only</b> on WhatsApp:{" "}
+        <a href={waLink()} target="_blank" rel="noreferrer" className="ah-num">{clinic.afterHoursWhatsapp}</a>.{" "}
+        We will respond as soon as possible, {replyWhen()}.
+      </span>
+      <span className="ah-tag">Message only · no calls</span>
+    </div>
+  );
+}
 
 /* The clinic's own logo (built in: src/logo.js). */
 export function Logo({ size = 52 }) {

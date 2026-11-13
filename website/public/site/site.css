@@ -171,3 +171,7 @@ html { scroll-behavior: smooth; scroll-padding-top: 80px; }
 .how.how-video { align-items: start; }
 .how.how-video > div:first-child { position: sticky; top: 90px; }
 @media (max-width: 700px) { .how.how-video > div:first-child { position: static; } }
+/* after hours: message-only WhatsApp number (added by site.js only while the clinic is closed) */
+.ah-note { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px 14px; padding: 10px 16px; text-align: center; font-size: 14.5px; line-height: 1.45; background: #fffaf0; border-bottom: 1px solid #f3e2b8; color: #4a3b18; }
+.ah-note .ah-num { font-weight: 800; white-space: nowrap; color: #1f9d55; text-decoration: none; border-bottom: 1.5px solid currentColor; }
+.ah-note .ah-tag { font-size: 11.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; background: #fff3d6; color: #8a5a00; white-space: nowrap; }
