@@ -805,9 +805,10 @@ def _ist_midnight_utc():
     return datetime.combine(today_ist(), datetime.min.time()) - timedelta(hours=5, minutes=30)
 
 
-def _untouched(v):
-    """An automatic visit nobody has worked on yet (safe to withdraw)."""
-    if (v.status or "").upper() != "CREATED":
+def _untouched(v, started_ok=False):
+    """A visit nobody has worked on yet (safe to withdraw). started_ok: a visit the
+    doctor only opened (IN_PROGRESS) but wrote nothing in also counts."""
+    if (v.status or "").upper() not in (("CREATED", "IN_PROGRESS") if started_ok else ("CREATED",)):
         return False
     for f in ("diagnosis", "treatment_done", "treatment_plan", "advice", "billing_note"):
         if str(getattr(v, f, "") or "").strip():
@@ -884,6 +885,31 @@ def sync_today(force=False):
                 if r is not None and str(r.get("appointment_date"))[:10] != day:
                     sb_update(r["id"], {"visit_id": None})          # it gets a new visit on its new day
                 report["withdrawn"] += 1
+    # bookings of today cancelled in the Appointments app (or anywhere) → the visit of that
+    # booking is withdrawn too, whoever made it (Reception's "Start visit", registration, the
+    # automatic visit after the doctor opened it ...), as long as nothing was written in it.
+    # A visit that still has another live booking of its own is left alone.
+    for r in rows:
+        if (r.get("status") or "").upper() != "CANCELLED":
+            continue
+        v = _visit_of_day(r, day)                         # only a visit of TODAY linked to this booking
+        if v is None or not _untouched(v, started_ok=True):
+            continue
+        others = [x for x in rows if x is not r and str(x.get("visit_id") or "") == str(v.id)
+                  and (x.get("status") or "").upper() != "CANCELLED"]
+        # the only other booking allowed is the copy the clinic app made for this same visit
+        if any((x.get("status") or "").upper() != "SCHEDULED" or (x.get("source") or "") != "clinic-visit" for x in others):
+            continue
+        v.status = "CANCELLED"
+        db.session.commit()
+        for x in others:
+            try:
+                sb_update(x["id"], {"status": "CANCELLED", "notes": _text(
+                    f"{x.get('notes') or ''} · Cancelled in the Appointments app".strip(" ·"), 500)})
+            except ApptError as e:
+                print("[appointments] could not cancel the clinic copy of the booking:", e.message)
+        print(f"[appointments] booking {r.get('id')} cancelled → visit {v.id} withdrawn")
+        report["withdrawn"] += 1
     if any(report.values()):
         print("[appointments] today's sync:", report)
     return report
